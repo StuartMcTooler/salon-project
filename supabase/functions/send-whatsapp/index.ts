@@ -1,4 +1,4 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+// Edge function for sending WhatsApp messages via Twilio
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

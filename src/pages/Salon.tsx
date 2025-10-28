@@ -7,7 +7,7 @@ import { User } from '@supabase/supabase-js';
 import { SalonServiceSelection } from "@/components/salon/SalonServiceSelection";
 import { SalonStaffSelection } from "@/components/salon/SalonStaffSelection";
 import { SalonCheckout } from "@/components/salon/SalonCheckout";
-import { LogOut, Scissors } from "lucide-react";
+import { LogOut, Scissors, Settings } from "lucide-react";
 
 type Step = 'service' | 'staff' | 'checkout';
 
@@ -16,14 +16,24 @@ const Salon = () => {
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [currentStep, setCurrentStep] = useState<Step>('service');
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
   const [selectedPricing, setSelectedPricing] = useState<any>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        const { data } = await supabase.rpc("has_role", {
+          _user_id: session.user.id,
+          _role: "admin",
+        });
+        setIsAdmin(!!data);
+      }
+      
       setLoading(false);
       
       if (!session?.user) {
@@ -32,8 +42,17 @@ const Salon = () => {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          const { data } = await supabase.rpc("has_role", {
+            _user_id: session.user.id,
+            _role: "admin",
+          });
+          setIsAdmin(!!data);
+        }
+        
         if (!session?.user) {
           navigate("/auth");
         }
@@ -102,10 +121,18 @@ const Salon = () => {
             <Scissors className="h-6 w-6 text-primary" />
             <h1 className="text-2xl font-bold">Salon Booking</h1>
           </div>
-          <Button variant="ghost" onClick={handleSignOut}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
+          <div className="flex gap-2">
+            {isAdmin && (
+              <Button variant="outline" onClick={() => navigate("/admin")}>
+                <Settings className="mr-2 h-4 w-4" />
+                Admin
+              </Button>
+            )}
+            <Button variant="ghost" onClick={handleSignOut}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 

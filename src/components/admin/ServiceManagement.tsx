@@ -14,7 +14,7 @@ interface Service {
   id: string;
   name: string;
   description: string | null;
-  base_price: number;
+  suggested_price: number | null;
   duration_minutes: number;
   is_active: boolean;
 }
@@ -27,7 +27,7 @@ export function ServiceManagement() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    base_price: "",
+    suggested_price: "",
     duration_minutes: "",
   });
 
@@ -55,7 +55,7 @@ export function ServiceManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.base_price || !formData.duration_minutes) {
+    if (!formData.name || !formData.duration_minutes) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -64,7 +64,7 @@ export function ServiceManagement() {
       const serviceData = {
         name: formData.name,
         description: formData.description || null,
-        base_price: parseFloat(formData.base_price),
+        suggested_price: formData.suggested_price ? parseFloat(formData.suggested_price) : null,
         duration_minutes: parseInt(formData.duration_minutes),
         is_active: true,
       };
@@ -88,7 +88,7 @@ export function ServiceManagement() {
 
       setDialogOpen(false);
       setEditingService(null);
-      setFormData({ name: "", description: "", base_price: "", duration_minutes: "" });
+      setFormData({ name: "", description: "", suggested_price: "", duration_minutes: "" });
       loadServices();
     } catch (error) {
       console.error("Error saving service:", error);
@@ -101,7 +101,7 @@ export function ServiceManagement() {
     setFormData({
       name: service.name,
       description: service.description || "",
-      base_price: service.base_price.toString(),
+      suggested_price: service.suggested_price?.toString() || "",
       duration_minutes: service.duration_minutes.toString(),
     });
     setDialogOpen(true);
@@ -128,7 +128,7 @@ export function ServiceManagement() {
   const handleDialogClose = () => {
     setDialogOpen(false);
     setEditingService(null);
-    setFormData({ name: "", description: "", base_price: "", duration_minutes: "" });
+    setFormData({ name: "", description: "", suggested_price: "", duration_minutes: "" });
   };
 
   if (loading) {
@@ -170,15 +170,16 @@ export function ServiceManagement() {
                 />
               </div>
               <div>
-                <Label htmlFor="base_price">Base Price ($) *</Label>
+                <Label htmlFor="suggested_price">Suggested Price ($)</Label>
                 <Input
-                  id="base_price"
+                  id="suggested_price"
                   type="number"
                   step="0.01"
-                  value={formData.base_price}
-                  onChange={(e) => setFormData({ ...formData, base_price: e.target.value })}
-                  required
+                  value={formData.suggested_price}
+                  onChange={(e) => setFormData({ ...formData, suggested_price: e.target.value })}
+                  placeholder="Optional reference price"
                 />
+                <p className="text-xs text-muted-foreground mt-1">Staff members set their own prices</p>
               </div>
               <div>
                 <Label htmlFor="duration_minutes">Duration (minutes) *</Label>
@@ -218,7 +219,7 @@ export function ServiceManagement() {
                 <TableRow>
                   <TableHead>Service Name</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead>Base Price</TableHead>
+                  <TableHead>Suggested Price</TableHead>
                   <TableHead>Duration</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -229,7 +230,7 @@ export function ServiceManagement() {
                   <TableRow key={service.id}>
                     <TableCell className="font-medium">{service.name}</TableCell>
                     <TableCell className="text-muted-foreground">{service.description || "-"}</TableCell>
-                    <TableCell>${service.base_price}</TableCell>
+                    <TableCell>{service.suggested_price ? `$${service.suggested_price}` : "-"}</TableCell>
                     <TableCell>{service.duration_minutes} min</TableCell>
                     <TableCell>
                       <span className={service.is_active ? "text-green-600" : "text-muted-foreground"}>

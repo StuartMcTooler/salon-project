@@ -62,7 +62,7 @@ export const SalonServiceSelection = ({ onSelect }: SalonServiceSelectionProps) 
                 </div>
                 <div className="flex items-center gap-1">
                   <DollarSign className="h-4 w-4" />
-                  <span>From ${service.base_price}</span>
+                  <span>Prices vary by stylist</span>
                 </div>
               </div>
               <Button onClick={() => onSelect(service)} className="w-full">

@@ -220,7 +220,6 @@ export type Database = {
       }
       services: {
         Row: {
-          base_price: number
           category_id: string | null
           created_at: string
           description: string | null
@@ -229,10 +228,10 @@ export type Database = {
           is_active: boolean | null
           name: string
           sort_order: number | null
+          suggested_price: number | null
           updated_at: string
         }
         Insert: {
-          base_price: number
           category_id?: string | null
           created_at?: string
           description?: string | null
@@ -241,10 +240,10 @@ export type Database = {
           is_active?: boolean | null
           name: string
           sort_order?: number | null
+          suggested_price?: number | null
           updated_at?: string
         }
         Update: {
-          base_price?: number
           category_id?: string | null
           created_at?: string
           description?: string | null
@@ -253,6 +252,7 @@ export type Database = {
           is_active?: boolean | null
           name?: string
           sort_order?: number | null
+          suggested_price?: number | null
           updated_at?: string
         }
         Relationships: [

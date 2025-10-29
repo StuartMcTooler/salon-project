@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 interface Service {
   id: string;
   name: string;
-  base_price: number;
+  suggested_price: number | null;
 }
 
 interface StaffMember {
@@ -50,7 +50,7 @@ export function ServicePricing() {
   const loadData = async () => {
     try {
       const [servicesRes, staffRes, pricingRes] = await Promise.all([
-        supabase.from("services").select("id, name, base_price").eq("is_active", true).order("name"),
+        supabase.from("services").select("id, name, suggested_price").eq("is_active", true).order("name"),
         supabase.from("staff_members").select("id, display_name, skill_level").eq("is_active", true).order("display_name"),
         supabase.from("staff_service_pricing").select("*"),
       ]);
@@ -77,7 +77,7 @@ export function ServicePricing() {
     services.forEach((service) => {
       const existing = staffPricing.find((p) => p.service_id === service.id);
       data[service.id] = {
-        price: existing?.custom_price || service.base_price,
+        price: existing?.custom_price || service.suggested_price || 0,
         available: existing?.is_available ?? true,
       };
     });
@@ -95,7 +95,7 @@ export function ServicePricing() {
       const updates = services.map((service) => ({
         staff_id: selectedStaff,
         service_id: service.id,
-        custom_price: pricingData[service.id]?.price || service.base_price,
+        custom_price: pricingData[service.id]?.price || service.suggested_price || 0,
         is_available: pricingData[service.id]?.available ?? true,
       }));
 
@@ -168,25 +168,29 @@ export function ServicePricing() {
       {selectedStaff && (
         <Card>
           <CardHeader>
-            <CardTitle>Set Custom Prices</CardTitle>
+            <CardTitle>Set Staff Prices</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">Each staff member must set their own prices for services they offer</p>
           </CardHeader>
           <CardContent className="space-y-4">
             {services.map((service) => (
               <div key={service.id} className="grid grid-cols-[1fr_auto_auto] gap-4 items-center p-4 border rounded-lg">
                 <div>
                   <p className="font-medium">{service.name}</p>
-                  <p className="text-sm text-muted-foreground">Base price: ${service.base_price}</p>
+                  {service.suggested_price && (
+                    <p className="text-sm text-muted-foreground">Suggested: ${service.suggested_price}</p>
+                  )}
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor={`price-${service.id}`}>Custom Price</Label>
+                  <Label htmlFor={`price-${service.id}`}>Price ($)</Label>
                   <Input
                     id={`price-${service.id}`}
                     type="number"
                     step="0.01"
-                    value={pricingData[service.id]?.price || service.base_price}
+                    value={pricingData[service.id]?.price || ""}
                     onChange={(e) => updatePrice(service.id, parseFloat(e.target.value))}
                     className="w-32"
+                    required
                   />
                 </div>
 

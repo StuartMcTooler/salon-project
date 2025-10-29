@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogOut, Loader2 } from "lucide-react";
 import { StaffManagement } from "@/components/admin/StaffManagement";
 import { ServicePricing } from "@/components/admin/ServicePricing";
+import { ServiceManagement } from "@/components/admin/ServiceManagement";
 import { toast } from "sonner";
 
 export default function Admin() {
@@ -78,11 +79,16 @@ export default function Admin() {
         <Tabs defaultValue="staff" className="space-y-6">
           <TabsList>
             <TabsTrigger value="staff">Staff Management</TabsTrigger>
+            <TabsTrigger value="services">Services</TabsTrigger>
             <TabsTrigger value="pricing">Service Pricing</TabsTrigger>
           </TabsList>
 
           <TabsContent value="staff">
             <StaffManagement />
+          </TabsContent>
+
+          <TabsContent value="services">
+            <ServiceManagement />
           </TabsContent>
 
           <TabsContent value="pricing">

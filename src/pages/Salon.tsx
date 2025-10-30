@@ -23,38 +23,52 @@ const Salon = () => {
   const [selectedPricing, setSelectedPricing] = useState<any>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
+    const checkAuthAndRole = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
+
+        if (!session?.user) {
+          setLoading(false);
+          navigate("/auth");
+          return;
+        }
+
+        setLoading(false);
+        
+        // Check admin role in background
         const { data } = await supabase.rpc("has_role", {
           _user_id: session.user.id,
           _role: "admin",
         });
         setIsAdmin(!!data);
-      }
-      
-      setLoading(false);
-      
-      if (!session?.user) {
+      } catch (error) {
+        console.error("Auth check failed:", error);
+        setLoading(false);
         navigate("/auth");
       }
-    });
+    };
+
+    checkAuthAndRole();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setUser(session?.user ?? null);
         
-        if (session?.user) {
+        if (!session?.user) {
+          navigate("/auth");
+          return;
+        }
+
+        try {
           const { data } = await supabase.rpc("has_role", {
             _user_id: session.user.id,
             _role: "admin",
           });
           setIsAdmin(!!data);
-        }
-        
-        if (!session?.user) {
-          navigate("/auth");
+        } catch (error) {
+          console.error("Role check failed:", error);
+          setIsAdmin(false);
         }
       }
     );

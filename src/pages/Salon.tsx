@@ -52,24 +52,30 @@ const Salon = () => {
     checkAuthAndRole();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, session) => {
         setUser(session?.user ?? null);
         
         if (!session?.user) {
+          setIsAdmin(false);
           navigate("/auth");
           return;
         }
 
-        try {
-          const { data } = await supabase.rpc("has_role", {
-            _user_id: session.user.id,
-            _role: "admin",
-          });
-          setIsAdmin(!!data);
-        } catch (error) {
-          console.error("Role check failed:", error);
-          setIsAdmin(false);
-        }
+        // Defer role check to avoid deadlocks per auth best practices
+        setTimeout(() => {
+          supabase
+            .rpc("has_role", {
+              _user_id: session.user.id,
+              _role: "admin",
+            })
+            .then(
+              ({ data }) => setIsAdmin(!!data),
+              (error) => {
+                console.error("Role check failed:", error);
+                setIsAdmin(false);
+              }
+            );
+        }, 0);
       }
     );
 

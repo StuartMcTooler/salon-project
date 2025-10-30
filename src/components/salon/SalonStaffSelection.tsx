@@ -83,7 +83,7 @@ export const SalonStaffSelection = ({ service, onSelect, onBack }: SalonStaffSel
                 )}
                 <div className="flex items-center justify-center gap-1 text-lg font-semibold">
                   <DollarSign className="h-5 w-5" />
-                  <span>${pricing.custom_price}</span>
+                  <span>€{pricing.custom_price}</span>
                 </div>
                 <Button onClick={() => onSelect(staff, pricing)} className="w-full">
                   Book with {staff.display_name}

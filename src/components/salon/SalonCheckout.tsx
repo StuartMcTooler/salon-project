@@ -110,7 +110,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
             </div>
             <div>
               <p className="text-muted-foreground">Price</p>
-              <p className="font-semibold">${pricing.custom_price}</p>
+              <p className="font-semibold">€{pricing.custom_price}</p>
             </div>
           </div>
         </CardContent>

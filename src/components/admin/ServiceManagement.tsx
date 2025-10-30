@@ -170,7 +170,7 @@ export function ServiceManagement() {
                 />
               </div>
               <div>
-                <Label htmlFor="suggested_price">Suggested Price ($)</Label>
+                <Label htmlFor="suggested_price">Suggested Price (€)</Label>
                 <Input
                   id="suggested_price"
                   type="number"
@@ -230,7 +230,7 @@ export function ServiceManagement() {
                   <TableRow key={service.id}>
                     <TableCell className="font-medium">{service.name}</TableCell>
                     <TableCell className="text-muted-foreground">{service.description || "-"}</TableCell>
-                    <TableCell>{service.suggested_price ? `$${service.suggested_price}` : "-"}</TableCell>
+                    <TableCell>{service.suggested_price ? `€${service.suggested_price}` : "-"}</TableCell>
                     <TableCell>{service.duration_minutes} min</TableCell>
                     <TableCell>
                       <span className={service.is_active ? "text-green-600" : "text-muted-foreground"}>

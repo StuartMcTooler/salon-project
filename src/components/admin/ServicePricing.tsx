@@ -177,12 +177,12 @@ export function ServicePricing() {
                 <div>
                   <p className="font-medium">{service.name}</p>
                   {service.suggested_price && (
-                    <p className="text-sm text-muted-foreground">Suggested: ${service.suggested_price}</p>
+                    <p className="text-sm text-muted-foreground">Suggested: €{service.suggested_price}</p>
                   )}
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor={`price-${service.id}`}>Price ($)</Label>
+                  <Label htmlFor={`price-${service.id}`}>Price (€)</Label>
                   <Input
                     id={`price-${service.id}`}
                     type="number"

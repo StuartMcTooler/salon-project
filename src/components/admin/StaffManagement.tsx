@@ -174,7 +174,7 @@ export function StaffManagement() {
               )}
               {member.hourly_rate && (
                 <p className="text-sm">
-                  <span className="font-medium">Hourly Rate:</span> ${member.hourly_rate}
+                  <span className="font-medium">Hourly Rate:</span> €{member.hourly_rate}
                 </p>
               )}
               <p className="text-sm">
@@ -260,7 +260,7 @@ function StaffForm({ staff, onSave }: { staff: StaffMember | null; onSave: (data
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="hourly_rate">Hourly Rate ($)</Label>
+          <Label htmlFor="hourly_rate">Hourly Rate (€)</Label>
           <Input
             id="hourly_rate"
             name="hourly_rate"

@@ -14,6 +14,194 @@ export type Database = {
   }
   public: {
     Tables: {
+      c2c_revenue_share: {
+        Row: {
+          created_at: string | null
+          id: string
+          invited_creative_id: string
+          inviter_creative_id: string
+          paid_at: string | null
+          referral_transaction_id: string
+          share_amount: number
+          share_percentage: number | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          invited_creative_id: string
+          inviter_creative_id: string
+          paid_at?: string | null
+          referral_transaction_id: string
+          share_amount: number
+          share_percentage?: number | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          invited_creative_id?: string
+          inviter_creative_id?: string
+          paid_at?: string | null
+          referral_transaction_id?: string
+          share_amount?: number
+          share_percentage?: number | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "c2c_revenue_share_invited_creative_id_fkey"
+            columns: ["invited_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "c2c_revenue_share_inviter_creative_id_fkey"
+            columns: ["inviter_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "c2c_revenue_share_referral_transaction_id_fkey"
+            columns: ["referral_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "referral_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_ownership: {
+        Row: {
+          client_email: string
+          client_name: string | null
+          client_phone: string | null
+          creative_id: string
+          id: string
+          source: string
+          tagged_at: string | null
+        }
+        Insert: {
+          client_email: string
+          client_name?: string | null
+          client_phone?: string | null
+          creative_id: string
+          id?: string
+          source: string
+          tagged_at?: string | null
+        }
+        Update: {
+          client_email?: string
+          client_name?: string | null
+          client_phone?: string | null
+          creative_id?: string
+          id?: string
+          source?: string
+          tagged_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_ownership_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creative_invites: {
+        Row: {
+          created_at: string | null
+          id: string
+          invite_code: string
+          invited_creative_id: string | null
+          inviter_creative_id: string
+          signup_completed_at: string | null
+          tenth_booking_completed_at: string | null
+          upfront_bonus_amount: number | null
+          upfront_bonus_paid: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          invite_code: string
+          invited_creative_id?: string | null
+          inviter_creative_id: string
+          signup_completed_at?: string | null
+          tenth_booking_completed_at?: string | null
+          upfront_bonus_amount?: number | null
+          upfront_bonus_paid?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          invite_code?: string
+          invited_creative_id?: string | null
+          inviter_creative_id?: string
+          signup_completed_at?: string | null
+          tenth_booking_completed_at?: string | null
+          upfront_bonus_amount?: number | null
+          upfront_bonus_paid?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creative_invites_invited_creative_id_fkey"
+            columns: ["invited_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creative_invites_inviter_creative_id_fkey"
+            columns: ["inviter_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creative_referral_terms: {
+        Row: {
+          commission_percentage: number
+          commission_type: Database["public"]["Enums"]["commission_type"]
+          created_at: string | null
+          creative_id: string
+          id: string
+          is_active: boolean | null
+          revenue_share_duration_months: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          commission_percentage: number
+          commission_type?: Database["public"]["Enums"]["commission_type"]
+          created_at?: string | null
+          creative_id: string
+          id?: string
+          is_active?: boolean | null
+          revenue_share_duration_months?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          commission_percentage?: number
+          commission_type?: Database["public"]["Enums"]["commission_type"]
+          created_at?: string | null
+          creative_id?: string
+          id?: string
+          is_active?: boolean | null
+          revenue_share_duration_months?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creative_referral_terms_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: true
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback: {
         Row: {
           audio_sentiment: string | null
@@ -115,6 +303,76 @@ export type Database = {
           referrer_name?: string
         }
         Relationships: []
+      }
+      referral_transactions: {
+        Row: {
+          appointment_id: string
+          booking_amount: number
+          client_email: string
+          commission_amount: number
+          commission_percentage: number
+          commission_type: Database["public"]["Enums"]["commission_type"]
+          created_at: string | null
+          id: string
+          paid_at: string | null
+          receiver_creative_id: string
+          referrer_creative_id: string | null
+          revenue_share_end_date: string | null
+          status: string | null
+        }
+        Insert: {
+          appointment_id: string
+          booking_amount: number
+          client_email: string
+          commission_amount: number
+          commission_percentage: number
+          commission_type: Database["public"]["Enums"]["commission_type"]
+          created_at?: string | null
+          id?: string
+          paid_at?: string | null
+          receiver_creative_id: string
+          referrer_creative_id?: string | null
+          revenue_share_end_date?: string | null
+          status?: string | null
+        }
+        Update: {
+          appointment_id?: string
+          booking_amount?: number
+          client_email?: string
+          commission_amount?: number
+          commission_percentage?: number
+          commission_type?: Database["public"]["Enums"]["commission_type"]
+          created_at?: string | null
+          id?: string
+          paid_at?: string | null
+          receiver_creative_id?: string
+          referrer_creative_id?: string | null
+          revenue_share_end_date?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_transactions_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_transactions_receiver_creative_id_fkey"
+            columns: ["receiver_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_transactions_referrer_creative_id_fkey"
+            columns: ["referrer_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       salon_appointments: {
         Row: {
@@ -361,6 +619,42 @@ export type Database = {
           },
         ]
       }
+      trusted_network: {
+        Row: {
+          added_at: string | null
+          alpha_creative_id: string
+          colleague_creative_id: string
+          id: string
+        }
+        Insert: {
+          added_at?: string | null
+          alpha_creative_id: string
+          colleague_creative_id: string
+          id?: string
+        }
+        Update: {
+          added_at?: string | null
+          alpha_creative_id?: string
+          colleague_creative_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trusted_network_alpha_creative_id_fkey"
+            columns: ["alpha_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trusted_network_colleague_creative_id_fkey"
+            columns: ["colleague_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_credits: {
         Row: {
           created_at: string
@@ -439,6 +733,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "staff" | "user"
+      commission_type: "finders_fee" | "revenue_share"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -567,6 +862,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "staff", "user"],
+      commission_type: ["finders_fee", "revenue_share"],
     },
   },
 } as const

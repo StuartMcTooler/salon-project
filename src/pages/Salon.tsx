@@ -7,7 +7,7 @@ import { User } from '@supabase/supabase-js';
 import { SalonServiceSelection } from "@/components/salon/SalonServiceSelection";
 import { SalonStaffSelection } from "@/components/salon/SalonStaffSelection";
 import { SalonCheckout } from "@/components/salon/SalonCheckout";
-import { LogOut, Scissors, Settings } from "lucide-react";
+import { LogOut, Scissors, Settings, Users } from "lucide-react";
 
 type Step = 'service' | 'staff' | 'checkout';
 
@@ -148,6 +148,10 @@ const Salon = () => {
                 Admin
               </Button>
             )}
+            <Button variant="outline" onClick={() => navigate("/referrals")}>
+              <Users className="mr-2 h-4 w-4" />
+              Referrals
+            </Button>
             <Button variant="ghost" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out

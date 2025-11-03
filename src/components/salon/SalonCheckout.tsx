@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,62 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState("");
   const [notes, setNotes] = useState("");
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+
+  // Query existing appointments for the selected date and staff
+  const { data: existingAppointments } = useQuery({
+    queryKey: ['appointments', staff.id, date?.toISOString().split('T')[0]],
+    queryFn: async () => {
+      if (!date) return [];
+      
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const { data, error } = await supabase
+        .from('salon_appointments')
+        .select('appointment_date, duration_minutes')
+        .eq('staff_id', staff.id)
+        .gte('appointment_date', startOfDay.toISOString())
+        .lte('appointment_date', endOfDay.toISOString())
+        .in('status', ['pending', 'confirmed']);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!date,
+  });
+
+  // Calculate booked time slots
+  useEffect(() => {
+    if (!existingAppointments || !date) {
+      setBookedSlots([]);
+      return;
+    }
+
+    const slots: string[] = [];
+    existingAppointments.forEach((appointment) => {
+      const appointmentTime = new Date(appointment.appointment_date);
+      const hours = appointmentTime.getHours();
+      const minutes = appointmentTime.getMinutes();
+      
+      // Calculate how many 30-min slots this appointment blocks
+      const slotsNeeded = Math.ceil(appointment.duration_minutes / 30);
+      
+      for (let i = 0; i < slotsNeeded; i++) {
+        const slotMinutes = minutes + (i * 30);
+        const slotHours = hours + Math.floor(slotMinutes / 60);
+        const finalMinutes = slotMinutes % 60;
+        
+        const timeSlot = `${slotHours.toString().padStart(2, '0')}:${finalMinutes.toString().padStart(2, '0')}`;
+        slots.push(timeSlot);
+      }
+    });
+
+    setBookedSlots(slots);
+  }, [existingAppointments, date]);
 
   const createAppointment = useMutation({
     mutationFn: async () => {
@@ -140,16 +196,21 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
             <div className="space-y-2">
               <Label>Available Times</Label>
               <div className="grid grid-cols-3 gap-2">
-                {['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'].map((timeSlot) => (
-                  <Button
-                    key={timeSlot}
-                    variant={time === timeSlot ? "default" : "outline"}
-                    onClick={() => setTime(timeSlot)}
-                    className="w-full"
-                  >
-                    {timeSlot}
-                  </Button>
-                ))}
+                {['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'].map((timeSlot) => {
+                  const isBooked = bookedSlots.includes(timeSlot);
+                  return (
+                    <Button
+                      key={timeSlot}
+                      variant={time === timeSlot ? "default" : "outline"}
+                      onClick={() => setTime(timeSlot)}
+                      disabled={isBooked}
+                      className="w-full"
+                    >
+                      {timeSlot}
+                      {isBooked && " (Booked)"}
+                    </Button>
+                  );
+                })}
               </div>
             </div>
           )}

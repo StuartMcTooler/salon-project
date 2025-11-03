@@ -100,7 +100,7 @@ export const ServiceManager = ({ staffId }: ServiceManagerProps) => {
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder={`$${Number(pricing.custom_price).toFixed(2)}`}
+                        placeholder={`€${Number(pricing.custom_price).toFixed(2)}`}
                         value={editingPrice[pricing.id] || ""}
                         onChange={(e) =>
                           setEditingPrice({ ...editingPrice, [pricing.id]: e.target.value })

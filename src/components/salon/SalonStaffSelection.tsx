@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, DollarSign } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 interface SalonStaffSelectionProps {
   service: any;
@@ -81,8 +81,7 @@ export const SalonStaffSelection = ({ service, onSelect, onBack }: SalonStaffSel
                     {staff.skill_level}
                   </Badge>
                 )}
-                <div className="flex items-center justify-center gap-1 text-lg font-semibold">
-                  <DollarSign className="h-5 w-5" />
+                <div className="flex items-center justify-center text-lg font-semibold">
                   <span>€{pricing.custom_price}</span>
                 </div>
                 <Button onClick={() => onSelect(staff, pricing)} className="w-full">

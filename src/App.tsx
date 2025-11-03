@@ -8,6 +8,9 @@ import Auth from "./pages/Auth";
 import Feedback from "./pages/Feedback";
 import Admin from "./pages/Admin";
 import ReferralHub from "./pages/ReferralHub";
+import Onboarding from "./pages/Onboarding";
+import Dashboard from "./pages/Dashboard";
+import AccountUpgrade from "./pages/AccountUpgrade";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +25,9 @@ const App = () => (
           <Route path="/" element={<Salon />} />
           <Route path="/salon" element={<Salon />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/settings/upgrade" element={<AccountUpgrade />} />
           <Route path="/feedback" element={<Feedback />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/referrals" element={<ReferralHub />} />

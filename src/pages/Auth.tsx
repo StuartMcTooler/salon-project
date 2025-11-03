@@ -29,7 +29,10 @@ const Auth = () => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          navigate("/salon");
+          // Defer navigation to avoid blocking auth callback
+          setTimeout(() => {
+            getRedirectPath(session.user.id).then(path => navigate(path));
+          }, 0);
         }
       }
     );
@@ -40,12 +43,39 @@ const Auth = () => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        navigate("/salon");
+        getRedirectPath(session.user.id).then(path => navigate(path));
       }
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  const getRedirectPath = async (userId: string): Promise<string> => {
+    try {
+      const { data: business } = await supabase
+        .from("business_accounts")
+        .select("business_type, owner_user_id")
+        .eq("owner_user_id", userId)
+        .single();
+
+      if (!business) return "/onboarding";
+
+      if (business.business_type === "solo_professional") {
+        return "/dashboard";
+      }
+
+      // Check if user is admin for multi-staff
+      const { data: isAdmin } = await supabase.rpc("has_role", {
+        _user_id: userId,
+        _role: "admin"
+      });
+
+      return isAdmin ? "/admin" : "/salon";
+    } catch (error) {
+      console.error("Error getting redirect path:", error);
+      return "/onboarding";
+    }
+  };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -20,9 +20,10 @@ interface SalonCheckoutProps {
   user: any;
   onBack: () => void;
   onComplete: () => void;
+  businessId?: string | null;
 }
 
-export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplete }: SalonCheckoutProps) => {
+export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplete, businessId }: SalonCheckoutProps) => {
   const { toast } = useToast();
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState("");

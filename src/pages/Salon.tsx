@@ -21,6 +21,8 @@ const Salon = () => {
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
   const [selectedPricing, setSelectedPricing] = useState<any>(null);
+  const [businessId, setBusinessId] = useState<string | null>(null);
+  const [businessType, setBusinessType] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuthAndRole = async () => {
@@ -42,6 +44,20 @@ const Salon = () => {
           _role: "admin",
         });
         setIsAdmin(!!data);
+
+        // Check if there's a business to book with (for public booking page)
+        // For now, we'll fetch the first available business
+        // In a real app, you'd pass businessId via URL params
+        const { data: businesses } = await supabase
+          .from("business_accounts")
+          .select("id, business_type")
+          .eq("is_active", true)
+          .limit(1);
+
+        if (businesses && businesses.length > 0) {
+          setBusinessId(businesses[0].id);
+          setBusinessType(businesses[0].business_type);
+        }
       } catch (error) {
         console.error("Auth check failed:", error);
         setLoading(false);
@@ -162,7 +178,12 @@ const Salon = () => {
 
       <main className="container mx-auto px-4 py-8">
         {currentStep === 'service' && (
-          <SalonServiceSelection onSelect={handleServiceSelect} />
+          <SalonServiceSelection 
+            onSelect={handleServiceSelect}
+            businessId={businessId}
+            businessType={businessType}
+            onStaffAutoSelect={handleStaffSelect}
+          />
         )}
         
         {currentStep === 'staff' && selectedService && (
@@ -181,6 +202,7 @@ const Salon = () => {
             user={user!}
             onBack={handleBack}
             onComplete={handleBookingComplete}
+            businessId={businessId}
           />
         )}
       </main>

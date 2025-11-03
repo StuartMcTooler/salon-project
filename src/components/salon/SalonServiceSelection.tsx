@@ -4,12 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Clock, DollarSign } from "lucide-react";
+import { WalkInBanner } from "@/components/booking/WalkInBanner";
 
 interface SalonServiceSelectionProps {
   onSelect: (service: any) => void;
+  businessId: string | null;
+  businessType: string | null;
+  onStaffAutoSelect: (staff: any, pricing: any) => void;
 }
 
-export const SalonServiceSelection = ({ onSelect }: SalonServiceSelectionProps) => {
+export const SalonServiceSelection = ({ onSelect, businessId, businessType, onStaffAutoSelect }: SalonServiceSelectionProps) => {
   const { data: services, isLoading } = useQuery({
     queryKey: ['services'],
     queryFn: async () => {
@@ -27,6 +31,38 @@ export const SalonServiceSelection = ({ onSelect }: SalonServiceSelectionProps) 
     },
   });
 
+  const handleServiceSelect = async (service: any) => {
+    if (businessType === "solo_professional" && businessId) {
+      try {
+        const { data: staff, error: staffError } = await supabase
+          .from("staff_members")
+          .select("*")
+          .eq("business_id", businessId)
+          .eq("is_active", true)
+          .single();
+
+        if (staffError) throw staffError;
+
+        const { data: pricing, error: pricingError } = await supabase
+          .from("staff_service_pricing")
+          .select("*")
+          .eq("staff_id", staff.id)
+          .eq("service_id", service.id)
+          .eq("is_available", true)
+          .single();
+
+        if (pricingError) throw pricingError;
+
+        onStaffAutoSelect(staff, pricing);
+      } catch (error) {
+        console.error("Error auto-selecting staff:", error);
+        onSelect(service);
+      }
+    } else {
+      onSelect(service);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -42,6 +78,8 @@ export const SalonServiceSelection = ({ onSelect }: SalonServiceSelectionProps) 
 
   return (
     <div className="space-y-6">
+      {businessId && <WalkInBanner businessId={businessId} />}
+      
       <div>
         <h2 className="text-3xl font-bold mb-2">Select a Service</h2>
         <p className="text-muted-foreground">Choose the service you'd like to book</p>
@@ -65,7 +103,7 @@ export const SalonServiceSelection = ({ onSelect }: SalonServiceSelectionProps) 
                   <span>Prices vary by stylist</span>
                 </div>
               </div>
-              <Button onClick={() => onSelect(service)} className="w-full">
+              <Button onClick={() => handleServiceSelect(service)} className="w-full">
                 Select Service
               </Button>
             </CardContent>

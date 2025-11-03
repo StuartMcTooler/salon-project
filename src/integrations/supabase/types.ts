@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      business_accounts: {
+        Row: {
+          address: string | null
+          business_name: string
+          business_type: Database["public"]["Enums"]["business_type"]
+          created_at: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          logo_url: string | null
+          owner_user_id: string
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          business_name: string
+          business_type: Database["public"]["Enums"]["business_type"]
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          owner_user_id: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          business_name?: string
+          business_type?: Database["public"]["Enums"]["business_type"]
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          owner_user_id?: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       c2c_revenue_share: {
         Row: {
           created_at: string | null
@@ -526,6 +568,7 @@ export type Database = {
       staff_members: {
         Row: {
           bio: string | null
+          business_id: string | null
           commission_rate: number | null
           created_at: string
           display_name: string
@@ -542,6 +585,7 @@ export type Database = {
         }
         Insert: {
           bio?: string | null
+          business_id?: string | null
           commission_rate?: number | null
           created_at?: string
           display_name: string
@@ -558,6 +602,7 @@ export type Database = {
         }
         Update: {
           bio?: string | null
+          business_id?: string | null
           commission_rate?: number | null
           created_at?: string
           display_name?: string
@@ -572,7 +617,15 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "staff_members_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       staff_service_pricing: {
         Row: {
@@ -718,6 +771,44 @@ export type Database = {
         }
         Relationships: []
       }
+      walk_in_settings: {
+        Row: {
+          allow_walk_ins: boolean | null
+          business_id: string
+          created_at: string | null
+          id: string
+          updated_at: string | null
+          walk_in_buffer_minutes: number | null
+          walk_in_notice_text: string | null
+        }
+        Insert: {
+          allow_walk_ins?: boolean | null
+          business_id: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          walk_in_buffer_minutes?: number | null
+          walk_in_notice_text?: string | null
+        }
+        Update: {
+          allow_walk_ins?: boolean | null
+          business_id?: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          walk_in_buffer_minutes?: number | null
+          walk_in_notice_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "walk_in_settings_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "business_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -733,6 +824,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "staff" | "user"
+      business_type: "multi_staff_salon" | "solo_professional"
       commission_type: "finders_fee" | "revenue_share"
     }
     CompositeTypes: {
@@ -862,6 +954,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "staff", "user"],
+      business_type: ["multi_staff_salon", "solo_professional"],
       commission_type: ["finders_fee", "revenue_share"],
     },
   },

@@ -119,8 +119,8 @@ const POS = () => {
     );
   }
 
-  // Admin staff selection view
-  if (isAdmin && !staffMember) {
+  // Admin staff selection view (only for admins)
+  if (isAdmin && !staffMember && availableStaff.length > 0) {
     return (
       <div className="min-h-screen bg-background">
         <div className="border-b bg-card">
@@ -161,6 +161,19 @@ const POS = () => {
               </Button>
             ))}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If not admin and no staff member found, show error
+  if (!staffMember) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+          <p className="text-muted-foreground mb-4">Unable to load POS system</p>
+          <Button onClick={handleSignOut}>Sign Out</Button>
         </div>
       </div>
     );

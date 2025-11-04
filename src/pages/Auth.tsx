@@ -52,25 +52,45 @@ const Auth = () => {
 
   const getRedirectPath = async (userId: string): Promise<string> => {
     try {
-      const { data: business } = await supabase
-        .from("business_accounts")
-        .select("business_type, owner_user_id")
-        .eq("owner_user_id", userId)
-        .single();
-
-      if (!business) return "/onboarding";
-
-      if (business.business_type === "solo_professional") {
-        return "/dashboard";
-      }
-
-      // Check if user is admin for multi-staff
+      // Check if user is admin first
       const { data: isAdmin } = await supabase.rpc("has_role", {
         _user_id: userId,
         _role: "admin"
       });
 
-      return isAdmin ? "/admin" : "/salon";
+      if (isAdmin) {
+        return "/admin";
+      }
+
+      // Check if user is a staff member
+      const { data: staffMember } = await supabase
+        .from("staff_members")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (staffMember) {
+        // Staff members go to POS
+        return "/pos";
+      }
+
+      // Check if user has a business account
+      const { data: business } = await supabase
+        .from("business_accounts")
+        .select("business_type, owner_user_id")
+        .eq("owner_user_id", userId)
+        .maybeSingle();
+
+      if (!business) {
+        return "/onboarding";
+      }
+
+      // Business owners route based on type
+      if (business.business_type === "solo_professional") {
+        return "/dashboard";
+      }
+
+      return "/salon";
     } catch (error) {
       console.error("Error getting redirect path:", error);
       return "/onboarding";

@@ -230,7 +230,7 @@ const POS = () => {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => navigate('/')}>
+              <Button variant="ghost" onClick={() => navigate('/pos')}>
                 <Home className="mr-2 h-4 w-4" />
                 Home
               </Button>

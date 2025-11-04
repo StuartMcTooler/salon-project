@@ -8,6 +8,7 @@ import { QuickStats } from "@/components/dashboard/QuickStats";
 import { BookingCalendar } from "@/components/dashboard/BookingCalendar";
 import { ServiceManager } from "@/components/dashboard/ServiceManager";
 import { WalkInToggle } from "@/components/dashboard/WalkInToggle";
+import { MyLoyaltySettings } from "@/components/dashboard/MyLoyaltySettings";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -91,6 +92,9 @@ const Dashboard = () => {
             <h1 className="text-2xl font-bold">Solo Dashboard</h1>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate("/pos")}>
+              Walk-In POS
+            </Button>
             <Button variant="outline" onClick={() => navigate("/settings/upgrade")}>
               Upgrade to Multi-staff
             </Button>
@@ -125,6 +129,9 @@ const Dashboard = () => {
 
           <TabsContent value="settings">
             <WalkInToggle businessId={businessId} />
+            <div className="mt-6">
+              <MyLoyaltySettings staffId={staffId} businessId={businessId} />
+            </div>
           </TabsContent>
         </Tabs>
       </main>

@@ -7,12 +7,14 @@ import { LogOut, Loader2 } from "lucide-react";
 import { StaffManagement } from "@/components/admin/StaffManagement";
 import { ServicePricing } from "@/components/admin/ServicePricing";
 import { ServiceManagement } from "@/components/admin/ServiceManagement";
+import { LoyaltyProgramSettings } from "@/components/admin/LoyaltyProgramSettings";
 import { toast } from "sonner";
 
 export default function Admin() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [businessId, setBusinessId] = useState<string>("");
 
   useEffect(() => {
     checkAdminAccess();
@@ -36,6 +38,17 @@ export default function Admin() {
         toast.error("Access denied. Admin privileges required.");
         navigate("/salon");
         return;
+      }
+
+      // Get business ID
+      const { data: business } = await supabase
+        .from("business_accounts")
+        .select("id")
+        .eq("owner_user_id", user.id)
+        .single();
+
+      if (business) {
+        setBusinessId(business.id);
       }
 
       setIsAdmin(true);
@@ -68,10 +81,15 @@ export default function Admin() {
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-          <Button variant="outline" onClick={handleSignOut}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate("/pos")}>
+              Walk-In POS
+            </Button>
+            <Button variant="outline" onClick={handleSignOut}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -81,6 +99,7 @@ export default function Admin() {
             <TabsTrigger value="staff">Staff Management</TabsTrigger>
             <TabsTrigger value="services">Services</TabsTrigger>
             <TabsTrigger value="pricing">Service Pricing</TabsTrigger>
+            <TabsTrigger value="loyalty">Loyalty Program</TabsTrigger>
           </TabsList>
 
           <TabsContent value="staff">
@@ -93,6 +112,10 @@ export default function Admin() {
 
           <TabsContent value="pricing">
             <ServicePricing />
+          </TabsContent>
+
+          <TabsContent value="loyalty">
+            <LoyaltyProgramSettings businessId={businessId} />
           </TabsContent>
         </Tabs>
       </main>

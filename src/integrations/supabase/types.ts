@@ -203,6 +203,62 @@ export type Database = {
           },
         ]
       }
+      creative_loyalty_settings: {
+        Row: {
+          birthday_bonus: number | null
+          created_at: string
+          creative_id: string
+          first_visit_bonus: number | null
+          id: string
+          is_active: boolean
+          milestone_100_bonus: number | null
+          milestone_1000_bonus: number | null
+          milestone_500_bonus: number | null
+          override_points_per_euro: number | null
+          override_redemption_value: number | null
+          referral_bonus: number | null
+          updated_at: string
+        }
+        Insert: {
+          birthday_bonus?: number | null
+          created_at?: string
+          creative_id: string
+          first_visit_bonus?: number | null
+          id?: string
+          is_active?: boolean
+          milestone_100_bonus?: number | null
+          milestone_1000_bonus?: number | null
+          milestone_500_bonus?: number | null
+          override_points_per_euro?: number | null
+          override_redemption_value?: number | null
+          referral_bonus?: number | null
+          updated_at?: string
+        }
+        Update: {
+          birthday_bonus?: number | null
+          created_at?: string
+          creative_id?: string
+          first_visit_bonus?: number | null
+          id?: string
+          is_active?: boolean
+          milestone_100_bonus?: number | null
+          milestone_1000_bonus?: number | null
+          milestone_500_bonus?: number | null
+          override_points_per_euro?: number | null
+          override_redemption_value?: number | null
+          referral_bonus?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creative_loyalty_settings_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: true
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creative_referral_terms: {
         Row: {
           commission_percentage: number
@@ -239,6 +295,62 @@ export type Database = {
             foreignKeyName: "creative_referral_terms_creative_id_fkey"
             columns: ["creative_id"]
             isOneToOne: true
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_loyalty_points: {
+        Row: {
+          created_at: string
+          creative_id: string
+          current_balance: number
+          customer_email: string
+          customer_name: string
+          customer_phone: string | null
+          first_visit_date: string
+          id: string
+          last_visit_date: string
+          lifetime_earned: number
+          lifetime_redeemed: number
+          total_visits: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          creative_id: string
+          current_balance?: number
+          customer_email: string
+          customer_name: string
+          customer_phone?: string | null
+          first_visit_date?: string
+          id?: string
+          last_visit_date?: string
+          lifetime_earned?: number
+          lifetime_redeemed?: number
+          total_visits?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          creative_id?: string
+          current_balance?: number
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string | null
+          first_visit_date?: string
+          id?: string
+          last_visit_date?: string
+          lifetime_earned?: number
+          lifetime_redeemed?: number
+          total_visits?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_loyalty_points_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
             referencedRelation: "staff_members"
             referencedColumns: ["id"]
           },
@@ -291,6 +403,107 @@ export type Database = {
           text_sentiment_score?: number | null
         }
         Relationships: []
+      }
+      loyalty_program_settings: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          is_enabled: boolean
+          min_points_for_redemption: number
+          points_expiry_days: number | null
+          points_per_euro_spent: number
+          points_redemption_value: number
+          updated_at: string
+          welcome_bonus_points: number | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          min_points_for_redemption?: number
+          points_expiry_days?: number | null
+          points_per_euro_spent?: number
+          points_redemption_value?: number
+          updated_at?: string
+          welcome_bonus_points?: number | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          min_points_for_redemption?: number
+          points_expiry_days?: number | null
+          points_per_euro_spent?: number
+          points_redemption_value?: number
+          updated_at?: string
+          welcome_bonus_points?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_program_settings_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "business_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_transactions: {
+        Row: {
+          appointment_id: string | null
+          balance_after: number
+          booking_amount: number | null
+          created_at: string
+          creative_id: string
+          customer_email: string
+          id: string
+          notes: string | null
+          points_change: number
+          transaction_type: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          balance_after: number
+          booking_amount?: number | null
+          created_at?: string
+          creative_id: string
+          customer_email: string
+          id?: string
+          notes?: string | null
+          points_change: number
+          transaction_type: string
+        }
+        Update: {
+          appointment_id?: string | null
+          balance_after?: number
+          booking_amount?: number | null
+          created_at?: string
+          creative_id?: string
+          customer_email?: string
+          id?: string
+          notes?: string | null
+          points_change?: number
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_transactions_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_transactions_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

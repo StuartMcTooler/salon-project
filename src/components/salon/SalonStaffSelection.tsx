@@ -35,17 +35,23 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
         return data;
       } else {
         // Staff-first mode: Show all active staff
-        const { data, error } = await supabase
+        let query = supabase
           .from('staff_members')
           .select('*')
-          .eq('business_id', businessId)
           .eq('is_active', true);
+        
+        // Only filter by business_id if one exists
+        if (businessId) {
+          query = query.eq('business_id', businessId);
+        }
+        
+        const { data, error } = await query;
         
         if (error) throw error;
         return data.map(staff => ({ staff, custom_price: null }));
       }
     },
-    enabled: !!businessId,
+    enabled: true, // Always enabled, business_id is optional
   });
 
   if (isLoading) {

@@ -39,6 +39,10 @@ export const PostCheckoutActions = ({
 
   const sendWhatsApp = useMutation({
     mutationFn: async ({ message, actionType }: { message: string; actionType: string }) => {
+      if (!appointment.customer_phone) {
+        throw new Error("No phone number provided");
+      }
+
       const { error } = await supabase.functions.invoke('send-whatsapp', {
         body: {
           to: appointment.customer_phone,
@@ -111,9 +115,11 @@ export const PostCheckoutActions = ({
         </DialogHeader>
 
         <div className="space-y-3 py-4">
-          <p className="text-sm font-medium">Send to {appointment.customer_phone}:</p>
+          {appointment.customer_phone ? (
+            <>
+              <p className="text-sm font-medium">Send to {appointment.customer_phone}:</p>
 
-          <Button
+              <Button
             variant="outline"
             className="w-full justify-start h-auto py-4"
             onClick={handleSendBookingLink}
@@ -175,10 +181,17 @@ export const PostCheckoutActions = ({
               </span>
             </div>
           </Button>
+            </>
+          ) : (
+            <div className="text-center py-4 text-muted-foreground">
+              <p className="text-sm">No phone number provided for this customer.</p>
+              <p className="text-xs mt-1">Collect phone numbers to send booking links and feedback requests.</p>
+            </div>
+          )}
         </div>
 
         <Button variant="default" className="w-full" onClick={onClose}>
-          Skip - Next Customer
+          {appointment.customer_phone ? "Skip - Next Customer" : "Done - Next Customer"}
         </Button>
       </DialogContent>
     </Dialog>

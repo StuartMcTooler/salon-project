@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Pencil, Trash2, Plus, Loader2 } from "lucide-react";
+import { Pencil, Trash2, Plus, Loader2, UserPlus } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -22,6 +22,7 @@ interface StaffMember {
   commission_rate: number | null;
   hourly_rate: number | null;
   is_active: boolean;
+  user_id: string | null;
 }
 
 export function StaffManagement() {
@@ -29,10 +30,30 @@ export function StaffManagement() {
   const [loading, setLoading] = useState(true);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isMultiStaff, setIsMultiStaff] = useState(false);
+  const [creatingLogin, setCreatingLogin] = useState<string | null>(null);
 
   useEffect(() => {
     loadStaff();
+    checkBusinessType();
   }, []);
+
+  const checkBusinessType = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('business_accounts')
+        .select('business_type')
+        .eq('owner_user_id', user.id)
+        .single();
+
+      setIsMultiStaff(data?.business_type === 'multi_staff_salon');
+    } catch (error) {
+      console.error('Error checking business type:', error);
+    }
+  };
 
   const loadStaff = async () => {
     try {
@@ -106,6 +127,53 @@ export function StaffManagement() {
     } catch (error) {
       console.error("Error deleting staff:", error);
       toast.error("Failed to delete staff member");
+    }
+  };
+
+  const handleCreateLogin = async (staffMember: StaffMember) => {
+    setCreatingLogin(staffMember.id);
+    try {
+      // Generate test credentials
+      const email = `${staffMember.display_name.toLowerCase().replace(/\s+/g, '')}@test.com`;
+      const password = 'test123';
+
+      // Create auth user using admin function
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: staffMember.full_name,
+          }
+        }
+      });
+
+      if (signUpError) throw signUpError;
+      if (!authData.user) throw new Error('Failed to create user');
+
+      // Link user to staff member
+      const { error: updateError } = await supabase
+        .from('staff_members')
+        .update({ 
+          user_id: authData.user.id,
+          email: email 
+        })
+        .eq('id', staffMember.id);
+
+      if (updateError) throw updateError;
+
+      toast.success(`Login created for ${staffMember.display_name}`, {
+        description: `Email: ${email}, Password: test123`
+      });
+      
+      loadStaff();
+    } catch (error: any) {
+      console.error('Error creating login:', error);
+      toast.error('Failed to create login', {
+        description: error.message
+      });
+    } finally {
+      setCreatingLogin(null);
     }
   };
 
@@ -183,6 +251,32 @@ export function StaffManagement() {
                   {member.is_active ? "Active" : "Inactive"}
                 </span>
               </p>
+
+              {isMultiStaff && !member.user_id && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full mt-2"
+                  onClick={() => handleCreateLogin(member)}
+                  disabled={creatingLogin === member.id}
+                >
+                  {creatingLogin === member.id ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Create Login
+                    </>
+                  )}
+                </Button>
+              )}
+
+              {member.user_id && isMultiStaff && (
+                <p className="text-xs text-green-600 mt-2">✓ Login configured</p>
+              )}
             </CardContent>
           </Card>
         ))}

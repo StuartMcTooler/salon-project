@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Clock, DollarSign } from "lucide-react";
+import { Clock, Euro } from "lucide-react";
 import { WalkInBanner } from "@/components/booking/WalkInBanner";
 
 interface SalonServiceSelectionProps {
@@ -99,7 +99,7 @@ export const SalonServiceSelection = ({ onSelect, businessId, businessType, onSt
                   <span>{service.duration_minutes} min</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <DollarSign className="h-4 w-4" />
+                  <Euro className="h-4 w-4" />
                   <span>Prices vary by stylist</span>
                 </div>
               </div>

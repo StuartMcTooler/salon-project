@@ -217,58 +217,91 @@ const POS = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b bg-card">
-        <div className="max-w-6xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Scissors className="h-6 w-6" />
+        <div className="max-w-6xl mx-auto px-3 md:px-6 py-3 md:py-4">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
+              <Scissors className="h-5 w-5 md:h-6 md:w-6" />
               <div>
-                <h1 className="text-2xl font-bold">Walk-In POS</h1>
-                <p className="text-sm text-muted-foreground">
+                <h1 className="text-lg md:text-2xl font-bold">Walk-In POS</h1>
+                <p className="text-xs md:text-sm text-muted-foreground">
                   {staffMember?.display_name}
                   {isAdmin && " (Admin Mode)"}
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => navigate('/pos')}>
-                <Home className="mr-2 h-4 w-4" />
-                Home
+            <div className="flex flex-wrap gap-1 md:gap-2 w-full md:w-auto">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="md:size-default"
+                onClick={() => navigate('/pos')}
+              >
+                <Home className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Home</span>
               </Button>
               {staffMember && (
-                <Button variant="ghost" onClick={() => navigate('/referrals')}>
-                  <Users className="mr-2 h-4 w-4" />
-                  Referrals
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="md:size-default"
+                  onClick={() => navigate('/referrals')}
+                >
+                  <Users className="h-4 w-4 md:mr-2" />
+                  <span className="hidden md:inline">Referrals</span>
                 </Button>
               )}
               {isAdmin && (
                 <>
-                  <Button variant="ghost" onClick={() => navigate('/admin')}>
-                    <Users className="mr-2 h-4 w-4" />
-                    Admin
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="md:size-default"
+                    onClick={() => navigate('/admin')}
+                  >
+                    <Users className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">Admin</span>
                   </Button>
-                  <Button variant="ghost" onClick={() => setStaffMember(null)}>
-                    Change Staff
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="md:size-default text-xs md:text-sm"
+                    onClick={() => setStaffMember(null)}
+                  >
+                    <span className="hidden md:inline">Change Staff</span>
+                    <span className="md:hidden">Switch</span>
                   </Button>
                 </>
               )}
-              <Button variant="outline" onClick={handleSignOut}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="md:size-default"
+                onClick={handleSignOut}
+              >
+                <LogOut className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Sign Out</span>
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="max-w-6xl mx-auto p-3 md:p-6">
         <Tabs defaultValue="walkin" className="w-full">
-          <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3 mb-6">
-            <TabsTrigger value="walkin">Walk-In Customer</TabsTrigger>
-            <TabsTrigger value="book">
-              <Calendar className="mr-2 h-4 w-4" />
-              Book Appointment
+          <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3 mb-4 md:mb-6 h-auto">
+            <TabsTrigger value="walkin" className="text-xs md:text-sm px-2 md:px-4 py-2">
+              <span className="hidden sm:inline">Walk-In Customer</span>
+              <span className="sm:hidden">Walk-In</span>
             </TabsTrigger>
-            <TabsTrigger value="today">Today's Appointments</TabsTrigger>
+            <TabsTrigger value="book" className="text-xs md:text-sm px-2 md:px-4 py-2">
+              <Calendar className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Book Appointment</span>
+              <span className="sm:hidden">Book</span>
+            </TabsTrigger>
+            <TabsTrigger value="today" className="text-xs md:text-sm px-2 md:px-4 py-2">
+              <span className="hidden sm:inline">Today's Appointments</span>
+              <span className="sm:hidden">Today</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="walkin" className="space-y-6">

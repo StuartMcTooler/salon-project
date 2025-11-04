@@ -48,18 +48,23 @@ const Onboarding = () => {
           displayName = profile?.name ?? undefined;
         }
         if (displayName) {
-          const search = `%${displayName.replace(/\./g, '').trim()}%`;
-          const { data: nameMatch } = await supabase
-            .from("staff_members")
-            .select("id")
-            .ilike("display_name", search)
-            .is("user_id", null)
-            .eq("is_active", true)
-            .maybeSingle();
+          // Extract first name for more flexible matching
+          const nameParts = displayName.replace(/\./g, '').replace(/'/g, '').trim().split(/\s+/);
+          const firstName = nameParts[0]?.toLowerCase() || '';
+          
+          if (firstName) {
+            const { data: nameMatch } = await supabase
+              .from("staff_members")
+              .select("id")
+              .ilike("display_name", `%${firstName}%`)
+              .is("user_id", null)
+              .eq("is_active", true)
+              .maybeSingle();
 
-          if (nameMatch) {
-            navigate("/pos");
-            return;
+            if (nameMatch) {
+              navigate("/pos");
+              return;
+            }
           }
         }
 

@@ -66,28 +66,33 @@ const POS = () => {
         .maybeSingle();
 
       if (!staff) {
-        // Attempt to link to an unassigned staff record that matches the user's display name
-        const displayName = (user.user_metadata?.name as string | undefined)?.replace(/\./g, '').trim();
+        // Attempt to link to an unassigned staff record that matches the user's first name
+        const displayName = (user.user_metadata?.name as string | undefined);
         if (displayName) {
-          const { data: candidate } = await supabase
-            .from('staff_members')
-            .select('id, display_name, business_id, is_active, user_id')
-            .ilike('display_name', `%${displayName}%`)
-            .is('user_id', null)
-            .eq('is_active', true)
-            .maybeSingle();
+          const nameParts = displayName.replace(/\./g, '').replace(/'/g, '').trim().split(/\s+/);
+          const firstName = nameParts[0]?.toLowerCase() || '';
+          
+          if (firstName) {
+            const { data: candidate } = await supabase
+              .from('staff_members')
+              .select('id, display_name, business_id, is_active, user_id')
+              .ilike('display_name', `%${firstName}%`)
+              .is('user_id', null)
+              .eq('is_active', true)
+              .maybeSingle();
 
-          if (candidate?.id) {
-            // Securely link via edge function
-            const { error: linkErr } = await supabase.functions.invoke('link-staff-self', { body: { staffId: candidate.id } });
-            if (!linkErr) {
-              const { data: refetched } = await supabase
-                .from('staff_members')
-                .select('*, business_id')
-                .eq('user_id', user.id)
-                .maybeSingle();
-              if (refetched) {
-                staff = refetched;
+            if (candidate?.id) {
+              // Securely link via edge function
+              const { error: linkErr } = await supabase.functions.invoke('link-staff-self', { body: { staffId: candidate.id } });
+              if (!linkErr) {
+                const { data: refetched } = await supabase
+                  .from('staff_members')
+                  .select('*, business_id')
+                  .eq('user_id', user.id)
+                  .maybeSingle();
+                if (refetched) {
+                  staff = refetched;
+                }
               }
             }
           }

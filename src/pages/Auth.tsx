@@ -74,6 +74,24 @@ const Auth = () => {
         return "/pos";
       }
 
+      // Fallback: if an unlinked staff record matches the user's display name, send to POS
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const displayName = (currentUser?.user_metadata as any)?.name as string | undefined;
+      if (displayName) {
+        const search = `%${displayName.replace(/\./g, '').trim()}%`;
+        const { data: nameMatch } = await supabase
+          .from("staff_members")
+          .select("id")
+          .ilike("display_name", search)
+          .is("user_id", null)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        if (nameMatch) {
+          return "/pos";
+        }
+      }
+
       // Check if user has a business account
       const { data: business } = await supabase
         .from("business_accounts")

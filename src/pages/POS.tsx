@@ -59,13 +59,42 @@ const POS = () => {
       }
 
       // Check if user is a staff member
-      const { data: staff, error } = await supabase
+      let { data: staff, error } = await supabase
         .from('staff_members')
         .select('*, business_id')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error || !staff) {
+      if (!staff) {
+        // Attempt to link to an unassigned staff record that matches the user's display name
+        const displayName = (user.user_metadata?.name as string | undefined)?.replace(/\./g, '').trim();
+        if (displayName) {
+          const { data: candidate } = await supabase
+            .from('staff_members')
+            .select('id, display_name, business_id, is_active, user_id')
+            .ilike('display_name', `%${displayName}%`)
+            .is('user_id', null)
+            .eq('is_active', true)
+            .maybeSingle();
+
+          if (candidate?.id) {
+            // Securely link via edge function
+            const { error: linkErr } = await supabase.functions.invoke('link-staff-self', { body: { staffId: candidate.id } });
+            if (!linkErr) {
+              const { data: refetched } = await supabase
+                .from('staff_members')
+                .select('*, business_id')
+                .eq('user_id', user.id)
+                .maybeSingle();
+              if (refetched) {
+                staff = refetched;
+              }
+            }
+          }
+        }
+      }
+
+      if (!staff) {
         toast({
           title: "Access Denied",
           description: "Only staff members or admins can access the POS system",

@@ -32,11 +32,8 @@ export const QuickCustomerForm = ({
 
   const createWalkIn = useMutation({
     mutationFn: async () => {
-      if (!customerName || !customerPhone) {
-        throw new Error("Please fill in customer name and phone");
-      }
-
-      if (!customerPhone.startsWith('+')) {
+      // Phone validation only if provided
+      if (customerPhone && !customerPhone.startsWith('+')) {
         throw new Error("Phone must include country code (e.g., +353)");
       }
 
@@ -48,8 +45,8 @@ export const QuickCustomerForm = ({
           service_id: service.service.id,
           service_name: service.service.name,
           staff_id: staffMember.id,
-          customer_name: customerName,
-          customer_phone: customerPhone,
+          customer_name: customerName || 'Walk-in Customer',
+          customer_phone: customerPhone || null,
           customer_email: customerEmail || null,
           appointment_date: now.toISOString(),
           duration_minutes: service.service.duration_minutes,
@@ -57,34 +54,36 @@ export const QuickCustomerForm = ({
           notes: notes || null,
           status: 'completed',
           payment_status: 'completed',
-          payment_method: 'cash',
+          payment_method: 'card',
         }])
         .select()
         .single();
 
       if (error) throw error;
 
-      // Award loyalty points
-      try {
-        const { data: loyaltyData, error: loyaltyError } = await supabase.functions.invoke(
-          'award-loyalty-points',
-          {
-            body: {
-              appointmentId: data.id,
-              creativeId: staffMember.id,
-              customerEmail: customerEmail || `${customerPhone}@phone.temp`,
-              customerName: customerName,
-              customerPhone: customerPhone,
-              bookingAmount: Number(service.custom_price),
-            },
-          }
-        );
+      // Award loyalty points only if we have customer contact info
+      if (customerEmail || customerPhone) {
+        try {
+          const { data: loyaltyData, error: loyaltyError } = await supabase.functions.invoke(
+            'award-loyalty-points',
+            {
+              body: {
+                appointmentId: data.id,
+                creativeId: staffMember.id,
+                customerEmail: customerEmail || `${customerPhone}@phone.temp`,
+                customerName: customerName || 'Walk-in Customer',
+                customerPhone: customerPhone || '',
+                bookingAmount: Number(service.custom_price),
+              },
+            }
+          );
 
-        if (!loyaltyError && loyaltyData) {
-          setLoyaltyResult(loyaltyData);
+          if (!loyaltyError && loyaltyData) {
+            setLoyaltyResult(loyaltyData);
+          }
+        } catch (loyaltyErr) {
+          console.error('Failed to award loyalty points:', loyaltyErr);
         }
-      } catch (loyaltyErr) {
-        console.error('Failed to award loyalty points:', loyaltyErr);
       }
 
       return data;
@@ -115,54 +114,74 @@ export const QuickCustomerForm = ({
         Back to Services
       </Button>
 
-      <Card>
+      {/* Payment Button - Primary Action */}
+      <Card className="border-primary/50">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>{service.service.name}</span>
-            <span className="text-2xl font-bold text-primary">
+            <span className="text-3xl font-bold text-primary">
               €{Number(service.custom_price).toFixed(2)}
             </span>
           </CardTitle>
           <CardDescription>
-            {service.service.duration_minutes} minutes
+            {service.service.duration_minutes} minutes • Tap or insert card
           </CardDescription>
         </CardHeader>
+        <CardContent>
+          <Button
+            size="lg"
+            className="w-full h-16 text-lg"
+            onClick={() => createWalkIn.mutate()}
+            disabled={createWalkIn.isPending}
+          >
+            {createWalkIn.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                Processing Payment...
+              </>
+            ) : (
+              <>
+                <CreditCard className="mr-2 h-6 w-6" />
+                Charge €{Number(service.custom_price).toFixed(2)}
+              </>
+            )}
+          </Button>
+        </CardContent>
       </Card>
 
+      {/* Optional Customer Details */}
       <Card>
         <CardHeader>
-          <CardTitle>Customer Details</CardTitle>
-          <CardDescription>Enter information for this walk-in customer</CardDescription>
+          <CardTitle>Customer Details (Optional)</CardTitle>
+          <CardDescription>Add details to award loyalty points and send follow-ups</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Customer Name *</Label>
+            <Label htmlFor="name">Customer Name</Label>
             <Input
               id="name"
               placeholder="Sarah Murphy"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone">Phone Number *</Label>
+            <Label htmlFor="phone">Phone Number</Label>
             <Input
               id="phone"
               type="tel"
               placeholder="+353 89 123 4567"
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
-              required
             />
             <p className="text-xs text-muted-foreground">
-              Include country code for WhatsApp messages
+              For loyalty points & WhatsApp follow-ups
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email (Optional)</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
@@ -173,13 +192,13 @@ export const QuickCustomerForm = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Label htmlFor="notes">Notes</Label>
             <Textarea
               id="notes"
-              placeholder="First time customer, requested..."
+              placeholder="Any special requests or notes..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              rows={3}
+              rows={2}
             />
           </div>
         </CardContent>
@@ -195,25 +214,6 @@ export const QuickCustomerForm = ({
           isFirstVisit={loyaltyResult.isFirstVisit}
         />
       )}
-
-      <Button
-        size="lg"
-        className="w-full"
-        onClick={() => createWalkIn.mutate()}
-        disabled={createWalkIn.isPending || !customerName || !customerPhone}
-      >
-        {createWalkIn.isPending ? (
-          <>
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            Processing...
-          </>
-        ) : (
-          <>
-            <CreditCard className="mr-2 h-5 w-5" />
-            Charge €{Number(service.custom_price).toFixed(2)}
-          </>
-        )}
-      </Button>
     </div>
   );
 };

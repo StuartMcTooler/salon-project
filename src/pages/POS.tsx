@@ -49,7 +49,15 @@ const POS = () => {
         
         if (staff) {
           setAvailableStaff(staff);
-          // Get business_id from first staff member
+          // If the admin also has a staff record, auto-select it
+          const selfStaff = staff.find((s: any) => s.user_id === user.id);
+          if (selfStaff) {
+            setStaffMember(selfStaff);
+            setBusinessId(selfStaff.business_id || '');
+            setLoading(false);
+            return;
+          }
+          // Fallback: use business_id from first staff member
           if (staff.length > 0) {
             setBusinessId(staff[0].business_id || '');
           }

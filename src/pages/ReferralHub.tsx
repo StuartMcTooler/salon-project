@@ -67,7 +67,7 @@ export default function ReferralHub() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/salon')}
+              onClick={() => navigate('/pos')}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>

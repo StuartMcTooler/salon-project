@@ -1,0 +1,277 @@
+import { useState, useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { Calendar } from "@/components/ui/calendar";
+import { ArrowLeft } from "lucide-react";
+import { ServiceGrid } from "./ServiceGrid";
+
+interface StaffBookingInterfaceProps {
+  staffId: string;
+}
+
+export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) => {
+  const { toast } = useToast();
+  const [selectedService, setSelectedService] = useState<any>(null);
+  const [date, setDate] = useState<Date>();
+  const [time, setTime] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [notes, setNotes] = useState("");
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+
+  const { data: existingAppointments } = useQuery({
+    queryKey: ['appointments', staffId, date?.toISOString().split('T')[0]],
+    queryFn: async () => {
+      if (!date) return [];
+      
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const { data, error } = await supabase
+        .from('salon_appointments')
+        .select('appointment_date, duration_minutes')
+        .eq('staff_id', staffId)
+        .gte('appointment_date', startOfDay.toISOString())
+        .lte('appointment_date', endOfDay.toISOString())
+        .in('status', ['pending', 'confirmed']);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!date && !!selectedService,
+  });
+
+  useEffect(() => {
+    if (!existingAppointments || !date) {
+      setBookedSlots([]);
+      return;
+    }
+
+    const slots: string[] = [];
+    existingAppointments.forEach((appointment) => {
+      const appointmentTime = new Date(appointment.appointment_date);
+      const hours = appointmentTime.getHours();
+      const minutes = appointmentTime.getMinutes();
+      
+      const slotsNeeded = Math.ceil(appointment.duration_minutes / 30);
+      
+      for (let i = 0; i < slotsNeeded; i++) {
+        const slotMinutes = minutes + (i * 30);
+        const slotHours = hours + Math.floor(slotMinutes / 60);
+        const finalMinutes = slotMinutes % 60;
+        
+        const timeSlot = `${slotHours.toString().padStart(2, '0')}:${finalMinutes.toString().padStart(2, '0')}`;
+        slots.push(timeSlot);
+      }
+    });
+
+    setBookedSlots(slots);
+  }, [existingAppointments, date]);
+
+  const createAppointment = useMutation({
+    mutationFn: async () => {
+      if (!date || !time) {
+        throw new Error("Please select both date and time");
+      }
+
+      if (!customerName.trim()) {
+        throw new Error("Please enter customer name");
+      }
+
+      const appointmentDateTime = new Date(date);
+      const [hours, minutes] = time.split(':');
+      appointmentDateTime.setHours(parseInt(hours), parseInt(minutes));
+
+      const { data, error } = await supabase
+        .from('salon_appointments')
+        .insert([
+          {
+            service_id: selectedService.service_id,
+            service_name: selectedService.service_name,
+            staff_id: staffId,
+            customer_name: customerName.trim(),
+            customer_email: customerEmail.trim() || null,
+            customer_phone: customerPhone.trim() || null,
+            appointment_date: appointmentDateTime.toISOString(),
+            duration_minutes: selectedService.duration_minutes,
+            price: selectedService.custom_price,
+            notes: notes.trim() || null,
+            status: 'confirmed',
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Appointment booked!",
+        description: `${customerName} is scheduled for ${time} on ${date?.toLocaleDateString()}`,
+      });
+      // Reset form
+      setSelectedService(null);
+      setDate(undefined);
+      setTime("");
+      setCustomerName("");
+      setCustomerPhone("");
+      setCustomerEmail("");
+      setNotes("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Booking failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  if (!selectedService) {
+    return (
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Select Service</h2>
+        <ServiceGrid staffId={staffId} onServiceSelect={setSelectedService} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" onClick={() => setSelectedService(null)}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Change Service
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Booking Details</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 text-sm border-b pb-4">
+            <div>
+              <p className="text-muted-foreground">Service</p>
+              <p className="font-semibold">{selectedService.service_name}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Duration</p>
+              <p className="font-semibold">{selectedService.duration_minutes} min</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Price</p>
+              <p className="font-semibold">€{selectedService.custom_price}</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="customer-name">Customer Name *</Label>
+              <Input
+                id="customer-name"
+                placeholder="Enter customer name"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="customer-phone">Phone (Optional)</Label>
+              <Input
+                id="customer-phone"
+                type="tel"
+                placeholder="Enter phone number"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="customer-email">Email (Optional)</Label>
+              <Input
+                id="customer-email"
+                type="email"
+                placeholder="Enter email address"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Select Date & Time</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label>Date</Label>
+            <div className="flex justify-center">
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={setDate}
+                disabled={(date) => date < new Date()}
+                className="rounded-md border"
+              />
+            </div>
+          </div>
+
+          {date && (
+            <div className="space-y-2">
+              <Label>Available Times</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'].map((timeSlot) => {
+                  const isBooked = bookedSlots.includes(timeSlot);
+                  return (
+                    <Button
+                      key={timeSlot}
+                      variant={time === timeSlot ? "default" : "outline"}
+                      onClick={() => setTime(timeSlot)}
+                      disabled={isBooked}
+                      className="w-full"
+                    >
+                      {timeSlot}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Textarea
+              id="notes"
+              placeholder="Any special requests?"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Button
+        onClick={() => createAppointment.mutate()}
+        disabled={createAppointment.isPending || !date || !time || !customerName.trim()}
+        className="w-full"
+        size="lg"
+      >
+        {createAppointment.isPending ? "Booking..." : "Confirm Booking"}
+      </Button>
+    </div>
+  );
+};

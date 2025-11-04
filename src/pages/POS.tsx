@@ -4,11 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Scissors, LogOut } from "lucide-react";
+import { Scissors, LogOut, Home, Users, Calendar } from "lucide-react";
 import { ServiceGrid } from "@/components/pos/ServiceGrid";
 import { QuickCustomerForm } from "@/components/pos/QuickCustomerForm";
 import { PostCheckoutActions } from "@/components/pos/PostCheckoutActions";
 import { TodaysAppointments } from "@/components/pos/TodaysAppointments";
+import { StaffBookingInterface } from "@/components/pos/StaffBookingInterface";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const POS = () => {
@@ -229,10 +230,26 @@ const POS = () => {
               </div>
             </div>
             <div className="flex gap-2">
-              {isAdmin && (
-                <Button variant="ghost" onClick={() => setStaffMember(null)}>
-                  Change Staff
+              <Button variant="ghost" onClick={() => navigate('/')}>
+                <Home className="mr-2 h-4 w-4" />
+                Home
+              </Button>
+              {staffMember && (
+                <Button variant="ghost" onClick={() => navigate('/referrals')}>
+                  <Users className="mr-2 h-4 w-4" />
+                  Referrals
                 </Button>
+              )}
+              {isAdmin && (
+                <>
+                  <Button variant="ghost" onClick={() => navigate('/admin')}>
+                    <Users className="mr-2 h-4 w-4" />
+                    Admin
+                  </Button>
+                  <Button variant="ghost" onClick={() => setStaffMember(null)}>
+                    Change Staff
+                  </Button>
+                </>
               )}
               <Button variant="outline" onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" />
@@ -245,8 +262,12 @@ const POS = () => {
 
       <div className="max-w-6xl mx-auto p-6">
         <Tabs defaultValue="walkin" className="w-full">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-6">
+          <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3 mb-6">
             <TabsTrigger value="walkin">Walk-In Customer</TabsTrigger>
+            <TabsTrigger value="book">
+              <Calendar className="mr-2 h-4 w-4" />
+              Book Appointment
+            </TabsTrigger>
             <TabsTrigger value="today">Today's Appointments</TabsTrigger>
           </TabsList>
 
@@ -267,6 +288,10 @@ const POS = () => {
                 onCheckoutComplete={handleCheckoutComplete}
               />
             )}
+          </TabsContent>
+
+          <TabsContent value="book">
+            <StaffBookingInterface staffId={staffMember?.id} />
           </TabsContent>
 
           <TabsContent value="today">

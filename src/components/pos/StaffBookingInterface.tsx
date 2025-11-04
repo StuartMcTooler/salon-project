@@ -97,13 +97,13 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
         .insert([
           {
             service_id: selectedService.service_id,
-            service_name: selectedService.service_name,
+            service_name: selectedService.service.name,
             staff_id: staffId,
             customer_name: customerName.trim(),
             customer_email: customerEmail.trim() || null,
             customer_phone: customerPhone.trim() || null,
             appointment_date: appointmentDateTime.toISOString(),
-            duration_minutes: selectedService.duration_minutes,
+            duration_minutes: selectedService.service.duration_minutes,
             price: selectedService.custom_price,
             notes: notes.trim() || null,
             status: 'confirmed',
@@ -164,11 +164,11 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
           <div className="grid grid-cols-2 gap-4 text-sm border-b pb-4">
             <div>
               <p className="text-muted-foreground">Service</p>
-              <p className="font-semibold">{selectedService.service_name}</p>
+              <p className="font-semibold">{selectedService.service.name}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Duration</p>
-              <p className="font-semibold">{selectedService.duration_minutes} min</p>
+              <p className="font-semibold">{selectedService.service.duration_minutes} min</p>
             </div>
             <div>
               <p className="text-muted-foreground">Price</p>

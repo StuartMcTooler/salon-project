@@ -25,6 +25,44 @@ const Onboarding = () => {
           return;
         }
 
+        // If user is a staff member, send straight to POS
+        const { data: staffMember } = await supabase
+          .from("staff_members")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (staffMember) {
+          navigate("/pos");
+          return;
+        }
+
+        // Fallback: if an unlinked staff record matches their name, let POS handle secure linking
+        let displayName = (user.user_metadata as any)?.name as string | undefined;
+        if (!displayName) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("name")
+            .eq("id", user.id)
+            .maybeSingle();
+          displayName = profile?.name ?? undefined;
+        }
+        if (displayName) {
+          const search = `%${displayName.replace(/\./g, '').trim()}%`;
+          const { data: nameMatch } = await supabase
+            .from("staff_members")
+            .select("id")
+            .ilike("display_name", search)
+            .is("user_id", null)
+            .eq("is_active", true)
+            .maybeSingle();
+
+          if (nameMatch) {
+            navigate("/pos");
+            return;
+          }
+        }
+
         // Check if user already has a business
         const { data: business } = await supabase
           .from("business_accounts")

@@ -76,7 +76,7 @@ const POS = () => {
             const { data: candidate } = await supabase
               .from('staff_members')
               .select('id, display_name, business_id, is_active, user_id')
-              .ilike('display_name', `%${firstName}%`)
+              .ilike('display_name', `%${(firstName.length >= 2 ? firstName.slice(0, 2) : firstName)}%`)
               .is('user_id', null)
               .eq('is_active', true)
               .maybeSingle();

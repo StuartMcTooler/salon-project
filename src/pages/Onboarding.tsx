@@ -53,10 +53,11 @@ const Onboarding = () => {
           const firstName = nameParts[0]?.toLowerCase() || '';
           
           if (firstName) {
+            const searchTerm = firstName.length >= 2 ? firstName.slice(0, 2) : firstName;
             const { data: nameMatch } = await supabase
               .from("staff_members")
               .select("id")
-              .ilike("display_name", `%${firstName}%`)
+              .ilike("display_name", `%${searchTerm}%`)
               .is("user_id", null)
               .eq("is_active", true)
               .maybeSingle();

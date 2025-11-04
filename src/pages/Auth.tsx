@@ -74,9 +74,17 @@ const Auth = () => {
         return "/pos";
       }
 
-      // Fallback: if an unlinked staff record matches the user's display name, send to POS
+      // Fallback: if an unlinked staff record matches the user's name (from auth metadata or profile), send to POS
       const { data: { user: currentUser } } = await supabase.auth.getUser();
-      const displayName = (currentUser?.user_metadata as any)?.name as string | undefined;
+      let displayName = (currentUser?.user_metadata as any)?.name as string | undefined;
+      if (!displayName) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("name")
+          .eq("id", userId)
+          .maybeSingle();
+        displayName = profile?.name ?? undefined;
+      }
       if (displayName) {
         const search = `%${displayName.replace(/\./g, '').trim()}%`;
         const { data: nameMatch } = await supabase

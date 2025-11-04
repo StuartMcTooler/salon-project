@@ -49,38 +49,7 @@ const POS = () => {
         
         if (staff) {
           setAvailableStaff(staff);
-          // If the admin also has a staff record, auto-select it
-          const selfStaff = staff.find((s: any) => s.user_id === user.id);
-          if (selfStaff) {
-            setStaffMember(selfStaff);
-            setBusinessId(selfStaff.business_id || '');
-            setLoading(false);
-            return;
-          }
-
-          // If admin has no linked staff record, try to securely link by display name
-          const displayName = (user.user_metadata?.name as string | undefined)?.replace(/\./g, '').trim();
-          if (displayName) {
-            const candidate = staff.find((s: any) => !s.user_id && s.is_active && String(s.display_name || '').toLowerCase().includes(displayName.toLowerCase()));
-            if (candidate?.id) {
-              const { error: linkErr } = await supabase.functions.invoke('link-staff-self', { body: { staffId: candidate.id } });
-              if (!linkErr) {
-                const { data: refetched } = await supabase
-                  .from('staff_members')
-                  .select('*')
-                  .eq('user_id', user.id)
-                  .maybeSingle();
-                if (refetched) {
-                  setStaffMember(refetched);
-                  setBusinessId(refetched.business_id || '');
-                  setLoading(false);
-                  return;
-                }
-              }
-            }
-          }
-
-          // Fallback: use business_id from first staff member
+          // Get business_id from first staff member
           if (staff.length > 0) {
             setBusinessId(staff[0].business_id || '');
           }

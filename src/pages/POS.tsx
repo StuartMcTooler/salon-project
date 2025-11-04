@@ -15,14 +15,16 @@ const POS = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [staffMember, setStaffMember] = useState<any>(null);
+  const [availableStaff, setAvailableStaff] = useState<any[]>([]);
   const [businessId, setBusinessId] = useState<string>("");
   const [selectedService, setSelectedService] = useState<any>(null);
   const [showPostCheckout, setShowPostCheckout] = useState(false);
   const [lastAppointment, setLastAppointment] = useState<any>(null);
 
   useEffect(() => {
-    const checkStaff = async () => {
+    const checkAccess = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
@@ -30,6 +32,33 @@ const POS = () => {
         return;
       }
 
+      // Check if user is admin
+      const { data: hasAdminRole } = await supabase.rpc('has_role', {
+        _user_id: user.id,
+        _role: 'admin'
+      });
+
+      if (hasAdminRole) {
+        // Admin can access - load all staff members to select from
+        setIsAdmin(true);
+        const { data: staff } = await supabase
+          .from('staff_members')
+          .select('*')
+          .eq('is_active', true)
+          .order('display_name');
+        
+        if (staff) {
+          setAvailableStaff(staff);
+          // Get business_id from first staff member
+          if (staff.length > 0) {
+            setBusinessId(staff[0].business_id || '');
+          }
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Check if user is a staff member
       const { data: staff, error } = await supabase
         .from('staff_members')
         .select('*, business_id')
@@ -39,7 +68,7 @@ const POS = () => {
       if (error || !staff) {
         toast({
           title: "Access Denied",
-          description: "Only staff members can access the POS system",
+          description: "Only staff members or admins can access the POS system",
           variant: "destructive",
         });
         navigate('/');
@@ -51,7 +80,7 @@ const POS = () => {
       setLoading(false);
     };
 
-    checkStaff();
+    checkAccess();
   }, [navigate, toast]);
 
   const handleSignOut = async () => {
@@ -90,6 +119,53 @@ const POS = () => {
     );
   }
 
+  // Admin staff selection view
+  if (isAdmin && !staffMember) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="border-b bg-card">
+          <div className="max-w-6xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Scissors className="h-6 w-6" />
+                <h1 className="text-2xl font-bold">Walk-In POS</h1>
+              </div>
+              <Button variant="outline" onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-2xl mx-auto p-6">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-semibold mb-2">Select Staff Member</h2>
+            <p className="text-muted-foreground">Choose which staff member to operate as</p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {availableStaff.map((staff) => (
+              <Button
+                key={staff.id}
+                variant="outline"
+                className="h-auto p-6 flex flex-col items-start gap-2"
+                onClick={() => setStaffMember(staff)}
+              >
+                <div className="font-semibold text-lg">{staff.display_name}</div>
+                {staff.skill_level && (
+                  <div className="text-sm text-muted-foreground capitalize">
+                    {staff.skill_level}
+                  </div>
+                )}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b bg-card">
@@ -100,14 +176,22 @@ const POS = () => {
               <div>
                 <h1 className="text-2xl font-bold">Walk-In POS</h1>
                 <p className="text-sm text-muted-foreground">
-                  {staffMember.display_name}
+                  {staffMember?.display_name}
+                  {isAdmin && " (Admin Mode)"}
                 </p>
               </div>
             </div>
-            <Button variant="outline" onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
+            <div className="flex gap-2">
+              {isAdmin && (
+                <Button variant="ghost" onClick={() => setStaffMember(null)}>
+                  Change Staff
+                </Button>
+              )}
+              <Button variant="outline" onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -124,7 +208,7 @@ const POS = () => {
               <>
                 <h2 className="text-xl font-semibold mb-4">Select Service</h2>
                 <ServiceGrid
-                  staffId={staffMember.id}
+                  staffId={staffMember?.id}
                   onServiceSelect={handleServiceSelect}
                 />
               </>
@@ -140,7 +224,7 @@ const POS = () => {
 
           <TabsContent value="today">
             <TodaysAppointments
-              staffId={staffMember.id}
+              staffId={staffMember?.id}
               onAppointmentSelect={handleAppointmentSelect}
             />
           </TabsContent>

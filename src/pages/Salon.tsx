@@ -9,7 +9,8 @@ import { SalonStaffSelection } from "@/components/salon/SalonStaffSelection";
 import { SalonCheckout } from "@/components/salon/SalonCheckout";
 import { LogOut, Scissors, Settings, Users } from "lucide-react";
 
-type Step = 'service' | 'staff' | 'checkout';
+type Step = 'staff' | 'service' | 'checkout';
+type BrowsingMode = 'staff-first' | 'service-first';
 
 const Salon = () => {
   const navigate = useNavigate();
@@ -17,7 +18,8 @@ const Salon = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [currentStep, setCurrentStep] = useState<Step>('service');
+  const [browsingMode, setBrowsingMode] = useState<BrowsingMode>('staff-first');
+  const [currentStep, setCurrentStep] = useState<Step>('staff');
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
   const [selectedPricing, setSelectedPricing] = useState<any>(null);
@@ -103,25 +105,61 @@ const Salon = () => {
     navigate("/auth");
   };
 
-  const handleServiceSelect = (service: any) => {
-    setSelectedService(service);
-    setCurrentStep('staff');
+  const handleBrowsingModeToggle = () => {
+    // Reset selections when switching modes
+    setSelectedService(null);
+    setSelectedStaff(null);
+    setSelectedPricing(null);
+    
+    // Toggle mode and set appropriate first step
+    if (browsingMode === 'staff-first') {
+      setBrowsingMode('service-first');
+      setCurrentStep('service');
+    } else {
+      setBrowsingMode('staff-first');
+      setCurrentStep('staff');
+    }
   };
 
-  const handleStaffSelect = (staff: any, pricing: any) => {
+  const handleServiceSelect = (service: any, pricing?: any) => {
+    setSelectedService(service);
+    
+    if (browsingMode === 'service-first') {
+      // Service selected first, now show available staff
+      setCurrentStep('staff');
+    } else {
+      // Service selected second (after staff), go to checkout
+      setSelectedPricing(pricing);
+      setCurrentStep('checkout');
+    }
+  };
+
+  const handleStaffSelect = (staff: any, pricing?: any) => {
     setSelectedStaff(staff);
-    setSelectedPricing(pricing);
-    setCurrentStep('checkout');
+    
+    if (browsingMode === 'staff-first') {
+      // Staff selected first, now show their services
+      setCurrentStep('service');
+    } else {
+      // Staff selected second (after service), go to checkout
+      setSelectedPricing(pricing);
+      setCurrentStep('checkout');
+    }
   };
 
   const handleBack = () => {
-    if (currentStep === 'staff') {
-      setCurrentStep('service');
-      setSelectedService(null);
-    } else if (currentStep === 'checkout') {
-      setCurrentStep('staff');
-      setSelectedStaff(null);
+    if (currentStep === 'checkout') {
+      // Go back to second step (depends on mode)
+      setCurrentStep(browsingMode === 'staff-first' ? 'service' : 'staff');
       setSelectedPricing(null);
+    } else if (currentStep === 'service' && browsingMode === 'staff-first') {
+      // In staff-first mode, go back to staff selection
+      setCurrentStep('staff');
+      setSelectedService(null);
+    } else if (currentStep === 'staff' && browsingMode === 'service-first') {
+      // In service-first mode, go back to service selection
+      setCurrentStep('service');
+      setSelectedStaff(null);
     }
   };
 
@@ -131,8 +169,8 @@ const Salon = () => {
       description: "Your appointment has been confirmed.",
     });
     
-    // Reset to start
-    setCurrentStep('service');
+    // Reset to start based on current mode
+    setCurrentStep(browsingMode === 'staff-first' ? 'staff' : 'service');
     setSelectedService(null);
     setSelectedStaff(null);
     setSelectedPricing(null);
@@ -177,20 +215,46 @@ const Salon = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {currentStep === 'service' && (
-          <SalonServiceSelection 
-            onSelect={handleServiceSelect}
+        {/* Mode Toggle - Only show on first step */}
+        {((currentStep === 'staff' && !selectedStaff) || (currentStep === 'service' && !selectedService)) && (
+          <div className="mb-6 flex justify-center">
+            <Button 
+              variant="outline" 
+              size="lg"
+              onClick={handleBrowsingModeToggle}
+              className="gap-2"
+            >
+              {browsingMode === 'staff-first' ? (
+                <>
+                  <Scissors className="h-4 w-4" />
+                  Browse by Service Instead →
+                </>
+              ) : (
+                <>
+                  <Users className="h-4 w-4" />
+                  ← Browse by Stylist Instead
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {currentStep === 'staff' && (
+          <SalonStaffSelection
+            selectedService={browsingMode === 'service-first' ? selectedService : null}
+            onSelect={handleStaffSelect}
+            onBack={browsingMode === 'service-first' ? handleBack : undefined}
             businessId={businessId}
-            businessType={businessType}
-            onStaffAutoSelect={handleStaffSelect}
           />
         )}
-        
-        {currentStep === 'staff' && selectedService && (
-          <SalonStaffSelection
-            service={selectedService}
-            onSelect={handleStaffSelect}
-            onBack={handleBack}
+
+        {currentStep === 'service' && (
+          <SalonServiceSelection 
+            selectedStaff={browsingMode === 'staff-first' ? selectedStaff : null}
+            onSelect={handleServiceSelect}
+            onBack={browsingMode === 'staff-first' ? handleBack : undefined}
+            businessId={businessId}
+            businessType={businessType}
           />
         )}
         

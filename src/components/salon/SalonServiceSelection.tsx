@@ -3,65 +3,55 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Clock, Euro } from "lucide-react";
+import { Clock, Euro, ArrowLeft } from "lucide-react";
 import { WalkInBanner } from "@/components/booking/WalkInBanner";
 
 interface SalonServiceSelectionProps {
-  onSelect: (service: any) => void;
+  selectedStaff: any | null;
+  onSelect: (service: any, pricing?: any) => void;
+  onBack?: () => void;
   businessId: string | null;
   businessType: string | null;
-  onStaffAutoSelect: (staff: any, pricing: any) => void;
 }
 
-export const SalonServiceSelection = ({ onSelect, businessId, businessType, onStaffAutoSelect }: SalonServiceSelectionProps) => {
-  const { data: services, isLoading } = useQuery({
-    queryKey: ['services'],
+export const SalonServiceSelection = ({ selectedStaff, onSelect, onBack, businessId, businessType }: SalonServiceSelectionProps) => {
+  const { data: servicesData, isLoading } = useQuery({
+    queryKey: selectedStaff 
+      ? ['services-for-staff', selectedStaff.id] 
+      : ['all-services'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('services')
-        .select(`
-          *,
-          category:service_categories(*)
-        `)
-        .eq('is_active', true)
-        .order('sort_order');
-      
-      if (error) throw error;
-      return data;
+      if (selectedStaff) {
+        // Staff-first mode: Show services this staff offers
+        const { data, error } = await supabase
+          .from('staff_service_pricing')
+          .select(`
+            *,
+            service:services(
+              *,
+              category:service_categories(*)
+            )
+          `)
+          .eq('staff_id', selectedStaff.id)
+          .eq('is_available', true);
+        
+        if (error) throw error;
+        return data;
+      } else {
+        // Service-first mode: Show all services
+        const { data, error } = await supabase
+          .from('services')
+          .select(`
+            *,
+            category:service_categories(*)
+          `)
+          .eq('is_active', true)
+          .order('sort_order');
+        
+        if (error) throw error;
+        return data.map(service => ({ service, custom_price: null }));
+      }
     },
   });
-
-  const handleServiceSelect = async (service: any) => {
-    if (businessType === "solo_professional" && businessId) {
-      try {
-        const { data: staff, error: staffError } = await supabase
-          .from("staff_members")
-          .select("*")
-          .eq("business_id", businessId)
-          .eq("is_active", true)
-          .single();
-
-        if (staffError) throw staffError;
-
-        const { data: pricing, error: pricingError } = await supabase
-          .from("staff_service_pricing")
-          .select("*")
-          .eq("staff_id", staff.id)
-          .eq("service_id", service.id)
-          .eq("is_available", true)
-          .single();
-
-        if (pricingError) throw pricingError;
-
-        onStaffAutoSelect(staff, pricing);
-      } catch (error) {
-        console.error("Error auto-selecting staff:", error);
-        onSelect(service);
-      }
-    } else {
-      onSelect(service);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -78,37 +68,65 @@ export const SalonServiceSelection = ({ onSelect, businessId, businessType, onSt
 
   return (
     <div className="space-y-6">
-      {businessId && <WalkInBanner businessId={businessId} />}
+      {businessId && !selectedStaff && <WalkInBanner businessId={businessId} />}
+      
+      {onBack && (
+        <Button variant="ghost" onClick={onBack}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+      )}
       
       <div>
-        <h2 className="text-3xl font-bold mb-2">Select a Service</h2>
-        <p className="text-muted-foreground">Choose the service you'd like to book</p>
+        <h2 className="text-3xl font-bold mb-2">
+          {selectedStaff 
+            ? `Services with ${selectedStaff.display_name}` 
+            : 'Select a Service'}
+        </h2>
+        <p className="text-muted-foreground">
+          {selectedStaff 
+            ? `Available services from your selected stylist`
+            : `Choose the service you'd like to book`
+          }
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {services?.map((service) => (
-          <Card key={service.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle>{service.name}</CardTitle>
-              <CardDescription>{service.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
-                  <span>{service.duration_minutes} min</span>
+        {servicesData?.map((item: any) => {
+          const service = 'service' in item ? item.service : item;
+          const pricing = 'custom_price' in item ? item.custom_price : null;
+          
+          return (
+            <Card key={service.id} className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <CardTitle>{service.name}</CardTitle>
+                <CardDescription>{service.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-4 w-4" />
+                    <span>{service.duration_minutes} min</span>
+                  </div>
+                  {selectedStaff && pricing ? (
+                    <div className="flex items-center gap-1 font-semibold text-foreground">
+                      <Euro className="h-4 w-4" />
+                      <span>€{pricing}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <Euro className="h-4 w-4" />
+                      <span>Prices vary</span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-1">
-                  <Euro className="h-4 w-4" />
-                  <span>Prices vary by stylist</span>
-                </div>
-              </div>
-              <Button onClick={() => handleServiceSelect(service)} className="w-full">
-                Select Service
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+                <Button onClick={() => onSelect(service, item)} className="w-full">
+                  {selectedStaff ? 'Book This Service' : 'Select Service'}
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

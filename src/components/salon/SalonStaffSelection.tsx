@@ -8,27 +8,44 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 
 interface SalonStaffSelectionProps {
-  service: any;
-  onSelect: (staff: any, pricing: any) => void;
-  onBack: () => void;
+  selectedService: any | null;
+  onSelect: (staff: any, pricing?: any) => void;
+  onBack?: () => void;
+  businessId: string | null;
 }
 
-export const SalonStaffSelection = ({ service, onSelect, onBack }: SalonStaffSelectionProps) => {
-  const { data: staffWithPricing, isLoading } = useQuery({
-    queryKey: ['staff-pricing', service.id],
+export const SalonStaffSelection = ({ selectedService, onSelect, onBack, businessId }: SalonStaffSelectionProps) => {
+  const { data: staffData, isLoading } = useQuery({
+    queryKey: selectedService 
+      ? ['staff-for-service', selectedService.id] 
+      : ['all-staff', businessId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('staff_service_pricing')
-        .select(`
-          *,
-          staff:staff_members(*)
-        `)
-        .eq('service_id', service.id)
-        .eq('is_available', true);
-      
-      if (error) throw error;
-      return data;
+      if (selectedService) {
+        // Service-first mode: Show staff who offer this service
+        const { data, error } = await supabase
+          .from('staff_service_pricing')
+          .select(`
+            *,
+            staff:staff_members(*)
+          `)
+          .eq('service_id', selectedService.id)
+          .eq('is_available', true);
+        
+        if (error) throw error;
+        return data;
+      } else {
+        // Staff-first mode: Show all active staff
+        const { data, error } = await supabase
+          .from('staff_members')
+          .select('*')
+          .eq('business_id', businessId)
+          .eq('is_active', true);
+        
+        if (error) throw error;
+        return data.map(staff => ({ staff, custom_price: null }));
+      }
     },
+    enabled: !!businessId,
   });
 
   if (isLoading) {
@@ -46,25 +63,34 @@ export const SalonStaffSelection = ({ service, onSelect, onBack }: SalonStaffSel
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={onBack}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
-      </div>
+      {onBack && (
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" onClick={onBack}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+        </div>
+      )}
 
       <div>
-        <h2 className="text-3xl font-bold mb-2">Select Your Stylist</h2>
+        <h2 className="text-3xl font-bold mb-2">
+          {selectedService ? `Select Stylist for ${selectedService.name}` : 'Choose Your Stylist'}
+        </h2>
         <p className="text-muted-foreground">
-          For: {service.name}
+          {selectedService 
+            ? `Available stylists for this service`
+            : `Browse our talented team and view their services`
+          }
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {staffWithPricing?.map((pricing) => {
-          const staff = pricing.staff;
+        {staffData?.map((item) => {
+          const staff = item.staff;
+          const pricing = item.custom_price;
+          
           return (
-            <Card key={pricing.id} className="hover:shadow-lg transition-shadow">
+            <Card key={staff.id} className="hover:shadow-lg transition-shadow">
               <CardHeader className="text-center">
                 <Avatar className="h-24 w-24 mx-auto mb-4">
                   <AvatarImage src={staff.profile_image_url} alt={staff.display_name} />
@@ -81,11 +107,16 @@ export const SalonStaffSelection = ({ service, onSelect, onBack }: SalonStaffSel
                     {staff.skill_level}
                   </Badge>
                 )}
-                <div className="flex items-center justify-center text-lg font-semibold">
-                  <span>€{pricing.custom_price}</span>
-                </div>
-                <Button onClick={() => onSelect(staff, pricing)} className="w-full">
-                  Book with {staff.display_name}
+                {selectedService && pricing && (
+                  <div className="flex items-center justify-center text-lg font-semibold">
+                    <span>€{pricing}</span>
+                  </div>
+                )}
+                <Button 
+                  onClick={() => onSelect(staff, item)} 
+                  className="w-full"
+                >
+                  {selectedService ? `Book with ${staff.display_name}` : `View Services →`}
                 </Button>
               </CardContent>
             </Card>

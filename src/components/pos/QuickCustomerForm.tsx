@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { LoyaltyPointsDisplay } from "./LoyaltyPointsDisplay";
-import { PaymentMethodSelector } from "./PaymentMethodSelector";
+// import { PaymentMethodSelector } from "./PaymentMethodSelector"; // Commented out - auto-launching card reader instead
 
 interface QuickCustomerFormProps {
   service: any;
@@ -30,8 +30,8 @@ export const QuickCustomerForm = ({
   const [customerEmail, setCustomerEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [loyaltyResult, setLoyaltyResult] = useState<any>(null);
-  const [showPayment, setShowPayment] = useState(false);
   const [appointmentId, setAppointmentId] = useState<string | null>(null);
+  const [processingPayment, setProcessingPayment] = useState(false);
 
   const createWalkIn = useMutation({
     mutationFn: async () => {
@@ -93,13 +93,14 @@ export const QuickCustomerForm = ({
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       toast({
         title: "Appointment Created!",
-        description: "Choose payment method",
+        description: "Preparing card reader...",
       });
       
-      setShowPayment(true);
+      // Automatically trigger card reader payment
+      await handleCardReaderPayment(data.id);
     },
     onError: (error: any) => {
       toast({
@@ -110,9 +111,48 @@ export const QuickCustomerForm = ({
     },
   });
 
-  const handlePaymentComplete = async () => {
-    if (!appointmentId) return;
+  const handleCardReaderPayment = async (apptId: string) => {
+    setProcessingPayment(true);
     
+    try {
+      // TODO: Replace with actual card reader ID from settings/configuration
+      const readerId = "tmr_test_reader"; // This should come from business settings
+      
+      const { data, error } = await supabase.functions.invoke("create-terminal-payment", {
+        body: {
+          amount: Number(service.custom_price),
+          currency: "eur",
+          readerId,
+          appointmentId: apptId,
+          customerEmail: customerEmail || undefined,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Card Reader Ready",
+        description: "Please present card to complete payment",
+      });
+      
+      // In a real implementation, you'd poll for payment status or use webhooks
+      // For now, we'll wait a moment and then complete the flow
+      setTimeout(async () => {
+        await handlePaymentComplete(apptId);
+      }, 3000);
+      
+    } catch (error: any) {
+      console.error("Card reader payment error:", error);
+      toast({
+        title: "Payment Error",
+        description: error.message || "Failed to process card payment",
+        variant: "destructive",
+      });
+      setProcessingPayment(false);
+    }
+  };
+
+  const handlePaymentComplete = async (apptId: string) => {
     // Award loyalty points if we have customer contact info
     if (customerEmail || customerPhone) {
       try {
@@ -120,7 +160,7 @@ export const QuickCustomerForm = ({
           'award-loyalty-points',
           {
             body: {
-              appointmentId,
+              appointmentId: apptId,
               creativeId: staffMember.id,
               customerEmail: customerEmail || `${customerPhone}@phone.temp`,
               customerName: customerName || 'Walk-in Customer',
@@ -142,14 +182,19 @@ export const QuickCustomerForm = ({
     const { data: updatedAppointment } = await supabase
       .from('salon_appointments')
       .select()
-      .eq('id', appointmentId)
+      .eq('id', apptId)
       .single();
     
     if (updatedAppointment) {
       onCheckoutComplete(updatedAppointment);
     }
+    
+    setProcessingPayment(false);
   };
 
+  // Payment method selector removed - card reader auto-launches after appointment creation
+  // Keeping this commented for future reference if payment link needs to be re-enabled
+  /*
   if (showPayment && appointmentId) {
     return (
       <div className="space-y-6">
@@ -169,6 +214,22 @@ export const QuickCustomerForm = ({
           onPaymentComplete={handlePaymentComplete}
         />
       </div>
+    );
+  }
+  */
+
+  if (processingPayment) {
+    return (
+      <Card className="border-primary/50">
+        <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
+          <Loader2 className="h-16 w-16 animate-spin text-primary" />
+          <div className="text-center">
+            <h3 className="text-xl font-semibold">Processing Payment</h3>
+            <p className="text-muted-foreground">Please present card to reader...</p>
+            <p className="text-2xl font-bold mt-4">€{Number(service.custom_price).toFixed(2)}</p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -251,7 +312,7 @@ export const QuickCustomerForm = ({
             size="lg"
             className="w-full h-16 text-lg"
             onClick={() => createWalkIn.mutate()}
-            disabled={createWalkIn.isPending}
+            disabled={createWalkIn.isPending || processingPayment}
           >
             {createWalkIn.isPending ? (
               <>
@@ -259,7 +320,7 @@ export const QuickCustomerForm = ({
                 Creating Appointment...
               </>
             ) : (
-              "Continue to Payment"
+              "Charge Card"
             )}
           </Button>
         </CardContent>

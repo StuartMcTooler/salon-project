@@ -8,6 +8,8 @@ import { StaffManagement } from "@/components/admin/StaffManagement";
 import { ServicePricing } from "@/components/admin/ServicePricing";
 import { ServiceManagement } from "@/components/admin/ServiceManagement";
 import { LoyaltyProgramSettings } from "@/components/admin/LoyaltyProgramSettings";
+import { BusinessManagement } from "@/components/admin/BusinessManagement";
+import { TerminalSettings } from "@/components/admin/TerminalSettings";
 import { toast } from "sonner";
 
 export default function Admin() {
@@ -94,16 +96,26 @@ export default function Admin() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="staff" className="space-y-6">
+        <Tabs defaultValue="business" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="staff">Staff Management</TabsTrigger>
+            <TabsTrigger value="business">Business</TabsTrigger>
+            <TabsTrigger value="staff">Staff</TabsTrigger>
+            <TabsTrigger value="terminal">Terminal</TabsTrigger>
             <TabsTrigger value="services">Services</TabsTrigger>
-            <TabsTrigger value="pricing">Service Pricing</TabsTrigger>
-            <TabsTrigger value="loyalty">Loyalty Program</TabsTrigger>
+            <TabsTrigger value="pricing">Pricing</TabsTrigger>
+            <TabsTrigger value="loyalty">Loyalty</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="business">
+            <BusinessManagement />
+          </TabsContent>
 
           <TabsContent value="staff">
             <StaffManagement />
+          </TabsContent>
+
+          <TabsContent value="terminal">
+            <TerminalSettings businessId={businessId} />
           </TabsContent>
 
           <TabsContent value="services">

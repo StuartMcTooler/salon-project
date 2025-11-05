@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Pencil, Trash2, Plus, Loader2, UserPlus } from "lucide-react";
+import { Pencil, Trash2, Plus, Loader2, UserPlus, UserMinus, Building2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -23,6 +24,7 @@ interface StaffMember {
   hourly_rate: number | null;
   is_active: boolean;
   user_id: string | null;
+  business_id: string | null;
 }
 
 export function StaffManagement() {
@@ -32,6 +34,8 @@ export function StaffManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isMultiStaff, setIsMultiStaff] = useState(false);
   const [creatingLogin, setCreatingLogin] = useState<string | null>(null);
+  const [businessId, setBusinessId] = useState<string | null>(null);
+  const [decouplingStaff, setDecouplingStaff] = useState<StaffMember | null>(null);
 
   useEffect(() => {
     loadStaff();
@@ -45,11 +49,14 @@ export function StaffManagement() {
 
       const { data } = await supabase
         .from('business_accounts')
-        .select('business_type')
+        .select('id, business_type')
         .eq('owner_user_id', user.id)
         .single();
 
-      setIsMultiStaff(data?.business_type === 'multi_staff_salon');
+      if (data) {
+        setIsMultiStaff(data.business_type === 'multi_staff_salon');
+        setBusinessId(data.id);
+      }
     } catch (error) {
       console.error('Error checking business type:', error);
     }
@@ -177,6 +184,27 @@ export function StaffManagement() {
     }
   };
 
+  const handleDecoupleStaff = async (staffMember: StaffMember) => {
+    try {
+      const { error } = await supabase
+        .from('staff_members')
+        .update({ business_id: null })
+        .eq('id', staffMember.id);
+
+      if (error) throw error;
+
+      toast.success(`${staffMember.display_name} is now independent`, {
+        description: "They retain all client data and history but need to configure their own terminal."
+      });
+
+      setDecouplingStaff(null);
+      loadStaff();
+    } catch (error) {
+      console.error('Error decoupling staff:', error);
+      toast.error('Failed to make staff independent');
+    }
+  };
+
   if (loading) {
     return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
@@ -277,10 +305,56 @@ export function StaffManagement() {
               {member.user_id && isMultiStaff && (
                 <p className="text-xs text-green-600 mt-2">✓ Login configured</p>
               )}
+
+              {member.business_id && (
+                <div className="mt-3 pt-3 border-t space-y-2">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Building2 className="h-3 w-3" />
+                    Linked to business
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setDecouplingStaff(member)}
+                  >
+                    <UserMinus className="mr-2 h-4 w-4" />
+                    Make Independent
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
       </div>
+
+      <AlertDialog open={!!decouplingStaff} onOpenChange={(open) => !open && setDecouplingStaff(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Make {decouplingStaff?.display_name} Independent?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>This will unlink this staff member from your business.</p>
+              <p className="font-medium">They will keep:</p>
+              <ul className="list-disc list-inside space-y-1 text-sm">
+                <li>All their client relationships and data</li>
+                <li>Their appointment history</li>
+                <li>Their loyalty points and referral records</li>
+              </ul>
+              <p className="font-medium mt-3">They will need to:</p>
+              <ul className="list-disc list-inside space-y-1 text-sm">
+                <li>Set up their own terminal reader</li>
+                <li>Configure their own loyalty settings (optional)</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => decouplingStaff && handleDecoupleStaff(decouplingStaff)}>
+              Make Independent
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

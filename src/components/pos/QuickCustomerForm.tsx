@@ -115,27 +115,39 @@ export const QuickCustomerForm = ({
     setProcessingPayment(true);
     
     try {
-      // Fetch terminal reader settings
-      const { data: terminalSettings, error: settingsError } = await supabase
-        .from('terminal_settings')
-        .select('reader_id')
-        .eq('is_active', true)
-        .maybeSingle();
+      // Get current user's staff record to check business_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
 
-      if (settingsError) {
-        console.error('Error fetching terminal settings:', settingsError);
-        throw new Error('Terminal reader not configured. Please configure in admin settings.');
+      const { data: staffData } = await supabase
+        .from('staff_members')
+        .select('business_id')
+        .eq('user_id', user.id)
+        .single();
+
+      let readerId: string | null = null;
+
+      // Try business terminal first if staff has business_id
+      if (staffData?.business_id) {
+        const { data: terminalData } = await supabase
+          .from('terminal_settings')
+          .select('reader_id')
+          .eq('business_id', staffData.business_id)
+          .eq('is_active', true)
+          .maybeSingle();
+        
+        readerId = terminalData?.reader_id || null;
       }
 
-      if (!terminalSettings?.reader_id) {
-        throw new Error('No active terminal reader found. Please configure in admin settings.');
+      if (!readerId) {
+        throw new Error('No terminal reader configured. Please configure a terminal in admin settings or contact your business owner.');
       }
       
       const { data, error } = await supabase.functions.invoke("create-terminal-payment", {
         body: {
           amount: Number(service.custom_price),
           currency: "eur",
-          readerId: terminalSettings.reader_id,
+          readerId: readerId,
           appointmentId: apptId,
           customerEmail: customerEmail || undefined,
         },

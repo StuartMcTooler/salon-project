@@ -27,7 +27,8 @@ export const MultiStaffSetup = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { error } = await supabase
+      // Create business account
+      const { data: business, error: businessError } = await supabase
         .from("business_accounts")
         .insert({
           owner_user_id: user.id,
@@ -36,9 +37,25 @@ export const MultiStaffSetup = () => {
           address: formData.address || null,
           phone: formData.phone || null,
           email: formData.email || null,
+        })
+        .select()
+        .single();
+
+      if (businessError) throw businessError;
+
+      // Create staff member for owner
+      const { error: staffError } = await supabase
+        .from("staff_members")
+        .insert({
+          user_id: user.id,
+          business_id: business.id,
+          display_name: user.email?.split('@')[0] || "Owner",
+          full_name: user.email?.split('@')[0] || "Owner",
+          email: user.email,
+          is_active: true,
         });
 
-      if (error) throw error;
+      if (staffError) throw staffError;
 
       toast({
         title: "Business created!",

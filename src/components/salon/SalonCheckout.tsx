@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +27,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
   const [notes, setNotes] = useState("");
 
   // Query existing appointments for the selected date and staff
-  const { data: existingAppointments } = useQuery({
+  const { data: existingAppointments, refetch } = useQuery({
     queryKey: ['appointments', staff.id, date?.toISOString().split('T')[0]],
     queryFn: async () => {
       if (!date) return [];
@@ -51,6 +51,29 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
     },
     enabled: !!date,
   });
+
+  // Realtime subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('salon-checkout-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'salon_appointments',
+          filter: `staff_id=eq.${staff.id}`
+        },
+        () => {
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [staff.id, refetch]);
 
   // Calculate available time slots dynamically based on service duration
   const availableSlots = useMemo(() => {

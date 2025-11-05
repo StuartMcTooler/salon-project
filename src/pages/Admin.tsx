@@ -10,6 +10,8 @@ import { ServiceManagement } from "@/components/admin/ServiceManagement";
 import { LoyaltyProgramSettings } from "@/components/admin/LoyaltyProgramSettings";
 import { BusinessManagement } from "@/components/admin/BusinessManagement";
 import { TerminalSettings } from "@/components/admin/TerminalSettings";
+import { BusinessHoursSettings } from "@/components/admin/BusinessHoursSettings";
+import { MultiStaffCalendar } from "@/components/dashboard/MultiStaffCalendar";
 import { toast } from "sonner";
 
 export default function Admin() {
@@ -97,10 +99,12 @@ export default function Admin() {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="business" className="space-y-6">
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="business">Business</TabsTrigger>
             <TabsTrigger value="staff">Staff</TabsTrigger>
             <TabsTrigger value="terminal">Terminal</TabsTrigger>
+            <TabsTrigger value="hours">Hours</TabsTrigger>
+            <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="services">Services</TabsTrigger>
             <TabsTrigger value="pricing">Pricing</TabsTrigger>
             <TabsTrigger value="loyalty">Loyalty</TabsTrigger>
@@ -124,6 +128,14 @@ export default function Admin() {
 
           <TabsContent value="pricing">
             <ServicePricing />
+          </TabsContent>
+
+          <TabsContent value="hours">
+            <BusinessHoursSettings />
+          </TabsContent>
+
+          <TabsContent value="schedule">
+            <MultiStaffCalendar />
           </TabsContent>
 
           <TabsContent value="loyalty">

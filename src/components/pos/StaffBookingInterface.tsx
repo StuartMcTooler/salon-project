@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +26,7 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
   const [customerEmail, setCustomerEmail] = useState("");
   const [notes, setNotes] = useState("");
 
-  const { data: existingAppointments } = useQuery({
+  const { data: existingAppointments, refetch } = useQuery({
     queryKey: ['appointments', staffId, date?.toISOString().split('T')[0]],
     queryFn: async () => {
       if (!date) return [];
@@ -50,6 +50,29 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
     },
     enabled: !!date && !!selectedService,
   });
+
+  // Realtime subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('staff-booking-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'salon_appointments',
+          filter: `staff_id=eq.${staffId}`
+        },
+        () => {
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [staffId, refetch]);
 
   // Calculate available time slots dynamically based on service duration
   const availableSlots = useMemo(() => {

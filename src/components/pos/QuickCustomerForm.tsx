@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, CreditCard, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { LoyaltyPointsDisplay } from "./LoyaltyPointsDisplay";
+import { PaymentMethodSelector } from "./PaymentMethodSelector";
 
 interface QuickCustomerFormProps {
   service: any;
@@ -29,6 +30,8 @@ export const QuickCustomerForm = ({
   const [customerEmail, setCustomerEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [loyaltyResult, setLoyaltyResult] = useState<any>(null);
+  const [showPayment, setShowPayment] = useState(false);
+  const [appointmentId, setAppointmentId] = useState<string | null>(null);
 
   const createWalkIn = useMutation({
     mutationFn: async () => {
@@ -52,14 +55,16 @@ export const QuickCustomerForm = ({
           duration_minutes: service.service.duration_minutes,
           price: service.custom_price,
           notes: notes || null,
-          status: 'completed',
-          payment_status: 'completed',
-          payment_method: 'card',
+          status: 'pending',
+          payment_status: 'pending',
+          payment_method: null,
         }])
         .select()
         .single();
 
       if (error) throw error;
+      
+      setAppointmentId(data.id);
 
       // Award loyalty points only if we have customer contact info
       if (customerEmail || customerPhone) {
@@ -88,15 +93,13 @@ export const QuickCustomerForm = ({
 
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast({
-        title: "Payment Received!",
-        description: `€${data.price} charged for ${data.service_name}`,
+        title: "Appointment Created!",
+        description: "Choose payment method",
       });
       
-      setTimeout(() => {
-        onCheckoutComplete(data);
-      }, loyaltyResult ? 2000 : 100);
+      setShowPayment(true);
     },
     onError: (error: any) => {
       toast({
@@ -107,6 +110,68 @@ export const QuickCustomerForm = ({
     },
   });
 
+  const handlePaymentComplete = async () => {
+    if (!appointmentId) return;
+    
+    // Award loyalty points if we have customer contact info
+    if (customerEmail || customerPhone) {
+      try {
+        const { data: loyaltyData, error: loyaltyError } = await supabase.functions.invoke(
+          'award-loyalty-points',
+          {
+            body: {
+              appointmentId,
+              creativeId: staffMember.id,
+              customerEmail: customerEmail || `${customerPhone}@phone.temp`,
+              customerName: customerName || 'Walk-in Customer',
+              customerPhone: customerPhone || '',
+              bookingAmount: Number(service.custom_price),
+            },
+          }
+        );
+
+        if (!loyaltyError && loyaltyData) {
+          setLoyaltyResult(loyaltyData);
+        }
+      } catch (loyaltyErr) {
+        console.error('Failed to award loyalty points:', loyaltyErr);
+      }
+    }
+    
+    // Fetch the updated appointment
+    const { data: updatedAppointment } = await supabase
+      .from('salon_appointments')
+      .select()
+      .eq('id', appointmentId)
+      .single();
+    
+    if (updatedAppointment) {
+      onCheckoutComplete(updatedAppointment);
+    }
+  };
+
+  if (showPayment && appointmentId) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" onClick={() => setShowPayment(false)}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+        
+        <PaymentMethodSelector
+          appointmentId={appointmentId}
+          serviceId={service.service.id}
+          serviceName={service.service.name}
+          amount={Number(service.custom_price)}
+          customerEmail={customerEmail}
+          customerName={customerName || 'Walk-in Customer'}
+          customerPhone={customerPhone}
+          onPaymentComplete={handlePaymentComplete}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <Button variant="ghost" onClick={onBack}>
@@ -114,7 +179,7 @@ export const QuickCustomerForm = ({
         Back to Services
       </Button>
 
-      {/* Payment Button - Primary Action */}
+      {/* Customer Details Form */}
       <Card className="border-primary/50">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -124,36 +189,16 @@ export const QuickCustomerForm = ({
             </span>
           </CardTitle>
           <CardDescription>
-            {service.service.duration_minutes} minutes • Tap or insert card
+            {service.service.duration_minutes} minutes
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button
-            size="lg"
-            className="w-full h-16 text-lg"
-            onClick={() => createWalkIn.mutate()}
-            disabled={createWalkIn.isPending}
-          >
-            {createWalkIn.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                Processing Payment...
-              </>
-            ) : (
-              <>
-                <CreditCard className="mr-2 h-6 w-6" />
-                Charge €{Number(service.custom_price).toFixed(2)}
-              </>
-            )}
-          </Button>
-        </CardContent>
       </Card>
 
-      {/* Optional Customer Details */}
+      {/* Customer Details */}
       <Card>
         <CardHeader>
-          <CardTitle>Customer Details (Optional)</CardTitle>
-          <CardDescription>Add details to award loyalty points and send follow-ups</CardDescription>
+          <CardTitle>Customer Details</CardTitle>
+          <CardDescription>Add details to award loyalty points and send payment links</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -201,6 +246,22 @@ export const QuickCustomerForm = ({
               rows={2}
             />
           </div>
+          
+          <Button
+            size="lg"
+            className="w-full h-16 text-lg"
+            onClick={() => createWalkIn.mutate()}
+            disabled={createWalkIn.isPending}
+          >
+            {createWalkIn.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                Creating Appointment...
+              </>
+            ) : (
+              "Continue to Payment"
+            )}
+          </Button>
         </CardContent>
       </Card>
 

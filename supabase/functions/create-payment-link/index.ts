@@ -1,0 +1,120 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@18.5.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { appointmentId, serviceId, serviceName, amount, customerEmail, customerName } = await req.json();
+
+    console.log("Creating payment link:", { appointmentId, serviceName, amount, customerEmail });
+
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+      apiVersion: "2025-08-27.basil",
+    });
+
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    // Create or get price for this service
+    let priceId: string;
+    
+    // Check if we have a price for this service already
+    const prices = await stripe.prices.list({
+      limit: 100,
+    });
+    
+    const existingPrice = prices.data.find(
+      (p: any) => p.metadata.service_id === serviceId && p.unit_amount === Math.round(amount * 100)
+    );
+
+    if (existingPrice) {
+      priceId = existingPrice.id;
+      console.log("Using existing price:", priceId);
+    } else {
+      // Create product and price
+      const product = await stripe.products.create({
+        name: serviceName,
+        metadata: {
+          service_id: serviceId || "",
+        },
+      });
+
+      const price = await stripe.prices.create({
+        product: product.id,
+        unit_amount: Math.round(amount * 100),
+        currency: "usd",
+        metadata: {
+          service_id: serviceId || "",
+        },
+      });
+
+      priceId = price.id;
+      console.log("Created new price:", priceId);
+    }
+
+    // Create payment link
+    const paymentLink = await stripe.paymentLinks.create({
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      after_completion: {
+        type: "redirect",
+        redirect: {
+          url: `${req.headers.get("origin")}/payment-success?appointment=${appointmentId}`,
+        },
+      },
+      metadata: {
+        appointment_id: appointmentId || "",
+        customer_email: customerEmail || "",
+        customer_name: customerName || "",
+      },
+    });
+
+    console.log("Payment link created:", paymentLink.url);
+
+    // Update appointment with payment link
+    if (appointmentId) {
+      await supabaseClient
+        .from("salon_appointments")
+        .update({
+          payment_status: "pending",
+          payment_method: "payment_link",
+        })
+        .eq("id", appointmentId);
+    }
+
+    return new Response(
+      JSON.stringify({
+        url: paymentLink.url,
+        paymentLinkId: paymentLink.id,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      }
+    );
+  } catch (error: any) {
+    console.error("Error creating payment link:", error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      }
+    );
+  }
+});

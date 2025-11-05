@@ -885,6 +885,36 @@ export type Database = {
           },
         ]
       }
+      terminal_settings: {
+        Row: {
+          business_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          reader_id: string
+          reader_name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          reader_id: string
+          reader_name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          reader_id?: string
+          reader_name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       trusted_network: {
         Row: {
           added_at: string | null

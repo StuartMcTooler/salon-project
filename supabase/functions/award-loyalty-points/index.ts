@@ -31,15 +31,23 @@ Deno.serve(async (req) => {
       throw new Error('Staff member not found');
     }
 
-    // Get business loyalty settings
-    const { data: businessSettings, error: businessError } = await supabase
-      .from('loyalty_program_settings')
-      .select('*')
-      .eq('business_id', staffMember.business_id)
-      .maybeSingle();
+    // If staff member has no business_id, they're operating independently
+    // In this case, use their creative loyalty settings only
+    let businessSettings = null;
+    
+    if (staffMember.business_id) {
+      // Get business loyalty settings
+      const { data: settings, error: businessError } = await supabase
+        .from('loyalty_program_settings')
+        .select('*')
+        .eq('business_id', staffMember.business_id)
+        .maybeSingle();
 
-    if (businessError) {
-      throw new Error(`Failed to fetch business settings: ${businessError.message}`);
+      if (businessError) {
+        throw new Error(`Failed to fetch business settings: ${businessError.message}`);
+      }
+      
+      businessSettings = settings;
     }
 
     // If loyalty is not enabled, return early

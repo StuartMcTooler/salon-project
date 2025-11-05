@@ -115,14 +115,27 @@ export const QuickCustomerForm = ({
     setProcessingPayment(true);
     
     try {
-      // TODO: Replace with actual card reader ID from settings/configuration
-      const readerId = "tmr_test_reader"; // This should come from business settings
+      // Fetch terminal reader settings
+      const { data: terminalSettings, error: settingsError } = await supabase
+        .from('terminal_settings')
+        .select('reader_id')
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (settingsError) {
+        console.error('Error fetching terminal settings:', settingsError);
+        throw new Error('Terminal reader not configured. Please configure in admin settings.');
+      }
+
+      if (!terminalSettings?.reader_id) {
+        throw new Error('No active terminal reader found. Please configure in admin settings.');
+      }
       
       const { data, error } = await supabase.functions.invoke("create-terminal-payment", {
         body: {
           amount: Number(service.custom_price),
           currency: "eur",
-          readerId,
+          readerId: terminalSettings.reader_id,
           appointmentId: apptId,
           customerEmail: customerEmail || undefined,
         },

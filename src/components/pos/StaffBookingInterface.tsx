@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { ArrowLeft } from "lucide-react";
 import { ServiceGrid } from "./ServiceGrid";
+import { getAvailableSlots } from "@/lib/timeSlotUtils";
 
 interface StaffBookingInterfaceProps {
   staffId: string;
@@ -24,7 +25,6 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [notes, setNotes] = useState("");
-  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
 
   const { data: existingAppointments } = useQuery({
     queryKey: ['appointments', staffId, date?.toISOString().split('T')[0]],
@@ -51,32 +51,18 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
     enabled: !!date && !!selectedService,
   });
 
-  useEffect(() => {
-    if (!existingAppointments || !date) {
-      setBookedSlots([]);
-      return;
+  // Calculate available time slots dynamically based on service duration
+  const availableSlots = useMemo(() => {
+    if (!date || !selectedService || !existingAppointments) {
+      return [];
     }
 
-    const slots: string[] = [];
-    existingAppointments.forEach((appointment) => {
-      const appointmentTime = new Date(appointment.appointment_date);
-      const hours = appointmentTime.getHours();
-      const minutes = appointmentTime.getMinutes();
-      
-      const slotsNeeded = Math.ceil(appointment.duration_minutes / 30);
-      
-      for (let i = 0; i < slotsNeeded; i++) {
-        const slotMinutes = minutes + (i * 30);
-        const slotHours = hours + Math.floor(slotMinutes / 60);
-        const finalMinutes = slotMinutes % 60;
-        
-        const timeSlot = `${slotHours.toString().padStart(2, '0')}:${finalMinutes.toString().padStart(2, '0')}`;
-        slots.push(timeSlot);
-      }
-    });
-
-    setBookedSlots(slots);
-  }, [existingAppointments, date]);
+    return getAvailableSlots(
+      selectedService.service.duration_minutes,
+      existingAppointments,
+      date
+    );
+  }, [date, selectedService, existingAppointments]);
 
   const createAppointment = useMutation({
     mutationFn: async () => {
@@ -233,22 +219,23 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
           {date && (
             <div className="space-y-2">
               <Label>Available Times</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'].map((timeSlot) => {
-                  const isBooked = bookedSlots.includes(timeSlot);
-                  return (
+              {availableSlots.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No available times for this date</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2 max-h-96 overflow-y-auto">
+                  {availableSlots.map((slot) => (
                     <Button
-                      key={timeSlot}
-                      variant={time === timeSlot ? "default" : "outline"}
-                      onClick={() => setTime(timeSlot)}
-                      disabled={isBooked}
-                      className="w-full"
+                      key={slot.time}
+                      variant={time === slot.time ? "default" : "outline"}
+                      onClick={() => setTime(slot.time)}
+                      className="w-full flex flex-col items-center py-3 h-auto"
                     >
-                      {timeSlot}
+                      <span className="font-semibold">{slot.time}</span>
+                      <span className="text-xs opacity-70">ends {slot.endTime}</span>
                     </Button>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

@@ -106,7 +106,7 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
     );
   }
 
-  const pendingAppointments = appointments.filter(apt => apt.status === 'pending');
+  const pendingAppointments = appointments.filter(apt => apt.status === 'pending' || apt.status === 'confirmed');
   const completedAppointments = appointments.filter(apt => apt.status === 'completed');
 
   return (

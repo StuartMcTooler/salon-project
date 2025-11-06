@@ -15,18 +15,38 @@ export interface BusinessHours {
 }
 
 /**
- * Generate all possible time slots in 30-minute increments
- * @param startHour - Starting hour (default: 9)
- * @param endHour - Ending hour (default: 18)
+ * Generate all possible time slots starting from next quarter hour, then 30-minute increments
+ * @param startHour - Starting hour (can be decimal, e.g., 9.25 = 9:15)
+ * @param endHour - Ending hour (can be decimal)
  * @returns Array of time strings in HH:MM format
  */
 export const generateTimeSlots = (startHour: number = 9, endHour: number = 18): string[] => {
   const slots: string[] = [];
   
-  for (let hour = startHour; hour < endHour; hour++) {
-    for (let minute = 0; minute < 60; minute += 30) {
-      const timeSlot = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-      slots.push(timeSlot);
+  // Convert decimal hour to hour and minute
+  const startHourInt = Math.floor(startHour);
+  const startMinuteDecimal = (startHour - startHourInt) * 60;
+  
+  // Round up to next quarter hour (0, 15, 30, 45)
+  let currentMinute = Math.ceil(startMinuteDecimal / 15) * 15;
+  let currentHour = startHourInt;
+  
+  // If rounding pushed us to 60 minutes, move to next hour
+  if (currentMinute >= 60) {
+    currentHour++;
+    currentMinute = 0;
+  }
+  
+  // Generate slots every 30 minutes from the first quarter hour
+  while (currentHour < endHour || (currentHour === endHour && currentMinute === 0)) {
+    const timeSlot = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+    slots.push(timeSlot);
+    
+    // Increment by 30 minutes
+    currentMinute += 30;
+    if (currentMinute >= 60) {
+      currentHour++;
+      currentMinute = 0;
     }
   }
   

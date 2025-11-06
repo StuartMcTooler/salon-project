@@ -29,6 +29,23 @@ export const StaffHoursSettings = () => {
   const queryClient = useQueryClient();
   const [selectedStaffId, setSelectedStaffId] = useState<string>("");
 
+  const { data: businessAccount } = useQuery({
+    queryKey: ["business-account"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from("business_accounts")
+        .select("*")
+        .eq("owner_user_id", user.id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: staffMembers } = useQuery({
     queryKey: ["staff-members"],
     queryFn: async () => {
@@ -63,13 +80,14 @@ export const StaffHoursSettings = () => {
   const upsertHours = useMutation({
     mutationFn: async (hours: any) => {
       if (!selectedStaffId) throw new Error("No staff selected");
+      if (!businessAccount?.id) throw new Error("No business account");
 
       const { error } = await supabase
         .from("business_hours")
         .upsert({
           ...hours,
           staff_id: selectedStaffId,
-          business_id: null,
+          business_id: businessAccount.id,
         });
 
       if (error) throw error;

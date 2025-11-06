@@ -7,6 +7,13 @@ export interface Appointment {
   duration_minutes: number;
 }
 
+export interface BusinessHours {
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  is_active: boolean;
+}
+
 /**
  * Generate all possible time slots in 30-minute increments
  * @param startHour - Starting hour (default: 9)
@@ -90,17 +97,55 @@ export const isSlotAvailable = (
  * @param serviceDuration - Duration of the service in minutes
  * @param appointments - Array of existing appointments
  * @param selectedDate - The date to check availability for
- * @param startHour - Business start hour (default: 9)
- * @param endHour - Business end hour (default: 18)
+ * @param businessHours - Business hours for the day (optional)
+ * @param staffHours - Staff hours for the day (optional)
+ * @param startHour - Default start hour if no hours specified (default: 9)
+ * @param endHour - Default end hour if no hours specified (default: 18)
  * @returns Array of available time slots with end times
  */
 export const getAvailableSlots = (
   serviceDuration: number,
   appointments: Appointment[],
   selectedDate: Date,
+  businessHours?: BusinessHours | null,
+  staffHours?: BusinessHours | null,
   startHour: number = 9,
   endHour: number = 18
 ): Array<{ time: string; endTime: string }> => {
+  // Determine actual working hours based on business and staff hours
+  let actualStartHour = startHour;
+  let actualEndHour = endHour;
+  
+  // Check if business or staff is not working this day
+  const dayOfWeek = selectedDate.getDay();
+  
+  if (businessHours && businessHours.day_of_week === dayOfWeek) {
+    if (!businessHours.is_active) {
+      return []; // Business closed this day
+    }
+    const [bStartHour, bStartMin] = businessHours.start_time.split(':').map(Number);
+    const [bEndHour, bEndMin] = businessHours.end_time.split(':').map(Number);
+    actualStartHour = bStartHour + (bStartMin / 60);
+    actualEndHour = bEndHour + (bEndMin / 60);
+  }
+  
+  if (staffHours && staffHours.day_of_week === dayOfWeek) {
+    if (!staffHours.is_active) {
+      return []; // Staff not working this day
+    }
+    const [sStartHour, sStartMin] = staffHours.start_time.split(':').map(Number);
+    const [sEndHour, sEndMin] = staffHours.end_time.split(':').map(Number);
+    const staffStart = sStartHour + (sStartMin / 60);
+    const staffEnd = sEndHour + (sEndMin / 60);
+    
+    // Use the most restrictive hours (latest start, earliest end)
+    actualStartHour = Math.max(actualStartHour, staffStart);
+    actualEndHour = Math.min(actualEndHour, staffEnd);
+  }
+  
+  // Convert back to integer hours for slot generation
+  startHour = Math.floor(actualStartHour);
+  endHour = Math.ceil(actualEndHour);
   const availableSlots: Array<{ time: string; endTime: string }> = [];
   const standardSlots = generateTimeSlots(startHour, endHour);
   

@@ -52,6 +52,44 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
     enabled: !!date,
   });
 
+  const { data: businessHours } = useQuery({
+    queryKey: ['business-hours', date?.getDay()],
+    queryFn: async () => {
+      if (!date) return null;
+      const dayOfWeek = date.getDay();
+      
+      const { data, error } = await supabase
+        .from('business_hours')
+        .select('*')
+        .is('staff_id', null)
+        .eq('day_of_week', dayOfWeek)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!date,
+  });
+
+  const { data: staffHours } = useQuery({
+    queryKey: ['staff-hours', staff.id, date?.getDay()],
+    queryFn: async () => {
+      if (!date) return null;
+      const dayOfWeek = date.getDay();
+      
+      const { data, error } = await supabase
+        .from('business_hours')
+        .select('*')
+        .eq('staff_id', staff.id)
+        .eq('day_of_week', dayOfWeek)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!date && !!staff.id,
+  });
+
   // Realtime subscription
   useEffect(() => {
     const channel = supabase
@@ -84,9 +122,11 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
     return getAvailableSlots(
       service.duration_minutes,
       existingAppointments,
-      date
+      date,
+      businessHours,
+      staffHours
     );
-  }, [date, service, existingAppointments]);
+  }, [date, service, existingAppointments, businessHours, staffHours]);
 
   const createAppointment = useMutation({
     mutationFn: async () => {

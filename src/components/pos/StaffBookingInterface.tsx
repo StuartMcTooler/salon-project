@@ -51,6 +51,44 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
     enabled: !!date && !!selectedService,
   });
 
+  const { data: businessHours } = useQuery({
+    queryKey: ['business-hours', date?.getDay()],
+    queryFn: async () => {
+      if (!date) return null;
+      const dayOfWeek = date.getDay();
+      
+      const { data, error } = await supabase
+        .from('business_hours')
+        .select('*')
+        .is('business_id', null)
+        .eq('day_of_week', dayOfWeek)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!date,
+  });
+
+  const { data: staffHours } = useQuery({
+    queryKey: ['staff-hours', staffId, date?.getDay()],
+    queryFn: async () => {
+      if (!date) return null;
+      const dayOfWeek = date.getDay();
+      
+      const { data, error } = await supabase
+        .from('business_hours')
+        .select('*')
+        .eq('staff_id', staffId)
+        .eq('day_of_week', dayOfWeek)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!date && !!staffId,
+  });
+
   // Realtime subscription
   useEffect(() => {
     const channel = supabase
@@ -83,9 +121,11 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
     return getAvailableSlots(
       selectedService.service.duration_minutes,
       existingAppointments,
-      date
+      date,
+      businessHours,
+      staffHours
     );
-  }, [date, selectedService, existingAppointments]);
+  }, [date, selectedService, existingAppointments, businessHours, staffHours]);
 
   const createAppointment = useMutation({
     mutationFn: async () => {

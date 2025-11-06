@@ -102,9 +102,14 @@ export const StaffHoursSettings = () => {
       const { error } = await supabase
         .from("business_hours")
         .upsert({
-          ...hours,
           staff_id: selectedStaffId,
           business_id: null, // staff-specific row (required by CHECK constraint)
+          day_of_week: hours.day_of_week,
+          start_time: hours.start_time,
+          end_time: hours.end_time,
+          is_active: hours.is_active,
+        }, {
+          onConflict: 'staff_id,day_of_week'
         });
 
       if (error) throw error;

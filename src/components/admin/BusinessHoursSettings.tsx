@@ -59,11 +59,18 @@ export const BusinessHoursSettings = () => {
     mutationFn: async (hours: any) => {
       if (!businessAccount?.id) throw new Error("No business account");
 
+      // Use upsert with onConflict to handle the unique constraint
       const { error } = await supabase
         .from("business_hours")
         .upsert({
-          ...hours,
           business_id: businessAccount.id,
+          staff_id: null, // Business-level hours don't have staff_id
+          day_of_week: hours.day_of_week,
+          start_time: hours.start_time,
+          end_time: hours.end_time,
+          is_active: hours.is_active,
+        }, {
+          onConflict: 'business_id,day_of_week'
         });
 
       if (error) throw error;

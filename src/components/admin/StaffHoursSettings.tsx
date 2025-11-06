@@ -81,6 +81,24 @@ export const StaffHoursSettings = () => {
     mutationFn: async (hours: any) => {
       if (!selectedStaffId) throw new Error("No staff selected");
 
+      // Ensure the selected staff is linked to this business so owner RLS applies
+      if (businessAccount?.id) {
+        const { data: staffRow, error: staffFetchErr } = await supabase
+          .from("staff_members")
+          .select("id,business_id")
+          .eq("id", selectedStaffId)
+          .maybeSingle();
+        if (staffFetchErr) throw staffFetchErr;
+
+        if (!staffRow?.business_id) {
+          const { error: linkErr } = await supabase
+            .from("staff_members")
+            .update({ business_id: businessAccount.id })
+            .eq("id", selectedStaffId);
+          if (linkErr) throw linkErr;
+        }
+      }
+
       const { error } = await supabase
         .from("business_hours")
         .upsert({

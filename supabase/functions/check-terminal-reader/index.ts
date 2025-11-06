@@ -12,15 +12,32 @@ serve(async (req) => {
   }
 
   try {
+    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
+    
+    // Determine Stripe mode
+    const isTestMode = stripeSecretKey.startsWith("sk_test_");
+    const isLiveMode = stripeSecretKey.startsWith("sk_live_");
+    const mode = isTestMode ? "test" : isLiveMode ? "live" : "unknown";
+
     const { readerId } = await req.json();
 
     if (!readerId) {
-      throw new Error("Reader ID is required");
+      // If no readerId provided, just return mode info
+      return new Response(
+        JSON.stringify({
+          mode,
+          configured: !!stripeSecretKey,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        }
+      );
     }
 
     console.log("Checking terminal reader status:", readerId);
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+    const stripe = new Stripe(stripeSecretKey, {
       apiVersion: "2025-08-27.basil",
     });
 
@@ -39,6 +56,7 @@ serve(async (req) => {
         isOnline,
         deviceType: reader.device_type,
         location: reader.location,
+        mode,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

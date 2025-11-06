@@ -11,6 +11,7 @@ import { PostCheckoutActions } from "@/components/pos/PostCheckoutActions";
 import { TodaysAppointments } from "@/components/pos/TodaysAppointments";
 import { StaffBookingInterface } from "@/components/pos/StaffBookingInterface";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StripeModeIndicator } from "@/components/pos/StripeModeIndicator";
 
 const POS = () => {
   const navigate = useNavigate();
@@ -287,6 +288,7 @@ const POS = () => {
       </div>
 
       <div className="max-w-6xl mx-auto p-3 md:p-6">
+        <StripeModeIndicator />
         <Tabs defaultValue="walkin" className="w-full">
           <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3 mb-4 md:mb-6 h-auto">
             <TabsTrigger value="walkin" className="text-xs md:text-sm px-2 md:px-4 py-2">

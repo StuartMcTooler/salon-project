@@ -21,6 +21,20 @@ serve(async (req) => {
       apiVersion: "2025-08-27.basil",
     });
 
+    // Check if reader is online first
+    try {
+      const reader = await stripe.terminal.readers.retrieve(readerId);
+      if (reader.status !== "online") {
+        throw new Error(`Terminal reader is ${reader.status}. Please ensure it's powered on and connected.`);
+      }
+      console.log("Reader is online:", reader.label || readerId);
+    } catch (readerError: any) {
+      if (readerError.code === "resource_missing") {
+        throw new Error("Terminal reader not found. Please check the Reader ID in terminal settings.");
+      }
+      throw readerError;
+    }
+
     // Create PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
@@ -65,6 +79,7 @@ serve(async (req) => {
       JSON.stringify({
         paymentIntentId: paymentIntent.id,
         readerId: reader.id,
+        appointmentId: appointmentId,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -73,8 +88,20 @@ serve(async (req) => {
     );
   } catch (error: any) {
     console.error("Error creating Terminal payment:", error);
+    
+    // Provide more detailed error messages
+    let errorMessage = error.message;
+    if (error.code === "terminal_reader_busy") {
+      errorMessage = "Terminal reader is busy. Please wait for the current transaction to complete.";
+    } else if (error.code === "terminal_reader_offline") {
+      errorMessage = "Terminal reader is offline. Please check the connection.";
+    }
+
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: errorMessage,
+        code: error.code,
+      }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,

@@ -142,6 +142,26 @@ export const QuickCustomerForm = ({
       if (!readerId) {
         throw new Error('No terminal reader configured. Please configure a terminal in admin settings or contact your business owner.');
       }
+
+      // Check reader health before processing payment
+      const { data: readerStatus, error: readerError } = await supabase.functions.invoke(
+        "check-terminal-reader",
+        {
+          body: { readerId },
+        }
+      );
+
+      if (readerError || !readerStatus?.isOnline) {
+        throw new Error(
+          readerStatus?.details || 
+          'Terminal reader is offline. Please check that it is powered on and connected.'
+        );
+      }
+
+      toast({
+        title: "Connecting to Reader",
+        description: `Using ${readerStatus.label || 'terminal reader'}`,
+      });
       
       const { data, error } = await supabase.functions.invoke("create-terminal-payment", {
         body: {
@@ -160,11 +180,8 @@ export const QuickCustomerForm = ({
         description: "Please present card to complete payment",
       });
       
-      // In a real implementation, you'd poll for payment status or use webhooks
-      // For now, we'll wait a moment and then complete the flow
-      setTimeout(async () => {
-        await handlePaymentComplete(apptId);
-      }, 3000);
+      // Poll for payment status
+      pollPaymentStatus(apptId);
       
     } catch (error: any) {
       console.error("Card reader payment error:", error);
@@ -175,6 +192,62 @@ export const QuickCustomerForm = ({
       });
       setProcessingPayment(false);
     }
+  };
+
+  const pollPaymentStatus = async (apptId: string) => {
+    const maxAttempts = 60; // 60 attempts * 2 seconds = 2 minutes
+    let attempts = 0;
+
+    const checkStatus = async () => {
+      attempts++;
+
+      const { data: appointment } = await supabase
+        .from('salon_appointments')
+        .select('payment_status')
+        .eq('id', apptId)
+        .single();
+
+      if (!appointment) {
+        setProcessingPayment(false);
+        toast({
+          title: "Error",
+          description: "Could not find appointment",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (appointment.payment_status === 'paid') {
+        // Payment succeeded!
+        await handlePaymentComplete(apptId);
+        return;
+      }
+
+      if (appointment.payment_status === 'failed') {
+        setProcessingPayment(false);
+        toast({
+          title: "Payment Failed",
+          description: "The card payment was declined. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Continue polling if still processing and haven't exceeded max attempts
+      if (attempts < maxAttempts && appointment.payment_status === 'processing') {
+        setTimeout(checkStatus, 2000); // Check every 2 seconds
+      } else if (attempts >= maxAttempts) {
+        setProcessingPayment(false);
+        toast({
+          title: "Payment Timeout",
+          description: "Payment is taking longer than expected. Please check the terminal.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    // Start polling after a short delay
+    setTimeout(checkStatus, 2000);
   };
 
   const handlePaymentComplete = async (apptId: string) => {
@@ -248,10 +321,13 @@ export const QuickCustomerForm = ({
       <Card className="border-primary/50">
         <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
           <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <div className="text-center">
+          <div className="text-center space-y-2">
             <h3 className="text-xl font-semibold">Processing Payment</h3>
-            <p className="text-muted-foreground">Please present card to reader...</p>
+            <p className="text-muted-foreground">Present card to the Stripe S700 reader</p>
             <p className="text-2xl font-bold mt-4">€{Number(service.custom_price).toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              This may take up to 2 minutes
+            </p>
           </div>
         </CardContent>
       </Card>

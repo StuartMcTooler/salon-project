@@ -11,6 +11,7 @@ import { LoyaltyProgramSettings } from "@/components/admin/LoyaltyProgramSetting
 import { BusinessManagement } from "@/components/admin/BusinessManagement";
 import { TerminalSettings } from "@/components/admin/TerminalSettings";
 import { BusinessHoursSettings } from "@/components/admin/BusinessHoursSettings";
+import { StaffHoursSettings } from "@/components/admin/StaffHoursSettings";
 import { MultiStaffCalendar } from "@/components/dashboard/MultiStaffCalendar";
 import { toast } from "sonner";
 
@@ -130,9 +131,12 @@ export default function Admin() {
             <ServicePricing />
           </TabsContent>
 
-          <TabsContent value="hours">
-            <BusinessHoursSettings />
-          </TabsContent>
+              <TabsContent value="hours">
+                <div className="space-y-6">
+                  <BusinessHoursSettings />
+                  <StaffHoursSettings />
+                </div>
+              </TabsContent>
 
           <TabsContent value="schedule">
             <MultiStaffCalendar />

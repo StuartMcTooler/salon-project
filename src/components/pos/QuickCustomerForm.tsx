@@ -32,6 +32,7 @@ export const QuickCustomerForm = ({
   const [loyaltyResult, setLoyaltyResult] = useState<any>(null);
   const [appointmentId, setAppointmentId] = useState<string | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [currentReaderId, setCurrentReaderId] = useState<string | null>(null);
 
   const createWalkIn = useMutation({
     mutationFn: async () => {
@@ -143,6 +144,8 @@ export const QuickCustomerForm = ({
         throw new Error('No terminal reader configured. Please configure a terminal in admin settings or contact your business owner.');
       }
 
+      setCurrentReaderId(readerId);
+
       // Check reader health before processing payment
       const { data: readerStatus, error: readerError } = await supabase.functions.invoke(
         "check-terminal-reader",
@@ -191,6 +194,49 @@ export const QuickCustomerForm = ({
         variant: "destructive",
       });
       setProcessingPayment(false);
+      setCurrentReaderId(null);
+    }
+  };
+
+  const handleCancelPayment = async () => {
+    if (!currentReaderId || !appointmentId) return;
+
+    try {
+      toast({
+        title: "Canceling Payment",
+        description: "Please wait...",
+      });
+
+      const { error } = await supabase.functions.invoke('cancel-terminal-payment', {
+        body: {
+          readerId: currentReaderId,
+          appointmentId: appointmentId,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Payment Canceled",
+        description: "The payment has been canceled successfully",
+      });
+      
+      setProcessingPayment(false);
+      setCurrentReaderId(null);
+      setAppointmentId(null);
+      
+      // Reset form
+      setCustomerName("");
+      setCustomerPhone("");
+      setCustomerEmail("");
+      setNotes("");
+    } catch (error: any) {
+      console.error('Error canceling payment:', error);
+      toast({
+        title: "Cancel Failed",
+        description: error.message || "Failed to cancel payment",
+        variant: "destructive",
+      });
     }
   };
 
@@ -319,7 +365,7 @@ export const QuickCustomerForm = ({
   if (processingPayment) {
     return (
       <Card className="border-primary/50">
-        <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
+        <CardContent className="flex flex-col items-center justify-center py-12 space-y-6">
           <Loader2 className="h-16 w-16 animate-spin text-primary" />
           <div className="text-center space-y-2">
             <h3 className="text-xl font-semibold">Processing Payment</h3>
@@ -329,6 +375,14 @@ export const QuickCustomerForm = ({
               This may take up to 2 minutes
             </p>
           </div>
+          <Button
+            variant="destructive"
+            size="lg"
+            onClick={handleCancelPayment}
+            disabled={!currentReaderId}
+          >
+            Cancel Payment
+          </Button>
         </CardContent>
       </Card>
     );

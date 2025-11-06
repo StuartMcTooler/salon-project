@@ -6,5 +6,8 @@ verify_jwt = true
 [functions.create-terminal-payment]
 verify_jwt = true
 
+[functions.cancel-terminal-payment]
+verify_jwt = true
+
 [functions.create-payment-link]
 verify_jwt = true

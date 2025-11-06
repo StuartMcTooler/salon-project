@@ -80,13 +80,14 @@ export const StaffHoursSettings = () => {
   const upsertHours = useMutation({
     mutationFn: async (hours: any) => {
       if (!selectedStaffId) throw new Error("No staff selected");
+      if (!businessAccount?.id) throw new Error("No business account");
 
       const { error } = await supabase
         .from("business_hours")
         .upsert({
           ...hours,
           staff_id: selectedStaffId,
-          business_id: null,
+          business_id: businessAccount.id,
         });
 
       if (error) throw error;

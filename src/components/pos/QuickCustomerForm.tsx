@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, CreditCard, Smartphone, Banknote } from "lucide-react";
 import { LoyaltyPointsDisplay } from "./LoyaltyPointsDisplay";
 // import { PaymentMethodSelector } from "./PaymentMethodSelector"; // Commented out - auto-launching card reader instead
 
@@ -33,6 +33,7 @@ export const QuickCustomerForm = ({
   const [appointmentId, setAppointmentId] = useState<string | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [currentReaderId, setCurrentReaderId] = useState<string | null>(null);
+  const [showPaymentMethods, setShowPaymentMethods] = useState(false);
 
   const createWalkIn = useMutation({
     mutationFn: async () => {
@@ -94,14 +95,13 @@ export const QuickCustomerForm = ({
 
       return data;
     },
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       toast({
         title: "Appointment Created!",
-        description: "Preparing card reader...",
+        description: "Please select a payment method",
       });
       
-      // Automatically trigger card reader payment
-      await handleCardReaderPayment(data.id);
+      setShowPaymentMethods(true);
     },
     onError: (error: any) => {
       toast({
@@ -336,6 +336,101 @@ export const QuickCustomerForm = ({
     setProcessingPayment(false);
   };
 
+  const handleCashPayment = async () => {
+    if (!appointmentId) return;
+    
+    try {
+      // Update appointment to paid with cash payment method
+      const { error } = await supabase
+        .from('salon_appointments')
+        .update({
+          payment_status: 'paid',
+          payment_method: 'cash',
+        })
+        .eq('id', appointmentId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Cash Payment Recorded",
+        description: "Transaction completed successfully",
+      });
+
+      await handlePaymentComplete(appointmentId);
+    } catch (error: any) {
+      console.error("Cash payment error:", error);
+      toast({
+        title: "Payment Error",
+        description: error.message || "Failed to record cash payment",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePaymentLink = async () => {
+    if (!appointmentId) return;
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("create-payment-link", {
+        body: {
+          appointmentId,
+          serviceId: service.service.id,
+          serviceName: service.service.name,
+          amount: Number(service.custom_price),
+          customerEmail,
+          customerName: customerName || 'Walk-in Customer',
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        // If customer has phone, send via WhatsApp
+        if (customerPhone) {
+          const message = `Hi ${customerName || 'Customer'}! Your payment link for ${service.service.name} (€${Number(service.custom_price).toFixed(2)}): ${data.url}`;
+          
+          await supabase.functions.invoke("send-whatsapp", {
+            body: {
+              to: customerPhone,
+              message,
+            },
+          });
+          
+          toast({
+            title: "Payment Link Sent",
+            description: "Link sent via WhatsApp",
+          });
+        } else {
+          // Copy to clipboard
+          await navigator.clipboard.writeText(data.url);
+          toast({
+            title: "Payment Link Copied",
+            description: "Link copied to clipboard",
+          });
+        }
+        
+        // Open in new tab
+        window.open(data.url, "_blank");
+        
+        // Reset form and go back
+        setShowPaymentMethods(false);
+        setAppointmentId(null);
+        setCustomerName("");
+        setCustomerPhone("");
+        setCustomerEmail("");
+        setNotes("");
+        onBack();
+      }
+    } catch (error: any) {
+      console.error("Payment link error:", error);
+      toast({
+        title: "Payment Link Error",
+        description: error.message || "Failed to create payment link",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Payment method selector removed - card reader auto-launches after appointment creation
   // Keeping this commented for future reference if payment link needs to be re-enabled
   /*
@@ -385,6 +480,76 @@ export const QuickCustomerForm = ({
           </Button>
         </CardContent>
       </Card>
+    );
+  }
+
+  if (showPaymentMethods && appointmentId) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" onClick={() => setShowPaymentMethods(false)}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Select Payment Method</CardTitle>
+            <CardDescription>
+              Choose how the customer wants to pay for {service.service.name}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <Button
+                onClick={handleCashPayment}
+                className="w-full h-24 flex-col gap-2"
+                variant="outline"
+              >
+                <Banknote className="h-8 w-8" />
+                <div className="text-center">
+                  <div className="font-semibold">Cash</div>
+                  <div className="text-xs text-muted-foreground">
+                    Customer paid with cash
+                  </div>
+                </div>
+              </Button>
+
+              <Button
+                onClick={() => appointmentId && handleCardReaderPayment(appointmentId)}
+                className="w-full h-24 flex-col gap-2"
+                variant="outline"
+              >
+                <CreditCard className="h-8 w-8" />
+                <div className="text-center">
+                  <div className="font-semibold">Card Reader</div>
+                  <div className="text-xs text-muted-foreground">
+                    Pay in-person with card reader
+                  </div>
+                </div>
+              </Button>
+
+              <Button
+                onClick={handlePaymentLink}
+                className="w-full h-24 flex-col gap-2"
+                variant="outline"
+              >
+                <Smartphone className="h-8 w-8" />
+                <div className="text-center">
+                  <div className="font-semibold">Payment Link</div>
+                  <div className="text-xs text-muted-foreground">
+                    {customerPhone ? "Send link via WhatsApp" : "Copy payment link"}
+                  </div>
+                </div>
+              </Button>
+            </div>
+
+            <div className="text-center pt-4 border-t">
+              <div className="text-2xl font-bold">€{Number(service.custom_price).toFixed(2)}</div>
+              <div className="text-sm text-muted-foreground">{service.service.name}</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -475,7 +640,7 @@ export const QuickCustomerForm = ({
                 Creating Appointment...
               </>
             ) : (
-              "Charge Card"
+              "Continue to Payment"
             )}
           </Button>
         </CardContent>

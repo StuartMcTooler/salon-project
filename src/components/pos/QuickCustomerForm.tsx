@@ -528,6 +528,7 @@ export const QuickCustomerForm = ({
                 </div>
               </Button>
 
+              {/* Payment Link option commented out - only showing Cash and Card Reader
               <Button
                 onClick={handlePaymentLink}
                 className="w-full h-24 flex-col gap-2"
@@ -541,6 +542,7 @@ export const QuickCustomerForm = ({
                   </div>
                 </div>
               </Button>
+              */}
             </div>
 
             <div className="text-center pt-4 border-t">

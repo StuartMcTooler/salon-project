@@ -80,23 +80,26 @@ export const StaffHoursSettings = () => {
   const upsertHours = useMutation({
     mutationFn: async (hours: any) => {
       if (!selectedStaffId) throw new Error("No staff selected");
+      if (!businessAccount?.id) throw new Error("No business account found");
 
       const { error } = await supabase
         .from("business_hours")
         .upsert({
           ...hours,
           staff_id: selectedStaffId,
-          business_id: null,
+          business_id: businessAccount.id,
         });
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["staff-hours"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-hours", selectedStaffId] });
       toast.success("Staff hours updated");
     },
-    onError: () => {
-      toast.error("Failed to update staff hours");
+    onError: (err: any) => {
+      console.error("Failed to update staff hours", err);
+      const msg = err?.message || err?.error?.message || "Unknown error";
+      toast.error(`Failed to update staff hours: ${msg}`);
     },
   });
 

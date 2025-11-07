@@ -15,8 +15,8 @@ export interface BusinessHours {
 }
 
 /**
- * Generate all possible time slots starting from next quarter hour, then 30-minute increments
- * @param startHour - Starting hour (can be decimal, e.g., 9.25 = 9:15)
+ * Generate all possible time slots on the hour and half-hour only
+ * @param startHour - Starting hour (can be decimal, e.g., 9.5 = 9:30)
  * @param endHour - Ending hour (can be decimal)
  * @returns Array of time strings in HH:MM format
  */
@@ -27,17 +27,11 @@ export const generateTimeSlots = (startHour: number = 9, endHour: number = 18): 
   const startHourInt = Math.floor(startHour);
   const startMinuteDecimal = (startHour - startHourInt) * 60;
   
-  // Round up to next quarter hour (0, 15, 30, 45)
-  let currentMinute = Math.ceil(startMinuteDecimal / 15) * 15;
-  let currentHour = startHourInt;
+  // Round up to next 30-minute mark (0 or 30)
+  let currentMinute = startMinuteDecimal > 30 ? 0 : (startMinuteDecimal > 0 ? 30 : 0);
+  let currentHour = startMinuteDecimal > 30 ? startHourInt + 1 : startHourInt;
   
-  // If rounding pushed us to 60 minutes, move to next hour
-  if (currentMinute >= 60) {
-    currentHour++;
-    currentMinute = 0;
-  }
-  
-  // Generate slots every 30 minutes from the first quarter hour
+  // Generate slots every 30 minutes on the hour and half-hour only
   while (currentHour < endHour || (currentHour === endHour && currentMinute === 0)) {
     const timeSlot = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
     slots.push(timeSlot);
@@ -54,19 +48,19 @@ export const generateTimeSlots = (startHour: number = 9, endHour: number = 18): 
 };
 
 /**
- * Round a date up to the next 15-minute increment
+ * Round a date up to the next 30-minute increment (on the hour or half-hour)
  * @param date - Date to round
- * @returns New date rounded to next 15-minute mark
+ * @returns New date rounded to next 30-minute mark
  */
-const roundToNext15Minutes = (date: Date): Date => {
+const roundToNext30Minutes = (date: Date): Date => {
   const minutes = date.getMinutes();
-  const remainder = minutes % 15;
+  const remainder = minutes % 30;
   
   if (remainder === 0) {
     return new Date(date);
   }
   
-  const roundedMinutes = minutes + (15 - remainder);
+  const roundedMinutes = minutes + (30 - remainder);
   const result = new Date(date);
   result.setMinutes(roundedMinutes);
   result.setSeconds(0);
@@ -113,7 +107,7 @@ export const isSlotAvailable = (
 
 /**
  * Get all available time slots for a given service duration and date
- * After bookings, slots align to 15-minute increments rounded up from appointment end times
+ * Slots are only shown on the hour and half-hour (:00 and :30)
  * @param serviceDuration - Duration of the service in minutes
  * @param appointments - Array of existing appointments
  * @param selectedDate - The date to check availability for
@@ -169,39 +163,8 @@ export const getAvailableSlots = (
   const availableSlots: Array<{ time: string; endTime: string }> = [];
   const standardSlots = generateTimeSlots(startHour, endHour);
   
-  // Create a set of all potential slot start times (15-min increments)
-  const potentialSlots = new Set<string>();
-  
-  // Add standard 30-minute slots
-  standardSlots.forEach(slot => potentialSlots.add(slot));
-  
-  // Add slots that start 30 minutes after each appointment ends (rounded to 15-min)
-  appointments.forEach(appointment => {
-    const appointmentEnd = new Date(appointment.appointment_date);
-    appointmentEnd.setTime(appointmentEnd.getTime() + appointment.duration_minutes * 60000);
-    
-    const roundedEnd = roundToNext15Minutes(appointmentEnd);
-    
-    // Generate 30-minute interval slots starting from this rounded time
-    let currentSlot = new Date(roundedEnd);
-    const businessEnd = new Date(selectedDate);
-    businessEnd.setHours(endHour, 0, 0, 0);
-    
-    while (currentSlot < businessEnd) {
-      const hours = currentSlot.getHours();
-      const minutes = currentSlot.getMinutes();
-      const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-      
-      if (hours >= startHour && hours < endHour) {
-        potentialSlots.add(timeStr);
-      }
-      
-      currentSlot.setTime(currentSlot.getTime() + 30 * 60000); // Add 30 minutes
-    }
-  });
-  
-  // Convert to array and sort
-  const sortedSlots = Array.from(potentialSlots).sort();
+  // Only use standard 30-minute slots (on the hour and half-hour)
+  const sortedSlots = standardSlots;
   
   // Check each potential slot for availability
   for (const slot of sortedSlots) {

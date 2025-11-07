@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Calendar, Clock, DollarSign, Mail, Phone, User, Edit2, Trash2 } from "lucide-react";
 import { AppointmentEditForm } from "./AppointmentEditForm";
+import { AppointmentChangeNotification } from "./AppointmentChangeNotification";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +39,9 @@ export const AppointmentDetailsDialog = ({
 }: AppointmentDetailsDialogProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
+  const [originalAppointment, setOriginalAppointment] = useState<any>(null);
+  const [updatedAppointment, setUpdatedAppointment] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -86,8 +90,26 @@ export const AppointmentDetailsDialog = ({
 
   if (!appointment) return null;
 
-  const handleEditSuccess = () => {
+  const handleEditSuccess = (original: any, updated: any) => {
     setIsEditing(false);
+    setOriginalAppointment(original);
+    setUpdatedAppointment(updated);
+    
+    // Check if date/time or other significant details changed
+    const dateChanged = original.appointment_date !== updated.appointment_date;
+    const serviceChanged = original.service_name !== updated.service_name;
+    
+    if ((dateChanged || serviceChanged) && updated.customer_phone) {
+      // Show notification dialog
+      setShowNotification(true);
+    } else {
+      // No notification needed, just close
+      onOpenChange(false);
+    }
+  };
+
+  const handleNotificationClose = () => {
+    setShowNotification(false);
     onOpenChange(false);
   };
 
@@ -105,7 +127,7 @@ export const AppointmentDetailsDialog = ({
           {isEditing ? (
             <AppointmentEditForm
               appointment={appointment}
-              onSuccess={handleEditSuccess}
+              onSuccess={(original, updated) => handleEditSuccess(original, updated)}
               onCancel={() => setIsEditing(false)}
             />
           ) : (
@@ -214,6 +236,15 @@ export const AppointmentDetailsDialog = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {showNotification && originalAppointment && updatedAppointment && (
+        <AppointmentChangeNotification
+          isOpen={showNotification}
+          onClose={handleNotificationClose}
+          originalAppointment={originalAppointment}
+          updatedAppointment={updatedAppointment}
+        />
+      )}
     </>
   );
 };

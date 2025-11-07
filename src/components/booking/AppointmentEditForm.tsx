@@ -17,7 +17,7 @@ import { getAvailableSlots } from "@/lib/timeSlotUtils";
 
 interface AppointmentEditFormProps {
   appointment: any;
-  onSuccess: () => void;
+  onSuccess: (originalAppointment: any, updatedAppointment: any) => void;
   onCancel: () => void;
 }
 
@@ -117,8 +117,26 @@ export const AppointmentEditForm = ({
         .eq("id", appointment.id);
 
       if (error) throw error;
+
+      // Return both original and updated for comparison
+      return {
+        original: {
+          appointment_date: appointment.appointment_date,
+          service_name: appointment.service_name,
+          duration_minutes: appointment.duration_minutes,
+          price: appointment.price,
+        },
+        updated: {
+          customer_name: customerName,
+          customer_phone: customerPhone || null,
+          appointment_date: appointmentDate.toISOString(),
+          service_name: selectedService?.name,
+          duration_minutes: selectedService?.duration_minutes,
+          price: Number(price),
+        },
+      };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["staff-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["visual-calendar"] });
       queryClient.invalidateQueries({ queryKey: ["todays-appointments"] });
@@ -126,7 +144,7 @@ export const AppointmentEditForm = ({
         title: "Appointment Updated",
         description: "The appointment has been successfully updated.",
       });
-      onSuccess();
+      onSuccess(data.original, data.updated);
     },
     onError: (error: any) => {
       toast({

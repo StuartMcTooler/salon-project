@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Smartphone, Loader2 } from "lucide-react";
+import { CreditCard, Smartphone, Loader2, Banknote } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -13,6 +13,8 @@ interface PaymentMethodSelectorProps {
   customerEmail?: string;
   customerName: string;
   customerPhone?: string;
+  staffId?: string;
+  businessId?: string;
   onPaymentComplete: () => void;
 }
 
@@ -24,24 +26,88 @@ export const PaymentMethodSelector = ({
   customerEmail,
   customerName,
   customerPhone,
+  staffId,
+  businessId,
   onPaymentComplete,
 }: PaymentMethodSelectorProps) => {
   const [loading, setLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"card_reader" | "payment_link" | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"card_reader" | "payment_link" | "cash" | null>(null);
+
+  const pollPaymentStatus = async () => {
+    const maxAttempts = 60;
+    let attempts = 0;
+    return new Promise<void>((resolve, reject) => {
+      const check = async () => {
+        attempts++;
+        const { data: appt, error } = await supabase
+          .from('salon_appointments')
+          .select('payment_status')
+          .eq('id', appointmentId)
+          .single();
+        if (error) {
+          reject(error);
+          return;
+        }
+        if (appt?.payment_status === 'paid') {
+          resolve();
+          return;
+        }
+        if (attempts < maxAttempts) {
+          setTimeout(check, 2000);
+        } else {
+          reject(new Error('Payment timeout. Please check the terminal.'));
+        }
+      };
+      setTimeout(check, 2000);
+    });
+  };
 
   const handleCardReaderPayment = async () => {
     setLoading(true);
     setPaymentMethod("card_reader");
-    
+
     try {
-      toast.info("Card reader payment flow coming soon! Please use payment link for now.");
-      setPaymentMethod(null);
+      if (!businessId) throw new Error('No business configured for this staff.');
+
+      const { data: terminalData, error: termErr } = await supabase
+        .from('terminal_settings')
+        .select('reader_id')
+        .eq('business_id', businessId)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (termErr) throw termErr;
+      const readerId = terminalData?.reader_id;
+      if (!readerId) throw new Error('No terminal reader configured.');
+
+      const { data: readerStatus, error: readerError } = await supabase.functions.invoke(
+        'check-terminal-reader',
+        { body: { readerId } }
+      );
+      if (readerError || !readerStatus?.isOnline) {
+        throw new Error(readerStatus?.details || 'Terminal reader is offline.');
+      }
+
+      const { error: payErr } = await supabase.functions.invoke('create-terminal-payment', {
+        body: {
+          amount: Number(amount),
+          currency: 'eur',
+          readerId,
+          appointmentId,
+          customerEmail,
+        },
+      });
+      if (payErr) throw payErr;
+
+      toast.info('Present card to the reader to complete payment');
+      await pollPaymentStatus();
+      toast.success('Card payment completed');
+      onPaymentComplete();
     } catch (error: any) {
-      console.error("Card reader payment error:", error);
-      toast.error(error.message || "Failed to process card payment");
-      setPaymentMethod(null);
+      console.error('Card reader payment error:', error);
+      toast.error(error.message || 'Failed to process card payment');
     } finally {
       setLoading(false);
+      setPaymentMethod(null);
     }
   };
 
@@ -121,6 +187,44 @@ export const PaymentMethodSelector = ({
                   <div className="font-semibold">Card Reader</div>
                   <div className="text-xs text-muted-foreground">
                     Pay in-person with card reader
+                  </div>
+                </div>
+              </>
+            )}
+          </Button>
+
+          <Button
+            onClick={async () => {
+              setLoading(true);
+              setPaymentMethod('cash');
+              try {
+                const { error } = await supabase
+                  .from('salon_appointments')
+                  .update({ payment_status: 'paid', payment_method: 'cash', status: 'completed' })
+                  .eq('id', appointmentId);
+                if (error) throw error;
+                toast.success('Cash payment recorded');
+                onPaymentComplete();
+              } catch (err: any) {
+                toast.error(err.message || 'Failed to record cash payment');
+              } finally {
+                setLoading(false);
+                setPaymentMethod(null);
+              }
+            }}
+            disabled={loading}
+            className="w-full h-24 flex-col gap-2"
+            variant="outline"
+          >
+            {loading && paymentMethod === "cash" ? (
+              <Loader2 className="h-8 w-8 animate-spin" />
+            ) : (
+              <>
+                <Banknote className="h-8 w-8" />
+                <div className="text-center">
+                  <div className="font-semibold">Cash</div>
+                  <div className="text-xs text-muted-foreground">
+                    Customer paid with cash
                   </div>
                 </div>
               </>

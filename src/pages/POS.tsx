@@ -13,6 +13,8 @@ import { StaffBookingInterface } from "@/components/pos/StaffBookingInterface";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StripeModeIndicator } from "@/components/pos/StripeModeIndicator";
 import { VisualCalendar } from "@/components/dashboard/VisualCalendar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PaymentMethodSelector } from "@/components/pos/PaymentMethodSelector";
 
 const POS = () => {
   const navigate = useNavigate();
@@ -24,6 +26,7 @@ const POS = () => {
   const [businessId, setBusinessId] = useState<string>("");
   const [selectedService, setSelectedService] = useState<any>(null);
   const [showPostCheckout, setShowPostCheckout] = useState(false);
+  const [showPaymentSelector, setShowPaymentSelector] = useState(false);
   const [lastAppointment, setLastAppointment] = useState<any>(null);
 
   useEffect(() => {
@@ -139,10 +142,14 @@ const POS = () => {
     setSelectedService(null);
     setLastAppointment(null);
   };
-
+  
   const handleAppointmentSelect = (appointment: any) => {
     setLastAppointment(appointment);
-    setShowPostCheckout(true);
+    if (appointment.payment_status === 'paid' || appointment.status === 'completed') {
+      setShowPostCheckout(true);
+    } else {
+      setShowPaymentSelector(true);
+    }
   };
 
   if (loading) {
@@ -354,6 +361,31 @@ const POS = () => {
           appointment={lastAppointment}
           businessId={businessId}
         />
+      )}
+
+      {lastAppointment && (
+        <Dialog open={showPaymentSelector} onOpenChange={setShowPaymentSelector}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Take Payment</DialogTitle>
+            </DialogHeader>
+            <PaymentMethodSelector
+              appointmentId={lastAppointment.id}
+              serviceId={lastAppointment.service_id}
+              serviceName={lastAppointment.service_name}
+              amount={Number(lastAppointment.price)}
+              customerEmail={lastAppointment.customer_email}
+              customerName={lastAppointment.customer_name}
+              customerPhone={lastAppointment.customer_phone}
+              staffId={lastAppointment.staff_id}
+              businessId={businessId}
+              onPaymentComplete={() => {
+                setShowPaymentSelector(false);
+                setShowPostCheckout(true);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

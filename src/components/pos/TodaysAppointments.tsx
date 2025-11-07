@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Clock, User, Loader2, CheckCircle2, Edit2 } from "lucide-react";
+import { Clock, User, Loader2, CheckCircle2, Edit2, CreditCard } from "lucide-react";
 import { AppointmentDetailsDialog } from "@/components/booking/AppointmentDetailsDialog";
 
 interface TodaysAppointmentsProps {
@@ -145,17 +145,10 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
                         <Edit2 className="h-4 w-4" />
                       </Button>
                       <Button
-                        onClick={() => completeAppointment.mutate(appointment)}
-                        disabled={completeAppointment.isPending}
+                        onClick={() => onAppointmentSelect(appointment)}
                       >
-                        {completeAppointment.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <CheckCircle2 className="mr-2 h-4 w-4" />
-                            Complete
-                          </>
-                        )}
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Take Payment
                       </Button>
                     </div>
                   </div>

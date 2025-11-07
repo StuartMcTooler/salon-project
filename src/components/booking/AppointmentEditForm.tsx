@@ -77,8 +77,7 @@ export const AppointmentEditForm = ({
         existingAppointments || [],
         selectedDate,
         null,
-        null,
-        appointment.staff_id
+        null
       );
     },
     enabled: !!selectedService && !!selectedDate,

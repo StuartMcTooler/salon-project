@@ -77,10 +77,7 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['todays-appointments', staffId] });
-      toast({
-        title: "Checkout Complete!",
-        description: `€${data.price} charged for ${data.service_name}`,
-      });
+      // Trigger checkout dialog immediately
       onAppointmentSelect(data);
     },
     onError: (error: any) => {

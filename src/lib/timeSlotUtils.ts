@@ -48,19 +48,19 @@ export const generateTimeSlots = (startHour: number = 9, endHour: number = 18): 
 };
 
 /**
- * Round a date up to the next 30-minute increment (on the hour or half-hour)
+ * Round a date up to the next 15-minute increment
  * @param date - Date to round
- * @returns New date rounded to next 30-minute mark
+ * @returns New date rounded to next 15-minute mark
  */
-const roundToNext30Minutes = (date: Date): Date => {
+const roundToNext15Minutes = (date: Date): Date => {
   const minutes = date.getMinutes();
-  const remainder = minutes % 30;
+  const remainder = minutes % 15;
   
   if (remainder === 0) {
     return new Date(date);
   }
   
-  const roundedMinutes = minutes + (30 - remainder);
+  const roundedMinutes = minutes + (15 - remainder);
   const result = new Date(date);
   result.setMinutes(roundedMinutes);
   result.setSeconds(0);
@@ -163,8 +163,30 @@ export const getAvailableSlots = (
   const availableSlots: Array<{ time: string; endTime: string }> = [];
   const standardSlots = generateTimeSlots(startHour, endHour);
   
-  // Only use standard 30-minute slots (on the hour and half-hour)
-  const sortedSlots = standardSlots;
+  // Start with standard 30-minute slots (on the hour and half-hour)
+  const potentialSlots = new Set<string>(standardSlots);
+  
+  // Add quarter-hour slots immediately after appointments (if they fall on :15 or :45)
+  appointments.forEach(appointment => {
+    const appointmentEnd = new Date(appointment.appointment_date);
+    appointmentEnd.setTime(appointmentEnd.getTime() + appointment.duration_minutes * 60000);
+    
+    const roundedEnd = roundToNext15Minutes(appointmentEnd);
+    const minutes = roundedEnd.getMinutes();
+    
+    // Only add if it falls on a quarter hour that's not already a standard slot (:15 or :45)
+    if (minutes === 15 || minutes === 45) {
+      const hours = roundedEnd.getHours();
+      const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      
+      if (hours >= startHour && hours < endHour) {
+        potentialSlots.add(timeStr);
+      }
+    }
+  });
+  
+  // Convert to array and sort
+  const sortedSlots = Array.from(potentialSlots).sort();
   
   // Check each potential slot for availability
   for (const slot of sortedSlots) {

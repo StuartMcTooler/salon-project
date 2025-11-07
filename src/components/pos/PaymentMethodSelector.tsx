@@ -231,6 +231,7 @@ export const PaymentMethodSelector = ({
             )}
           </Button>
 
+          {/* Payment Link option commented out - only showing Cash and Card Reader
           <Button
             onClick={handlePaymentLink}
             disabled={loading}
@@ -251,6 +252,7 @@ export const PaymentMethodSelector = ({
               </>
             )}
           </Button>
+          */}
         </div>
 
         <div className="text-center pt-4 border-t">

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -5,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Clock, User, Loader2, CheckCircle2 } from "lucide-react";
+import { Clock, User, Loader2, CheckCircle2, Edit2 } from "lucide-react";
+import { AppointmentDetailsDialog } from "@/components/booking/AppointmentDetailsDialog";
 
 interface TodaysAppointmentsProps {
   staffId: string;
@@ -15,6 +17,8 @@ interface TodaysAppointmentsProps {
 export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppointmentsProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data: appointments, isLoading } = useQuery({
     queryKey: ['todays-appointments', staffId],
@@ -132,19 +136,31 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
                         €{Number(appointment.price).toFixed(2)}
                       </div>
                     </div>
-                    <Button
-                      onClick={() => completeAppointment.mutate(appointment)}
-                      disabled={completeAppointment.isPending}
-                    >
-                      {completeAppointment.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <CheckCircle2 className="mr-2 h-4 w-4" />
-                          Complete
-                        </>
-                      )}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedAppointment(appointment);
+                          setDialogOpen(true);
+                        }}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        onClick={() => completeAppointment.mutate(appointment)}
+                        disabled={completeAppointment.isPending}
+                      >
+                        {completeAppointment.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            Complete
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -184,6 +200,14 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
             ))}
           </div>
         </div>
+      )}
+
+      {selectedAppointment && (
+        <AppointmentDetailsDialog
+          appointment={selectedAppointment}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+        />
       )}
     </div>
   );

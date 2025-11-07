@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { AppointmentDetailsDialog } from "@/components/booking/AppointmentDetailsDialog";
 
 interface BookingCalendarProps {
   staffId: string;
@@ -10,6 +12,9 @@ interface BookingCalendarProps {
 }
 
 export const BookingCalendar = ({ staffId, showAll = false }: BookingCalendarProps) => {
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   const { data: appointments, isLoading } = useQuery({
     queryKey: ["staff-appointments", staffId, showAll],
     queryFn: async () => {
@@ -57,7 +62,11 @@ export const BookingCalendar = ({ staffId, showAll = false }: BookingCalendarPro
             {appointments.map((appointment) => (
               <div
                 key={appointment.id}
-                className="flex items-center justify-between p-4 border rounded-lg"
+                className="flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-accent transition-colors"
+                onClick={() => {
+                  setSelectedAppointment(appointment);
+                  setDialogOpen(true);
+                }}
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -86,6 +95,14 @@ export const BookingCalendar = ({ staffId, showAll = false }: BookingCalendarPro
           </div>
         )}
       </CardContent>
+
+      {selectedAppointment && (
+        <AppointmentDetailsDialog
+          appointment={selectedAppointment}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+        />
+      )}
     </Card>
   );
 };

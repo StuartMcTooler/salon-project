@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { format, startOfWeek, addDays, isSameDay } from "date-fns";
 import { useState, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AppointmentDetailsDialog } from "@/components/booking/AppointmentDetailsDialog";
 
 interface VisualCalendarProps {
   staffId: string;
@@ -11,6 +12,8 @@ interface VisualCalendarProps {
 
 export const VisualCalendar = ({ staffId }: VisualCalendarProps) => {
   const [selectedWeek, setSelectedWeek] = useState(new Date());
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const weekStart = startOfWeek(selectedWeek, { weekStartsOn: 1 });
 
   const { data: appointments, isLoading } = useQuery({
@@ -121,10 +124,14 @@ export const VisualCalendar = ({ staffId }: VisualCalendarProps) => {
                     return (
                       <div
                         key={apt.id}
-                        className="absolute left-1 right-1 bg-primary text-primary-foreground rounded p-1 text-xs"
+                        className="absolute left-1 right-1 bg-primary text-primary-foreground rounded p-1 text-xs cursor-pointer hover:bg-primary/90 transition-colors"
                         style={{
                           top: `${(aptDate.getMinutes() / 60) * 100}%`,
                           height: `${heightInHours * 100}%`,
+                        }}
+                        onClick={() => {
+                          setSelectedAppointment(apt);
+                          setDialogOpen(true);
                         }}
                       >
                         <div className="font-medium truncate">{apt.customer_name}</div>
@@ -139,6 +146,14 @@ export const VisualCalendar = ({ staffId }: VisualCalendarProps) => {
           </>
         ))}
       </div>
+
+      {selectedAppointment && (
+        <AppointmentDetailsDialog
+          appointment={selectedAppointment}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+        />
+      )}
     </Card>
   );
 };

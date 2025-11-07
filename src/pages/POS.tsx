@@ -298,21 +298,21 @@ const POS = () => {
       <div className="max-w-6xl mx-auto p-3 md:p-6">
         <StripeModeIndicator />
         <Tabs defaultValue="walkin" className="w-full">
-          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4 mb-4 md:mb-6 h-auto">
-            <TabsTrigger value="walkin" className="text-xs md:text-sm px-2 md:px-4 py-2">
+          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4 mb-4 md:mb-6 h-8 md:h-9">
+            <TabsTrigger value="walkin" className="text-xs md:text-sm px-2 md:px-3 py-1">
               <span className="hidden sm:inline">Walk-In Customer</span>
               <span className="sm:hidden">Walk-In</span>
             </TabsTrigger>
-            <TabsTrigger value="book" className="text-xs md:text-sm px-2 md:px-4 py-2">
+            <TabsTrigger value="book" className="text-xs md:text-sm px-2 md:px-3 py-1">
               <Calendar className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
               <span className="hidden sm:inline">Book Appointment</span>
               <span className="sm:hidden">Book</span>
             </TabsTrigger>
-            <TabsTrigger value="today" className="text-xs md:text-sm px-2 md:px-4 py-2">
+            <TabsTrigger value="today" className="text-xs md:text-sm px-2 md:px-3 py-1">
               <span className="hidden sm:inline">Today's Appointments</span>
               <span className="sm:hidden">Today</span>
             </TabsTrigger>
-            <TabsTrigger value="all" className="text-xs md:text-sm px-2 md:px-4 py-2">
+            <TabsTrigger value="all" className="text-xs md:text-sm px-2 md:px-3 py-1">
               <span className="hidden sm:inline">All Bookings</span>
               <span className="sm:hidden">All</span>
             </TabsTrigger>

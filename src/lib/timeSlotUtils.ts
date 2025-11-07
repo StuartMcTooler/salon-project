@@ -15,8 +15,8 @@ export interface BusinessHours {
 }
 
 /**
- * Generate all possible time slots on the hour and half-hour only
- * @param startHour - Starting hour (can be decimal, e.g., 9.5 = 9:30)
+ * Generate time slots starting from a specific time, every 30 minutes
+ * @param startHour - Starting hour (can be decimal, e.g., 9.5 = 9:30, 9.75 = 9:45)
  * @param endHour - Ending hour (can be decimal)
  * @returns Array of time strings in HH:MM format
  */
@@ -27,11 +27,10 @@ export const generateTimeSlots = (startHour: number = 9, endHour: number = 18): 
   const startHourInt = Math.floor(startHour);
   const startMinuteDecimal = (startHour - startHourInt) * 60;
   
-  // Round up to next 30-minute mark (0 or 30)
-  let currentMinute = startMinuteDecimal > 30 ? 0 : (startMinuteDecimal > 0 ? 30 : 0);
-  let currentHour = startMinuteDecimal > 30 ? startHourInt + 1 : startHourInt;
+  let currentHour = startHourInt;
+  let currentMinute = Math.round(startMinuteDecimal);
   
-  // Generate slots every 30 minutes on the hour and half-hour only
+  // Generate slots every 30 minutes from the start time
   while (currentHour < endHour || (currentHour === endHour && currentMinute === 0)) {
     const timeSlot = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
     slots.push(timeSlot);
@@ -40,7 +39,7 @@ export const generateTimeSlots = (startHour: number = 9, endHour: number = 18): 
     currentMinute += 30;
     if (currentMinute >= 60) {
       currentHour++;
-      currentMinute = 0;
+      currentMinute -= 60;
     }
   }
   
@@ -157,31 +156,30 @@ export const getAvailableSlots = (
     actualEndHour = Math.min(actualEndHour, staffEnd);
   }
   
-  // Convert back to integer hours for slot generation
-  startHour = Math.floor(actualStartHour);
-  endHour = Math.ceil(actualEndHour);
+  // Convert back to decimal hours for slot generation
   const availableSlots: Array<{ time: string; endTime: string }> = [];
-  const standardSlots = generateTimeSlots(startHour, endHour);
   
-  // Start with standard 30-minute slots (on the hour and half-hour)
+  // Generate standard slots from opening time (every 30 minutes)
+  const standardSlots = generateTimeSlots(actualStartHour, actualEndHour);
   const potentialSlots = new Set<string>(standardSlots);
   
-  // Add quarter-hour slots immediately after appointments (if they fall on :15 or :45)
+  // For each appointment, add offset slots if it ends off-cycle
   appointments.forEach(appointment => {
     const appointmentEnd = new Date(appointment.appointment_date);
     appointmentEnd.setTime(appointmentEnd.getTime() + appointment.duration_minutes * 60000);
     
+    // Round up to next 15-minute mark
     const roundedEnd = roundToNext15Minutes(appointmentEnd);
-    const minutes = roundedEnd.getMinutes();
     
-    // Only add if it falls on a quarter hour that's not already a standard slot (:15 or :45)
-    if (minutes === 15 || minutes === 45) {
-      const hours = roundedEnd.getHours();
-      const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-      
-      if (hours >= startHour && hours < endHour) {
-        potentialSlots.add(timeStr);
-      }
+    // Generate slots every 30 minutes from this rounded end time
+    const hours = roundedEnd.getHours();
+    const minutes = roundedEnd.getMinutes();
+    const startDecimal = hours + (minutes / 60);
+    
+    // Only generate if this creates an offset from standard slots
+    if (startDecimal >= actualStartHour && startDecimal < actualEndHour) {
+      const offsetSlots = generateTimeSlots(startDecimal, actualEndHour);
+      offsetSlots.forEach(slot => potentialSlots.add(slot));
     }
   });
   

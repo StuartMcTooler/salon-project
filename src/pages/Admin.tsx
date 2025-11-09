@@ -14,6 +14,7 @@ import { BusinessHoursSettings } from "@/components/admin/BusinessHoursSettings"
 import { StaffHoursSettings } from "@/components/admin/StaffHoursSettings";
 import { MultiStaffCalendar } from "@/components/dashboard/MultiStaffCalendar";
 import { StaffPerformanceDashboard } from "@/components/admin/StaffPerformanceDashboard";
+import { ReferralDiscountSettings } from "@/components/admin/ReferralDiscountSettings";
 import { toast } from "sonner";
 import { useBusinessConfig } from "@/hooks/useBusinessConfig";
 
@@ -149,7 +150,10 @@ export default function Admin() {
 
           {features.loyaltyProgram && (
             <TabsContent value="loyalty">
-              <LoyaltyProgramSettings businessId={businessId} />
+              <div className="space-y-6">
+                <LoyaltyProgramSettings businessId={businessId} />
+                <ReferralDiscountSettings businessId={businessId} />
+              </div>
             </TabsContent>
           )}
 

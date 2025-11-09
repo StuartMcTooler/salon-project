@@ -1,22 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, Gift, Check } from "lucide-react";
+import { useReferralDiscount } from "@/hooks/useReferralDiscount";
 
 interface ReferralModalProps {
   isOpen: boolean;
   onClose: () => void;
   customerEmail: string;
   customerName: string;
+  staffId?: string;
+  businessId?: string;
 }
 
-export const ReferralModal = ({ isOpen, onClose, customerEmail, customerName }: ReferralModalProps) => {
+export const ReferralModal = ({ isOpen, onClose, customerEmail, customerName, staffId, businessId }: ReferralModalProps) => {
   const { toast } = useToast();
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const discount = useReferralDiscount(staffId, businessId);
 
   const generateReferralCode = useMutation({
     mutationFn: async () => {
@@ -75,7 +79,7 @@ export const ReferralModal = ({ isOpen, onClose, customerEmail, customerName }: 
             Get Rewards for Referring!
           </DialogTitle>
           <DialogDescription>
-            Share your unique referral code with friends and both get 15% off your next visit
+            Share your unique referral code with friends and both get {discount.displayText} your next visit
           </DialogDescription>
         </DialogHeader>
 
@@ -113,8 +117,8 @@ export const ReferralModal = ({ isOpen, onClose, customerEmail, customerName }: 
                 <p className="font-semibold">How it works:</p>
                 <ul className="text-muted-foreground space-y-1">
                   <li>• Share your code with friends</li>
-                  <li>• They get 15% off their first booking</li>
-                  <li>• You get 15% off your next visit</li>
+                  <li>• They get {discount.displayText} their first booking</li>
+                  <li>• You get {discount.displayText} your next visit</li>
                 </ul>
               </div>
             </div>

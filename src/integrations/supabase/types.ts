@@ -26,6 +26,10 @@ export type Database = {
           logo_url: string | null
           owner_user_id: string
           phone: string | null
+          referral_discount_type:
+            | Database["public"]["Enums"]["discount_type"]
+            | null
+          referral_discount_value: number | null
           updated_at: string | null
         }
         Insert: {
@@ -39,6 +43,10 @@ export type Database = {
           logo_url?: string | null
           owner_user_id: string
           phone?: string | null
+          referral_discount_type?:
+            | Database["public"]["Enums"]["discount_type"]
+            | null
+          referral_discount_value?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -52,6 +60,10 @@ export type Database = {
           logo_url?: string | null
           owner_user_id?: string
           phone?: string | null
+          referral_discount_type?:
+            | Database["public"]["Enums"]["discount_type"]
+            | null
+          referral_discount_value?: number | null
           updated_at?: string | null
         }
         Relationships: []
@@ -843,6 +855,10 @@ export type Database = {
           is_active: boolean | null
           phone: string | null
           profile_image_url: string | null
+          referral_discount_type:
+            | Database["public"]["Enums"]["discount_type"]
+            | null
+          referral_discount_value: number | null
           skill_level: string | null
           updated_at: string
           user_id: string | null
@@ -860,6 +876,10 @@ export type Database = {
           is_active?: boolean | null
           phone?: string | null
           profile_image_url?: string | null
+          referral_discount_type?:
+            | Database["public"]["Enums"]["discount_type"]
+            | null
+          referral_discount_value?: number | null
           skill_level?: string | null
           updated_at?: string
           user_id?: string | null
@@ -877,6 +897,10 @@ export type Database = {
           is_active?: boolean | null
           phone?: string | null
           profile_image_url?: string | null
+          referral_discount_type?:
+            | Database["public"]["Enums"]["discount_type"]
+            | null
+          referral_discount_value?: number | null
           skill_level?: string | null
           updated_at?: string
           user_id?: string | null
@@ -1124,6 +1148,7 @@ export type Database = {
       app_role: "admin" | "staff" | "user"
       business_type: "multi_staff_salon" | "solo_professional"
       commission_type: "finders_fee" | "revenue_share"
+      discount_type: "percentage" | "fixed_amount"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1254,6 +1279,7 @@ export const Constants = {
       app_role: ["admin", "staff", "user"],
       business_type: ["multi_staff_salon", "solo_professional"],
       commission_type: ["finders_fee", "revenue_share"],
+      discount_type: ["percentage", "fixed_amount"],
     },
   },
 } as const

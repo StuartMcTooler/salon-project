@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, Gift, MessageSquare, Loader2, CheckCircle2 } from "lucide-react";
+import { useReferralDiscount } from "@/hooks/useReferralDiscount";
 
 interface PostCheckoutActionsProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export const PostCheckoutActions = ({
   const { toast } = useToast();
   const [sentActions, setSentActions] = useState<string[]>([]);
   const APP_URL = window.location.origin;
+  const discount = useReferralDiscount(appointment.staff_id, businessId);
 
   const sendWhatsApp = useMutation({
     mutationFn: async ({ message, actionType }: { message: string; actionType: string }) => {
@@ -91,7 +93,7 @@ export const PostCheckoutActions = ({
 
   const handleSendReferral = () => {
     const referralUrl = `${APP_URL}/salon?ref=SHARE`;
-    const message = `Hi ${appointment.customer_name}! 💇\n\nLoved having you today! Want €10 off your next visit? Refer a friend and you BOTH get €10 off!\n\nShare this link:\n${referralUrl}\n\nThanks!`;
+    const message = `Hi ${appointment.customer_name}! 💇\n\nLoved having you today! Want ${discount.displayText} your next visit? Refer a friend and you BOTH get ${discount.displayText}!\n\nShare this link:\n${referralUrl}\n\nThanks!`;
     sendWhatsApp.mutate({ message, actionType: 'referral' });
   };
 
@@ -156,7 +158,7 @@ export const PostCheckoutActions = ({
             <div className="flex flex-col items-start">
               <span className="font-medium">Send Referral Invite</span>
               <span className="text-xs text-muted-foreground">
-                "Get €10 off - Refer a friend"
+                "Get {discount.displayText} - Refer a friend"
               </span>
             </div>
           </Button>

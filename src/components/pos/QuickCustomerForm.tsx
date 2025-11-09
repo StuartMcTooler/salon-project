@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, CreditCard, Smartphone, Banknote } from "lucide-react";
 import { LoyaltyPointsDisplay } from "./LoyaltyPointsDisplay";
+import { normalizePhoneNumber } from "@/lib/utils";
 // import { PaymentMethodSelector } from "./PaymentMethodSelector"; // Commented out - auto-launching card reader instead
 
 interface QuickCustomerFormProps {
@@ -37,10 +38,8 @@ export const QuickCustomerForm = ({
 
   const createWalkIn = useMutation({
     mutationFn: async () => {
-      // Phone validation only if provided
-      if (customerPhone && !customerPhone.startsWith('+')) {
-        throw new Error("Phone must include country code (e.g., +353)");
-      }
+      // Normalize phone number if provided
+      const normalizedPhone = customerPhone ? normalizePhoneNumber(customerPhone) : null;
 
       const now = new Date();
 
@@ -51,7 +50,7 @@ export const QuickCustomerForm = ({
           service_name: service.service.name,
           staff_id: staffMember.id,
           customer_name: customerName || 'Walk-in Customer',
-          customer_phone: customerPhone || null,
+          customer_phone: normalizedPhone,
           customer_email: customerEmail || null,
           appointment_date: now.toISOString(),
           duration_minutes: service.service.duration_minutes,
@@ -77,9 +76,9 @@ export const QuickCustomerForm = ({
               body: {
                 appointmentId: data.id,
                 creativeId: staffMember.id,
-                customerEmail: customerEmail || `${customerPhone}@phone.temp`,
+                customerEmail: customerEmail || `${normalizedPhone}@phone.temp`,
                 customerName: customerName || 'Walk-in Customer',
-                customerPhone: customerPhone || '',
+                customerPhone: normalizedPhone || '',
                 bookingAmount: Number(service.custom_price),
               },
             }
@@ -306,9 +305,9 @@ export const QuickCustomerForm = ({
             body: {
               appointmentId: apptId,
               creativeId: staffMember.id,
-              customerEmail: customerEmail || `${customerPhone}@phone.temp`,
+              customerEmail: customerEmail || `${normalizePhoneNumber(customerPhone)}@phone.temp`,
               customerName: customerName || 'Walk-in Customer',
-              customerPhone: customerPhone || '',
+              customerPhone: normalizePhoneNumber(customerPhone) || '',
               bookingAmount: Number(service.custom_price),
             },
           }
@@ -391,7 +390,7 @@ export const QuickCustomerForm = ({
           
           await supabase.functions.invoke("send-whatsapp", {
             body: {
-              to: customerPhone,
+              to: normalizePhoneNumber(customerPhone),
               message,
             },
           });

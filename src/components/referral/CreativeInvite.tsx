@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Copy, Check, Users2, TrendingUp } from "lucide-react";
+import { Copy, Check, Users2, TrendingUp, Calculator } from "lucide-react";
 import { toast } from "sonner";
+import { HowItWorksCard } from "./HowItWorksCard";
 
 interface CreativeInviteProps {
   staffMemberId: string;
@@ -104,7 +105,23 @@ export const CreativeInvite = ({ staffMemberId }: CreativeInviteProps) => {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <HowItWorksCard
+        title="How Pro Invites Work"
+        steps={[
+          "Generate your unique invite link below",
+          "Share it with professionals who would benefit from the platform",
+          "When they sign up and complete 10 bookings: you get €50",
+          "For 12 months after signup: you earn 1% of their referral income",
+          "They also build income through their own referral network"
+        ]}
+        example={{
+          title: "Real Numbers",
+          description: "You invite 3 pros. Each completes 10 bookings (€150 bonus total). Over 12 months, they each earn €2,000 in referral income. You earn 1% = €60 from their success. Total: €210 passive income from helping 3 colleagues."
+        }}
+        color="purple"
+      />
+
+      <Card className="border-purple-200 dark:border-purple-900">
         <CardHeader>
           <CardTitle>Refer a Pro</CardTitle>
           <CardDescription>
@@ -132,17 +149,40 @@ export const CreativeInvite = ({ staffMemberId }: CreativeInviteProps) => {
                 </Button>
               </div>
               
-              <div className="border rounded-lg p-4 space-y-2 bg-muted/50">
-                <h4 className="font-semibold">Bonus Structure</h4>
-                <div className="space-y-1 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Users2 className="h-4 w-4" />
-                    <span>€50 bonus when they complete 10 bookings</span>
+              <div className="space-y-3">
+                <div className="border rounded-lg p-4 space-y-2 bg-purple-50 dark:bg-purple-950">
+                  <h4 className="font-semibold flex items-center gap-2 text-purple-900 dark:text-purple-100">
+                    <Calculator className="h-4 w-4" />
+                    Your Earnings
+                  </h4>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Upfront Bonus (10 bookings)</span>
+                      <span className="font-semibold text-purple-600 dark:text-purple-400">€50</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Revenue Share (12 months)</span>
+                      <span className="font-semibold text-purple-600 dark:text-purple-400">1%</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4" />
-                    <span>1% of their referral income for 12 months</span>
-                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 space-y-2 bg-muted/50">
+                  <h4 className="font-semibold">Why Invite Pros?</h4>
+                  <ul className="space-y-1 text-sm text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <TrendingUp className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <span>Build passive income from their success</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Users2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <span>Strengthen your professional network</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <span>Help colleagues discover better tools</span>
+                    </li>
+                  </ul>
                 </div>
               </div>
             </div>

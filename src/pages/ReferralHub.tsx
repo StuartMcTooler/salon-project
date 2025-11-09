@@ -4,16 +4,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft } from "lucide-react";
-import { ReferralSettings } from "@/components/referral/ReferralSettings";
-import { TrustedNetwork } from "@/components/referral/TrustedNetwork";
-import { ClientOwnership } from "@/components/referral/ClientOwnership";
-import { ReferralDashboard } from "@/components/referral/ReferralDashboard";
+import { ReferralOverview } from "@/components/referral/ReferralOverview";
+import { CustomerReferralManager } from "@/components/referral/CustomerReferralManager";
+import { ClientNetworkHub } from "@/components/referral/ClientNetworkHub";
 import { CreativeInvite } from "@/components/referral/CreativeInvite";
+import { EarningsOverview } from "@/components/referral/EarningsOverview";
 
 export default function ReferralHub() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [staffMemberId, setStaffMemberId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     checkAuth();
@@ -82,33 +83,33 @@ export default function ReferralHub() {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="dashboard" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList>
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-            <TabsTrigger value="network">Trusted Network</TabsTrigger>
-            <TabsTrigger value="clients">My Clients</TabsTrigger>
-            <TabsTrigger value="invite">Invite Pros</TabsTrigger>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="customer-codes">Customer Codes</TabsTrigger>
+            <TabsTrigger value="client-network">Client Network</TabsTrigger>
+            <TabsTrigger value="pro-invites">Pro Invites</TabsTrigger>
+            <TabsTrigger value="earnings">Earnings</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="dashboard">
-            <ReferralDashboard staffMemberId={staffMemberId} />
+          <TabsContent value="overview">
+            <ReferralOverview staffMemberId={staffMemberId} onNavigate={setActiveTab} />
           </TabsContent>
 
-          <TabsContent value="settings">
-            <ReferralSettings staffMemberId={staffMemberId} />
+          <TabsContent value="customer-codes">
+            <CustomerReferralManager staffMemberId={staffMemberId} />
           </TabsContent>
 
-          <TabsContent value="network">
-            <TrustedNetwork staffMemberId={staffMemberId} />
+          <TabsContent value="client-network">
+            <ClientNetworkHub staffMemberId={staffMemberId} />
           </TabsContent>
 
-          <TabsContent value="clients">
-            <ClientOwnership staffMemberId={staffMemberId} />
-          </TabsContent>
-
-          <TabsContent value="invite">
+          <TabsContent value="pro-invites">
             <CreativeInvite staffMemberId={staffMemberId} />
+          </TabsContent>
+
+          <TabsContent value="earnings">
+            <EarningsOverview staffMemberId={staffMemberId} />
           </TabsContent>
         </Tabs>
       </div>

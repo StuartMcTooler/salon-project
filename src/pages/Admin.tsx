@@ -15,12 +15,14 @@ import { StaffHoursSettings } from "@/components/admin/StaffHoursSettings";
 import { MultiStaffCalendar } from "@/components/dashboard/MultiStaffCalendar";
 import { StaffPerformanceDashboard } from "@/components/admin/StaffPerformanceDashboard";
 import { toast } from "sonner";
+import { useBusinessConfig } from "@/hooks/useBusinessConfig";
 
 export default function Admin() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [businessId, setBusinessId] = useState<string>("");
+  const { config, loading: configLoading } = useBusinessConfig();
+  const businessId = config.businessId || "";
 
   useEffect(() => {
     checkAdminAccess();
@@ -46,17 +48,6 @@ export default function Admin() {
         return;
       }
 
-      // Get business ID
-      const { data: business } = await supabase
-        .from("business_accounts")
-        .select("id")
-        .eq("owner_user_id", user.id)
-        .single();
-
-      if (business) {
-        setBusinessId(business.id);
-      }
-
       setIsAdmin(true);
     } catch (error) {
       console.error("Error checking admin access:", error);
@@ -72,7 +63,7 @@ export default function Admin() {
     navigate("/auth");
   };
 
-  if (loading) {
+  if (loading || configLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -81,6 +72,8 @@ export default function Admin() {
   }
 
   if (!isAdmin) return null;
+
+  const { features } = config;
 
   return (
     <div className="min-h-screen bg-background">
@@ -101,56 +94,70 @@ export default function Admin() {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="business" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-10">
+          <TabsList className={`grid w-full ${features.staffManagement ? 'grid-cols-10' : 'grid-cols-4'}`}>
             <TabsTrigger value="business">Business</TabsTrigger>
-            <TabsTrigger value="staff">Staff</TabsTrigger>
-            <TabsTrigger value="terminal">Terminal</TabsTrigger>
-            <TabsTrigger value="hours">Hours</TabsTrigger>
-            <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            {features.staffManagement && <TabsTrigger value="staff">Staff</TabsTrigger>}
+            {features.terminalSettings && <TabsTrigger value="terminal">Terminal</TabsTrigger>}
+            {features.businessHours && <TabsTrigger value="hours">Hours</TabsTrigger>}
+            {features.multiStaffCalendar && <TabsTrigger value="schedule">Schedule</TabsTrigger>}
             <TabsTrigger value="services">Services</TabsTrigger>
-            <TabsTrigger value="pricing">Pricing</TabsTrigger>
-            <TabsTrigger value="loyalty">Loyalty</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
+            {features.servicePricing && <TabsTrigger value="pricing">Pricing</TabsTrigger>}
+            {features.loyaltyProgram && <TabsTrigger value="loyalty">Loyalty</TabsTrigger>}
+            {features.staffPerformance && <TabsTrigger value="reports">Reports</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="business">
             <BusinessManagement />
           </TabsContent>
 
-          <TabsContent value="staff">
-            <StaffManagement />
-          </TabsContent>
+          {features.staffManagement && (
+            <TabsContent value="staff">
+              <StaffManagement />
+            </TabsContent>
+          )}
 
-          <TabsContent value="terminal">
-            <TerminalSettings businessId={businessId} />
-          </TabsContent>
+          {features.terminalSettings && (
+            <TabsContent value="terminal">
+              <TerminalSettings businessId={businessId} />
+            </TabsContent>
+          )}
 
           <TabsContent value="services">
             <ServiceManagement />
           </TabsContent>
 
-          <TabsContent value="pricing">
-            <ServicePricing />
-          </TabsContent>
+          {features.servicePricing && (
+            <TabsContent value="pricing">
+              <ServicePricing />
+            </TabsContent>
+          )}
 
-              <TabsContent value="hours">
-                <div className="space-y-6">
-                  <BusinessHoursSettings />
-                  <StaffHoursSettings />
-                </div>
-              </TabsContent>
+          {features.businessHours && (
+            <TabsContent value="hours">
+              <div className="space-y-6">
+                <BusinessHoursSettings />
+                {features.staffHours && <StaffHoursSettings />}
+              </div>
+            </TabsContent>
+          )}
 
-          <TabsContent value="schedule">
-            <MultiStaffCalendar />
-          </TabsContent>
+          {features.multiStaffCalendar && (
+            <TabsContent value="schedule">
+              <MultiStaffCalendar />
+            </TabsContent>
+          )}
 
-          <TabsContent value="loyalty">
-            <LoyaltyProgramSettings businessId={businessId} />
-          </TabsContent>
+          {features.loyaltyProgram && (
+            <TabsContent value="loyalty">
+              <LoyaltyProgramSettings businessId={businessId} />
+            </TabsContent>
+          )}
 
-          <TabsContent value="reports">
-            <StaffPerformanceDashboard />
-          </TabsContent>
+          {features.staffPerformance && (
+            <TabsContent value="reports">
+              <StaffPerformanceDashboard />
+            </TabsContent>
+          )}
         </Tabs>
       </main>
     </div>

@@ -598,7 +598,7 @@ export const QuickCustomerForm = ({
             <Input
               id="phone"
               type="tel"
-              placeholder="+353 89 123 4567"
+              placeholder="087 123 4567"
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
             />

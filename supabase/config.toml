@@ -1,5 +1,8 @@
 project_id = "ynmfedrtxqbovkglrymg"
 
+[functions.stripe-webhook]
+verify_jwt = false
+
 [functions.create-terminal-connection-token]
 verify_jwt = true
 

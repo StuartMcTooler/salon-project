@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Copy, Check, Users2, TrendingUp, Calculator } from "lucide-react";
 import { toast } from "sonner";
 import { HowItWorksCard } from "./HowItWorksCard";
+import { TierGate } from "./TierGate";
 
 interface CreativeInviteProps {
   staffMemberId: string;
@@ -104,7 +105,8 @@ export const CreativeInvite = ({ staffMemberId }: CreativeInviteProps) => {
   }
 
   return (
-    <div className="space-y-6">
+    <TierGate staffMemberId={staffMemberId} requiredTier="pro">
+      <div className="space-y-6">
       <HowItWorksCard
         title="How Pro Invites Work"
         steps={[
@@ -227,6 +229,7 @@ export const CreativeInvite = ({ staffMemberId }: CreativeInviteProps) => {
           </CardContent>
         </Card>
       )}
-    </div>
+      </div>
+    </TierGate>
   );
 };

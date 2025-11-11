@@ -53,6 +53,7 @@ export const MultiStaffSetup = () => {
           full_name: user.email?.split('@')[0] || "Owner",
           email: user.email,
           is_active: true,
+          tier: 'standard',
         });
 
       if (staffError) throw staffError;

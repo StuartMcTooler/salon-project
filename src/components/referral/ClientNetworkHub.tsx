@@ -3,6 +3,7 @@ import { ReferralSettings } from "./ReferralSettings";
 import { TrustedNetwork } from "./TrustedNetwork";
 import { ClientOwnership } from "./ClientOwnership";
 import { HowItWorksCard } from "./HowItWorksCard";
+import { TierGate } from "./TierGate";
 
 interface ClientNetworkHubProps {
   staffMemberId: string;
@@ -10,7 +11,8 @@ interface ClientNetworkHubProps {
 
 export const ClientNetworkHub = ({ staffMemberId }: ClientNetworkHubProps) => {
   return (
-    <div className="space-y-6">
+    <TierGate staffMemberId={staffMemberId} requiredTier="pro">
+      <div className="space-y-6">
       <HowItWorksCard
         title="How Client Network Referrals Work"
         steps={[
@@ -46,6 +48,7 @@ export const ClientNetworkHub = ({ staffMemberId }: ClientNetworkHubProps) => {
           <ClientOwnership staffMemberId={staffMemberId} />
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </TierGate>
   );
 };

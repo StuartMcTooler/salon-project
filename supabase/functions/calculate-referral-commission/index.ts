@@ -47,6 +47,30 @@ Deno.serve(async (req) => {
 
     const alphaCreativeId = ownership.creative_id;
 
+    // Check if alpha creative is Pro tier
+    const { data: alphaTier, error: alphaTierError } = await supabase
+      .from('staff_members')
+      .select('tier')
+      .eq('id', alphaCreativeId)
+      .single();
+
+    if (alphaTierError) {
+      console.error('Error checking alpha tier:', alphaTierError);
+      throw alphaTierError;
+    }
+
+    // Only Pro creatives can earn referral commissions
+    if (alphaTier?.tier !== 'pro') {
+      console.log('Alpha creative is not Pro - no commission');
+      return new Response(
+        JSON.stringify({ 
+          requiresCommission: false,
+          reason: 'alpha_not_pro'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // If the receiver IS the alpha (booking with original creative), no commission
     if (alphaCreativeId === receiverCreativeId) {
       console.log('Booking with original creative - no commission');

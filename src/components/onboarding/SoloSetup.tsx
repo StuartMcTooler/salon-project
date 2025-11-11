@@ -53,6 +53,7 @@ export const SoloSetup = () => {
           bio: formData.bio || null,
           hourly_rate: formData.hourlyRate ? parseFloat(formData.hourlyRate) : null,
           is_active: true,
+          tier: 'standard',
         });
 
       if (staffError) throw staffError;

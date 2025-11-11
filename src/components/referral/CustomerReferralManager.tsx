@@ -4,10 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy, Check, Plus } from "lucide-react";
+import { Copy, Check, Plus, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useReferralDiscount } from "@/hooks/useReferralDiscount";
 import { HowItWorksCard } from "./HowItWorksCard";
+import { useBusinessConfig } from "@/hooks/useBusinessConfig";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,7 @@ export const CustomerReferralManager = ({ staffMemberId }: CustomerReferralManag
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const discount = useReferralDiscount(staffMemberId);
+  const { config, loading: configLoading } = useBusinessConfig();
 
   useEffect(() => {
     loadCodes();
@@ -100,8 +102,27 @@ export const CustomerReferralManager = ({ staffMemberId }: CustomerReferralManag
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  if (loading) {
+  if (loading || configLoading) {
     return <div>Loading...</div>;
+  }
+
+  // Safety check - this component should only be accessible to solo professionals
+  if (config.businessType !== 'solo_professional') {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <Lock className="h-6 w-6 text-muted-foreground" />
+            <CardTitle>Access Restricted</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">
+            Customer referral codes are only available to solo professionals.
+          </p>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (

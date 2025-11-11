@@ -78,7 +78,7 @@ export const useBusinessConfig = () => {
             multiStaffCalendar: isMultiStaff,
             loyaltyProgram: true, // Available to all
             staffPerformance: isMultiStaff,
-            referrals: isMultiStaff,
+            referrals: !isMultiStaff, // Only solo professionals can use customer referrals
           },
         });
       } catch (error) {

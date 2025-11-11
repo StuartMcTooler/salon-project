@@ -1195,6 +1195,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_solo_professional: { Args: { _user_id: string }; Returns: boolean }
       link_user_to_staff: {
         Args: { _staff_id: string; _user_id: string }
         Returns: undefined

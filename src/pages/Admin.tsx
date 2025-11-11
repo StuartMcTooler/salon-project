@@ -15,6 +15,7 @@ import { StaffHoursSettings } from "@/components/admin/StaffHoursSettings";
 import { MultiStaffCalendar } from "@/components/dashboard/MultiStaffCalendar";
 import { StaffPerformanceDashboard } from "@/components/admin/StaffPerformanceDashboard";
 import { ReferralDiscountSettings } from "@/components/admin/ReferralDiscountSettings";
+import { TierManagement } from "@/components/admin/TierManagement";
 import { toast } from "sonner";
 import { useBusinessConfig } from "@/hooks/useBusinessConfig";
 
@@ -95,9 +96,10 @@ export default function Admin() {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="business" className="space-y-6">
-          <TabsList className={`grid w-full ${features.staffManagement ? 'grid-cols-10' : 'grid-cols-4'}`}>
+          <TabsList className={`grid w-full ${features.staffManagement ? 'grid-cols-11' : 'grid-cols-4'}`}>
             <TabsTrigger value="business">Business</TabsTrigger>
             {features.staffManagement && <TabsTrigger value="staff">Staff</TabsTrigger>}
+            {features.staffManagement && <TabsTrigger value="tiers">Tiers</TabsTrigger>}
             {features.terminalSettings && <TabsTrigger value="terminal">Terminal</TabsTrigger>}
             {features.businessHours && <TabsTrigger value="hours">Hours</TabsTrigger>}
             {features.multiStaffCalendar && <TabsTrigger value="schedule">Schedule</TabsTrigger>}
@@ -114,6 +116,12 @@ export default function Admin() {
           {features.staffManagement && (
             <TabsContent value="staff">
               <StaffManagement />
+            </TabsContent>
+          )}
+
+          {features.staffManagement && (
+            <TabsContent value="tiers">
+              <TierManagement />
             </TabsContent>
           )}
 

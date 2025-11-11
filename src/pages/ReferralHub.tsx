@@ -23,6 +23,13 @@ export default function ReferralHub() {
     checkAuth();
   }, []);
 
+  // Redirect multi-staff members away from customer-codes tab
+  useEffect(() => {
+    if (!configLoading && config.businessType !== 'solo_professional' && activeTab === 'customer-codes') {
+      setActiveTab('overview');
+    }
+  }, [config.businessType, activeTab, configLoading]);
+
   const checkAuth = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -65,13 +72,6 @@ export default function ReferralHub() {
 
   // Check if user is a solo professional
   const isSoloProfessional = config.businessType === 'solo_professional';
-
-  // Redirect multi-staff members away from customer-codes tab
-  useEffect(() => {
-    if (!isSoloProfessional && activeTab === 'customer-codes') {
-      setActiveTab('overview');
-    }
-  }, [isSoloProfessional, activeTab]);
 
   return (
     <div className="min-h-screen bg-background">

@@ -66,55 +66,12 @@ export default function ReferralHub() {
   // Check if user is a solo professional
   const isSoloProfessional = config.businessType === 'solo_professional';
 
-  if (!isSoloProfessional) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="border-b">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/pos')}
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold">Referral Hub</h1>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="container mx-auto px-4 py-8 max-w-2xl">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <Lock className="h-8 w-8 text-muted-foreground" />
-                <div>
-                  <CardTitle>Access Restricted</CardTitle>
-                  <CardDescription>
-                    This feature is only available to solo professionals
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-muted-foreground">
-                The Customer Referral Codes feature is designed for solo professionals who work directly with clients.
-              </p>
-              <p className="text-muted-foreground">
-                As a member of a multi-staff salon, your business may have different referral programs managed by your administrator.
-              </p>
-              <Button onClick={() => navigate('/pos')} className="w-full">
-                Return to POS
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+  // Redirect multi-staff members away from customer-codes tab
+  useEffect(() => {
+    if (!isSoloProfessional && activeTab === 'customer-codes') {
+      setActiveTab('overview');
+    }
+  }, [isSoloProfessional, activeTab]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -142,7 +99,9 @@ export default function ReferralHub() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="customer-codes">Customer Codes</TabsTrigger>
+            {isSoloProfessional && (
+              <TabsTrigger value="customer-codes">Customer Codes</TabsTrigger>
+            )}
             <TabsTrigger value="client-network">Client Network</TabsTrigger>
             <TabsTrigger value="pro-invites">Pro Invites</TabsTrigger>
             <TabsTrigger value="earnings">Earnings</TabsTrigger>

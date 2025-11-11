@@ -322,6 +322,50 @@ export type Database = {
           },
         ]
       }
+      creative_performance_metrics: {
+        Row: {
+          average_rating: number | null
+          cancellation_rate: number | null
+          creative_id: string | null
+          id: string
+          last_booking_date: string | null
+          metrics_updated_at: string | null
+          total_completed_bookings: number | null
+          total_ratings: number | null
+          total_revenue: number | null
+        }
+        Insert: {
+          average_rating?: number | null
+          cancellation_rate?: number | null
+          creative_id?: string | null
+          id?: string
+          last_booking_date?: string | null
+          metrics_updated_at?: string | null
+          total_completed_bookings?: number | null
+          total_ratings?: number | null
+          total_revenue?: number | null
+        }
+        Update: {
+          average_rating?: number | null
+          cancellation_rate?: number | null
+          creative_id?: string | null
+          id?: string
+          last_booking_date?: string | null
+          metrics_updated_at?: string | null
+          total_completed_bookings?: number | null
+          total_ratings?: number | null
+          total_revenue?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creative_performance_metrics_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: true
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creative_referral_terms: {
         Row: {
           commission_percentage: number
@@ -843,6 +887,7 @@ export type Database = {
       }
       staff_members: {
         Row: {
+          average_rating: number | null
           bio: string | null
           business_id: string | null
           commission_rate: number | null
@@ -860,10 +905,14 @@ export type Database = {
             | null
           referral_discount_value: number | null
           skill_level: string | null
+          tier: Database["public"]["Enums"]["creative_tier"] | null
+          tier_upgraded_at: string | null
+          total_bookings: number | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
+          average_rating?: number | null
           bio?: string | null
           business_id?: string | null
           commission_rate?: number | null
@@ -881,10 +930,14 @@ export type Database = {
             | null
           referral_discount_value?: number | null
           skill_level?: string | null
+          tier?: Database["public"]["Enums"]["creative_tier"] | null
+          tier_upgraded_at?: string | null
+          total_bookings?: number | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
+          average_rating?: number | null
           bio?: string | null
           business_id?: string | null
           commission_rate?: number | null
@@ -902,6 +955,9 @@ export type Database = {
             | null
           referral_discount_value?: number | null
           skill_level?: string | null
+          tier?: Database["public"]["Enums"]["creative_tier"] | null
+          tier_upgraded_at?: string | null
+          total_bookings?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -1143,11 +1199,16 @@ export type Database = {
         Args: { _staff_id: string; _user_id: string }
         Returns: undefined
       }
+      manually_upgrade_to_pro: {
+        Args: { _admin_user_id: string; _staff_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "staff" | "user"
       business_type: "multi_staff_salon" | "solo_professional"
       commission_type: "finders_fee" | "revenue_share"
+      creative_tier: "standard" | "pro"
       discount_type: "percentage" | "fixed_amount"
     }
     CompositeTypes: {
@@ -1279,6 +1340,7 @@ export const Constants = {
       app_role: ["admin", "staff", "user"],
       business_type: ["multi_staff_salon", "solo_professional"],
       commission_type: ["finders_fee", "revenue_share"],
+      creative_tier: ["standard", "pro"],
       discount_type: ["percentage", "fixed_amount"],
     },
   },

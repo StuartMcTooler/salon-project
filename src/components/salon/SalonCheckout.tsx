@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertCircle } from "lucide-react";
 import { getAvailableSlots } from "@/lib/timeSlotUtils";
 
 interface SalonCheckoutProps {
@@ -31,6 +31,48 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
   const [customerPhone, setCustomerPhone] = useState("");
   const [discountApplied, setDiscountApplied] = useState(false);
   const [finalPrice, setFinalPrice] = useState(pricing.custom_price);
+  const [requiresDeposit, setRequiresDeposit] = useState(false);
+  const [depositAmount, setDepositAmount] = useState(0);
+
+  // Check if customer requires deposit
+  const { data: customerLoyalty } = useQuery({
+    queryKey: ['customer-loyalty-check', staff.id, customerEmail],
+    queryFn: async () => {
+      if (!customerEmail) return null;
+      
+      const { data, error } = await supabase
+        .from('customer_loyalty_points')
+        .select('require_booking_deposit')
+        .eq('creative_id', staff.id)
+        .eq('customer_email', customerEmail)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!customerEmail && !!staff.id,
+  });
+
+  // Calculate if deposit is required and amount
+  useEffect(() => {
+    const staffRequiresDeposit = staff.require_booking_deposit === true;
+    const customerRequiresDeposit = customerLoyalty?.require_booking_deposit === true;
+    
+    const needsDeposit = staffRequiresDeposit || customerRequiresDeposit;
+    setRequiresDeposit(needsDeposit);
+
+    if (needsDeposit) {
+      let deposit = 0;
+      if (staff.deposit_type === 'percentage') {
+        deposit = (finalPrice * (staff.deposit_percentage || 20)) / 100;
+      } else {
+        deposit = staff.deposit_fixed_amount || 10;
+      }
+      setDepositAmount(Number(deposit.toFixed(2)));
+    } else {
+      setDepositAmount(0);
+    }
+  }, [staff, customerLoyalty, finalPrice]);
 
   // Query existing appointments for the selected date and staff
   const { data: existingAppointments, refetch } = useQuery({
@@ -197,22 +239,30 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
       const [hours, minutes] = time.split(':');
       appointmentDateTime.setHours(parseInt(hours), parseInt(minutes));
 
+      const appointmentData: any = {
+        service_id: service.id,
+        service_name: service.name,
+        staff_id: staff.id,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+        appointment_date: appointmentDateTime.toISOString(),
+        duration_minutes: service.duration_minutes,
+        price: finalPrice,
+        notes,
+      };
+
+      // Add deposit info if required
+      if (requiresDeposit) {
+        appointmentData.deposit_amount = depositAmount;
+        appointmentData.deposit_paid = false;
+        appointmentData.remaining_balance = finalPrice - depositAmount;
+        appointmentData.payment_status = 'deposit_pending';
+      }
+
       const { data, error } = await supabase
         .from('salon_appointments')
-        .insert([
-          {
-            service_id: service.id,
-            service_name: service.name,
-            staff_id: staff.id,
-            customer_name: customerName,
-            customer_email: customerEmail,
-            customer_phone: customerPhone,
-            appointment_date: appointmentDateTime.toISOString(),
-            duration_minutes: service.duration_minutes,
-            price: finalPrice,
-            notes,
-          }
-        ])
+        .insert([appointmentData])
         .select()
         .single();
 
@@ -294,6 +344,23 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
           <CardTitle>Appointment Summary</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {requiresDeposit && (
+            <div className="p-4 bg-warning/10 border border-warning/50 rounded-lg">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-semibold text-warning">Booking Deposit Required</p>
+                  <p className="text-sm text-muted-foreground">
+                    A €{depositAmount.toFixed(2)} deposit is required to secure this booking.
+                    {requiresDeposit && depositAmount < finalPrice && (
+                      <span> Remaining balance: €{(finalPrice - depositAmount).toFixed(2)}</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-muted-foreground">Service</p>
@@ -318,6 +385,18 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
                 €{finalPrice.toFixed(2)}
               </p>
             </div>
+            {requiresDeposit && (
+              <>
+                <div>
+                  <p className="text-muted-foreground">Deposit Required</p>
+                  <p className="font-semibold text-warning">€{depositAmount.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Pay on Visit</p>
+                  <p className="font-semibold">€{(finalPrice - depositAmount).toFixed(2)}</p>
+                </div>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -428,7 +507,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
         className="w-full"
         size="lg"
       >
-        {createAppointment.isPending ? "Booking..." : "Confirm Booking"}
+        {createAppointment.isPending ? "Booking..." : requiresDeposit ? `Confirm & Pay €${depositAmount.toFixed(2)} Deposit` : "Confirm Booking"}
       </Button>
     </div>
   );

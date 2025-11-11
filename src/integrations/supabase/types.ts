@@ -418,11 +418,13 @@ export type Database = {
           customer_email: string
           customer_name: string
           customer_phone: string | null
+          deposit_notes: string | null
           first_visit_date: string
           id: string
           last_visit_date: string
           lifetime_earned: number
           lifetime_redeemed: number
+          require_booking_deposit: boolean | null
           total_visits: number
           updated_at: string
         }
@@ -433,11 +435,13 @@ export type Database = {
           customer_email: string
           customer_name: string
           customer_phone?: string | null
+          deposit_notes?: string | null
           first_visit_date?: string
           id?: string
           last_visit_date?: string
           lifetime_earned?: number
           lifetime_redeemed?: number
+          require_booking_deposit?: boolean | null
           total_visits?: number
           updated_at?: string
         }
@@ -448,11 +452,13 @@ export type Database = {
           customer_email?: string
           customer_name?: string
           customer_phone?: string | null
+          deposit_notes?: string | null
           first_visit_date?: string
           id?: string
           last_visit_date?: string
           lifetime_earned?: number
           lifetime_redeemed?: number
+          require_booking_deposit?: boolean | null
           total_visits?: number
           updated_at?: string
         }
@@ -790,12 +796,15 @@ export type Database = {
           customer_email: string | null
           customer_name: string
           customer_phone: string | null
+          deposit_amount: number | null
+          deposit_paid: boolean | null
           duration_minutes: number
           id: string
           notes: string | null
           payment_method: string | null
           payment_status: string | null
           price: number
+          remaining_balance: number | null
           service_id: string | null
           service_name: string
           staff_id: string | null
@@ -808,12 +817,15 @@ export type Database = {
           customer_email?: string | null
           customer_name: string
           customer_phone?: string | null
+          deposit_amount?: number | null
+          deposit_paid?: boolean | null
           duration_minutes: number
           id?: string
           notes?: string | null
           payment_method?: string | null
           payment_status?: string | null
           price: number
+          remaining_balance?: number | null
           service_id?: string | null
           service_name: string
           staff_id?: string | null
@@ -826,12 +838,15 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string
           customer_phone?: string | null
+          deposit_amount?: number | null
+          deposit_paid?: boolean | null
           duration_minutes?: number
           id?: string
           notes?: string | null
           payment_method?: string | null
           payment_status?: string | null
           price?: number
+          remaining_balance?: number | null
           service_id?: string | null
           service_name?: string
           staff_id?: string | null
@@ -939,6 +954,9 @@ export type Database = {
           business_id: string | null
           commission_rate: number | null
           created_at: string
+          deposit_fixed_amount: number | null
+          deposit_percentage: number | null
+          deposit_type: string | null
           display_name: string
           email: string | null
           full_name: string
@@ -951,6 +969,7 @@ export type Database = {
             | Database["public"]["Enums"]["discount_type"]
             | null
           referral_discount_value: number | null
+          require_booking_deposit: boolean | null
           skill_level: string | null
           tier: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at: string | null
@@ -964,6 +983,9 @@ export type Database = {
           business_id?: string | null
           commission_rate?: number | null
           created_at?: string
+          deposit_fixed_amount?: number | null
+          deposit_percentage?: number | null
+          deposit_type?: string | null
           display_name: string
           email?: string | null
           full_name: string
@@ -976,6 +998,7 @@ export type Database = {
             | Database["public"]["Enums"]["discount_type"]
             | null
           referral_discount_value?: number | null
+          require_booking_deposit?: boolean | null
           skill_level?: string | null
           tier?: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at?: string | null
@@ -989,6 +1012,9 @@ export type Database = {
           business_id?: string | null
           commission_rate?: number | null
           created_at?: string
+          deposit_fixed_amount?: number | null
+          deposit_percentage?: number | null
+          deposit_type?: string | null
           display_name?: string
           email?: string | null
           full_name?: string
@@ -1001,6 +1027,7 @@ export type Database = {
             | Database["public"]["Enums"]["discount_type"]
             | null
           referral_discount_value?: number | null
+          require_booking_deposit?: boolean | null
           skill_level?: string | null
           tier?: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at?: string | null

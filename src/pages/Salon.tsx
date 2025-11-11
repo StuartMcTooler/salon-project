@@ -26,30 +26,46 @@ const Salon = () => {
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [businessType, setBusinessType] = useState<string | null>(null);
 
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [referralInfo, setReferralInfo] = useState<any>(null);
+
   useEffect(() => {
     const checkAuthAndRole = async () => {
       try {
+        // Check for referral code in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const refCode = urlParams.get('ref');
+        if (refCode) {
+          setReferralCode(refCode);
+          
+          // Fetch referral info
+          const { data: refCodeData } = await supabase
+            .from("referral_codes")
+            .select("referrer_name, referrer_email")
+            .eq("code", refCode)
+            .single();
+          
+          if (refCodeData) {
+            setReferralInfo(refCodeData);
+          }
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
         setUser(session?.user ?? null);
 
-        if (!session?.user) {
-          setLoading(false);
-          navigate("/auth");
-          return;
-        }
-
+        // Allow access without login
         setLoading(false);
         
-        // Check admin role in background
-        const { data } = await supabase.rpc("has_role", {
-          _user_id: session.user.id,
-          _role: "admin",
-        });
-        setIsAdmin(!!data);
+        // Check admin role in background if logged in
+        if (session?.user) {
+          const { data } = await supabase.rpc("has_role", {
+            _user_id: session.user.id,
+            _role: "admin",
+          });
+          setIsAdmin(!!data);
+        }
 
-        // Check if there's a business to book with (for public booking page)
-        // For now, we'll fetch the first available business
-        // In a real app, you'd pass businessId via URL params
+        // Check if there's a business to book with
         const { data: businesses } = await supabase
           .from("business_accounts")
           .select("id, business_type")
@@ -61,9 +77,8 @@ const Salon = () => {
           setBusinessType(businesses[0].business_type);
         }
       } catch (error) {
-        console.error("Auth check failed:", error);
+        console.error("Setup failed:", error);
         setLoading(false);
-        navigate("/auth");
       }
     };
 
@@ -75,30 +90,28 @@ const Salon = () => {
         
         if (!session?.user) {
           setIsAdmin(false);
-          navigate("/auth");
-          return;
+        } else {
+          // Defer role check to avoid deadlocks per auth best practices
+          setTimeout(() => {
+            supabase
+              .rpc("has_role", {
+                _user_id: session.user.id,
+                _role: "admin",
+              })
+              .then(
+                ({ data }) => setIsAdmin(!!data),
+                (error) => {
+                  console.error("Role check failed:", error);
+                  setIsAdmin(false);
+                }
+              );
+          }, 0);
         }
-
-        // Defer role check to avoid deadlocks per auth best practices
-        setTimeout(() => {
-          supabase
-            .rpc("has_role", {
-              _user_id: session.user.id,
-              _role: "admin",
-            })
-            .then(
-              ({ data }) => setIsAdmin(!!data),
-              (error) => {
-                console.error("Role check failed:", error);
-                setIsAdmin(false);
-              }
-            );
-        }, 0);
       }
     );
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, []);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -193,23 +206,38 @@ const Salon = () => {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Scissors className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold">Salon Booking</h1>
+            <div>
+              <h1 className="text-2xl font-bold">Salon Booking</h1>
+              {referralInfo && (
+                <p className="text-sm text-muted-foreground">
+                  Referred by {referralInfo.referrer_name} 🎁
+                </p>
+              )}
+            </div>
           </div>
           <div className="flex gap-2">
-            {isAdmin && (
-              <Button variant="outline" onClick={() => navigate("/admin")}>
-                <Settings className="mr-2 h-4 w-4" />
-                Admin
+            {user ? (
+              <>
+                {isAdmin && (
+                  <Button variant="outline" onClick={() => navigate("/admin")}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Admin
+                  </Button>
+                )}
+                <Button variant="outline" onClick={() => navigate("/referrals")}>
+                  <Users className="mr-2 h-4 w-4" />
+                  Referrals
+                </Button>
+                <Button variant="ghost" onClick={handleSignOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline" onClick={() => navigate("/auth")}>
+                Sign In
               </Button>
             )}
-            <Button variant="outline" onClick={() => navigate("/referrals")}>
-              <Users className="mr-2 h-4 w-4" />
-              Referrals
-            </Button>
-            <Button variant="ghost" onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
           </div>
         </div>
       </header>
@@ -263,10 +291,11 @@ const Salon = () => {
             service={selectedService}
             staff={selectedStaff}
             pricing={selectedPricing}
-            user={user!}
+            user={user}
             onBack={handleBack}
             onComplete={handleBookingComplete}
             businessId={businessId}
+            referralCode={referralCode}
           />
         )}
       </main>

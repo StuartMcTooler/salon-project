@@ -18,13 +18,19 @@ interface SalonCheckoutProps {
   onBack: () => void;
   onComplete: () => void;
   businessId?: string | null;
+  referralCode?: string | null;
 }
 
-export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplete, businessId }: SalonCheckoutProps) => {
+export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplete, businessId, referralCode }: SalonCheckoutProps) => {
   const { toast } = useToast();
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState("");
   const [notes, setNotes] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [discountApplied, setDiscountApplied] = useState(false);
+  const [finalPrice, setFinalPrice] = useState(pricing.custom_price);
 
   // Query existing appointments for the selected date and staff
   const { data: existingAppointments, refetch } = useQuery({
@@ -128,10 +134,63 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
     );
   }, [date, service, existingAppointments, businessHours, staffHours]);
 
+  // Load referral discount
+  useEffect(() => {
+    const loadDiscount = async () => {
+      if (!referralCode || discountApplied) return;
+
+      try {
+        // Fetch business or staff discount settings
+        const { data: businessData } = await supabase
+          .from("business_accounts")
+          .select("referral_discount_type, referral_discount_value")
+          .eq("id", businessId)
+          .single();
+
+        if (businessData) {
+          const { referral_discount_type, referral_discount_value } = businessData;
+          
+          let discount = 0;
+          if (referral_discount_type === 'percentage') {
+            discount = (pricing.custom_price * referral_discount_value) / 100;
+          } else {
+            discount = referral_discount_value;
+          }
+
+          const newPrice = Math.max(0, pricing.custom_price - discount);
+          setFinalPrice(newPrice);
+          setDiscountApplied(true);
+
+          toast({
+            title: "Referral discount applied!",
+            description: `You saved €${discount.toFixed(2)}`,
+          });
+        }
+      } catch (error) {
+        console.error("Error loading discount:", error);
+      }
+    };
+
+    loadDiscount();
+  }, [referralCode, businessId, pricing.custom_price, discountApplied, toast]);
+
+  // Pre-fill customer info if logged in
+  useEffect(() => {
+    if (user) {
+      setCustomerName(user.user_metadata?.name || user.email);
+      setCustomerEmail(user.email || "");
+      setCustomerPhone(user.user_metadata?.phone || "");
+    }
+  }, [user]);
+
   const createAppointment = useMutation({
     mutationFn: async () => {
       if (!date || !time) {
         throw new Error("Please select both date and time");
+      }
+
+      if (!customerName || !customerEmail) {
+        throw new Error("Please provide your name and email");
       }
 
       const appointmentDateTime = new Date(date);
@@ -145,12 +204,12 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
             service_id: service.id,
             service_name: service.name,
             staff_id: staff.id,
-            customer_name: user.user_metadata.name || user.email,
-            customer_email: user.email,
-            customer_phone: user.user_metadata.phone,
+            customer_name: customerName,
+            customer_email: customerEmail,
+            customer_phone: customerPhone,
             appointment_date: appointmentDateTime.toISOString(),
             duration_minutes: service.duration_minutes,
-            price: pricing.custom_price,
+            price: finalPrice,
             notes,
           }
         ])
@@ -158,6 +217,46 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
         .single();
 
       if (error) throw error;
+
+      // Track client ownership if booking via referral
+      if (referralCode && customerEmail) {
+        await supabase
+          .from('client_ownership')
+          .insert([
+            {
+              creative_id: staff.id,
+              client_email: customerEmail,
+              client_name: customerName,
+              client_phone: customerPhone,
+              source: `referral:${referralCode}`,
+            }
+          ]);
+      }
+
+      // Create user credit for the referrer if applicable
+      if (referralCode && customerEmail) {
+        const { data: refCodeData } = await supabase
+          .from('referral_codes')
+          .select('referrer_email')
+          .eq('code', referralCode)
+          .single();
+
+        if (refCodeData) {
+          await supabase
+            .from('user_credits')
+            .insert([
+              {
+                customer_email: refCodeData.referrer_email,
+                staff_id: staff.id,
+                order_id: data.id,
+                credit_type: 'referral_reward',
+                discount_percentage: 15,
+                voucher_code: `REF-${referralCode}`,
+              }
+            ]);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
@@ -210,11 +309,64 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
             </div>
             <div>
               <p className="text-muted-foreground">Price</p>
-              <p className="font-semibold">€{pricing.custom_price}</p>
+              <p className="font-semibold">
+                {discountApplied && (
+                  <span className="line-through text-muted-foreground mr-2">
+                    €{pricing.custom_price}
+                  </span>
+                )}
+                €{finalPrice.toFixed(2)}
+              </p>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {!user && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Information</CardTitle>
+            <CardDescription>We'll use this to confirm your appointment</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name *</Label>
+              <input
+                id="name"
+                type="text"
+                className="w-full px-3 py-2 border rounded-md"
+                placeholder="Your name"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
+              <input
+                id="email"
+                type="email"
+                className="w-full px-3 py-2 border rounded-md"
+                placeholder="your@email.com"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              <input
+                id="phone"
+                type="tel"
+                className="w-full px-3 py-2 border rounded-md"
+                placeholder="+353 123 456 789"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

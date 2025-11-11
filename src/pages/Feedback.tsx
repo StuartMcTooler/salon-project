@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,12 +12,43 @@ import { ReferralModal } from "@/components/ReferralModal";
 import { MessageSquare, Send } from "lucide-react";
 
 const Feedback = () => {
+  const [searchParams] = useSearchParams();
+  const appointmentId = searchParams.get('appointment');
+  
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [feedback, setFeedback] = useState("");
   const [showReferralModal, setShowReferralModal] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState("");
+  const [staffId, setStaffId] = useState<string | undefined>(undefined);
+
+  // Load appointment details if ID is provided
+  const { data: appointment } = useQuery({
+    queryKey: ['appointment', appointmentId],
+    queryFn: async () => {
+      if (!appointmentId) return null;
+      
+      const { data, error } = await supabase
+        .from('salon_appointments')
+        .select('customer_name, customer_email, service_name, staff_id')
+        .eq('id', appointmentId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!appointmentId,
+  });
+
+  // Pre-fill form from appointment data
+  useEffect(() => {
+    if (appointment) {
+      setName(appointment.customer_name || "");
+      setEmail(appointment.customer_email || "");
+      setStaffId(appointment.staff_id);
+    }
+  }, [appointment]);
 
   const submitFeedback = useMutation({
     mutationFn: async () => {
@@ -27,6 +59,7 @@ const Feedback = () => {
             customer_name: name,
             customer_email: email,
             feedback_text: feedback,
+            order_id: appointmentId || null,
           }
         ])
         .select()
@@ -88,7 +121,11 @@ const Feedback = () => {
             <CardHeader>
               <CardTitle>Share Your Experience</CardTitle>
               <CardDescription>
-                We'd love to hear about your visit to our salon
+                {appointment ? (
+                  <>We'd love to hear about your {appointment.service_name} appointment</>
+                ) : (
+                  <>We'd love to hear about your visit to our salon</>
+                )}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -154,6 +191,7 @@ const Feedback = () => {
         onClose={() => setShowReferralModal(false)}
         customerEmail={submittedEmail}
         customerName={name}
+        staffId={staffId}
       />
     </div>
   );

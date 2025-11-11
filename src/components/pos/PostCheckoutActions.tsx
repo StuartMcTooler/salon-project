@@ -49,6 +49,8 @@ export const PostCheckoutActions = ({
         body: {
           to: appointment.customer_phone,
           message: message,
+          businessId: businessId,
+          messageType: actionType === 'booking' ? 'booking_link' : actionType === 'referral' ? 'referral' : 'feedback',
         },
       });
 

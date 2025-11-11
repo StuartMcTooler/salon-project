@@ -30,6 +30,7 @@ interface AppointmentChangeNotificationProps {
     duration_minutes: number;
     price: number;
   };
+  businessId?: string;
 }
 
 export const AppointmentChangeNotification = ({
@@ -37,6 +38,7 @@ export const AppointmentChangeNotification = ({
   onClose,
   originalAppointment,
   updatedAppointment,
+  businessId,
 }: AppointmentChangeNotificationProps) => {
   const { toast } = useToast();
   const [sent, setSent] = useState(false);
@@ -74,6 +76,8 @@ export const AppointmentChangeNotification = ({
         body: {
           to: updatedAppointment.customer_phone,
           message: message,
+          businessId: businessId,
+          messageType: 'appointment_change',
         },
       });
 

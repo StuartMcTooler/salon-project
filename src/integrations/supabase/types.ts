@@ -24,6 +24,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           logo_url: string | null
+          notification_method: string | null
           owner_user_id: string
           phone: string | null
           referral_discount_type:
@@ -41,6 +42,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           logo_url?: string | null
+          notification_method?: string | null
           owner_user_id: string
           phone?: string | null
           referral_discount_type?:
@@ -58,6 +60,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           logo_url?: string | null
+          notification_method?: string | null
           owner_user_id?: string
           phone?: string | null
           referral_discount_type?:
@@ -608,6 +611,50 @@ export type Database = {
             columns: ["creative_id"]
             isOneToOne: false
             referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_logs: {
+        Row: {
+          business_id: string | null
+          created_at: string | null
+          delivery_method: string
+          error_message: string | null
+          id: string
+          message_type: string
+          recipient_phone: string
+          status: string
+          twilio_message_id: string | null
+        }
+        Insert: {
+          business_id?: string | null
+          created_at?: string | null
+          delivery_method: string
+          error_message?: string | null
+          id?: string
+          message_type: string
+          recipient_phone: string
+          status: string
+          twilio_message_id?: string | null
+        }
+        Update: {
+          business_id?: string | null
+          created_at?: string | null
+          delivery_method?: string
+          error_message?: string | null
+          id?: string
+          message_type?: string
+          recipient_phone?: string
+          status?: string
+          twilio_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_logs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_accounts"
             referencedColumns: ["id"]
           },
         ]

@@ -76,24 +76,19 @@ const Feedback = () => {
 
       if (error) throw error;
 
-      // Call analyze-feedback edge function
-      const { error: analyzeError } = await supabase.functions.invoke('analyze-feedback', {
-        body: { feedbackId: data.id }
-      });
-
-      if (analyzeError) console.error('Sentiment analysis failed:', analyzeError);
-
       return data;
     },
     onSuccess: () => {
-      toast.success("Thank you for your feedback!");
+      toast.success("Thank you for your feedback! We really appreciate it.", {
+        duration: 5000,
+      });
       
       setSubmittedEmail(email);
       setSubmittedPhone(phone);
       
       // Only show referral modal if we have phone number
       if (phone) {
-        setShowReferralModal(true);
+        setTimeout(() => setShowReferralModal(true), 500);
       }
       
       // Reset form

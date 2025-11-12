@@ -88,7 +88,7 @@ export const PostCheckoutActions = ({
   });
 
   const handleSendBookingLink = () => {
-    const bookingUrl = `${APP_URL}/salon`;
+    const bookingUrl = `${APP_URL}/book/${appointment.staff_id}`;
     const message = `Hi ${appointment.customer_name}! ✨\n\nThanks for visiting us today. We'd love to see you again!\n\nBook your next appointment here:\n${bookingUrl}`;
     sendWhatsApp.mutate({ message, actionType: 'booking' });
   };

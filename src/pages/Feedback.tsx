@@ -19,11 +19,13 @@ const Feedback = () => {
   
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [feedbackText, setFeedbackText] = useState("");
   const [starRating, setStarRating] = useState(0);
   const [audioBase64, setAudioBase64] = useState("");
   const [showReferralModal, setShowReferralModal] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState("");
+  const [submittedPhone, setSubmittedPhone] = useState("");
   const [staffId, setStaffId] = useState<string | undefined>(undefined);
 
   // Load appointment details if ID is provided
@@ -34,7 +36,7 @@ const Feedback = () => {
       
       const { data, error } = await supabase
         .from('salon_appointments')
-        .select('customer_name, customer_email, service_name, staff_id')
+        .select('customer_name, customer_email, customer_phone, service_name, staff_id')
         .eq('id', appointmentId)
         .single();
 
@@ -49,6 +51,7 @@ const Feedback = () => {
     if (appointment) {
       setName(appointment.customer_name || "");
       setEmail(appointment.customer_email || "");
+      setPhone(appointment.customer_phone || "");
       setStaffId(appointment.staff_id);
     }
   }, [appointment]);
@@ -86,11 +89,17 @@ const Feedback = () => {
       toast.success("Thank you for your feedback!");
       
       setSubmittedEmail(email);
-      setShowReferralModal(true);
+      setSubmittedPhone(phone);
+      
+      // Only show referral modal if we have phone number
+      if (phone) {
+        setShowReferralModal(true);
+      }
       
       // Reset form
       setName("");
       setEmail("");
+      setPhone("");
       setFeedbackText("");
       setStarRating(0);
       setAudioBase64("");
@@ -111,7 +120,7 @@ const Feedback = () => {
     submitFeedback.mutate();
   };
 
-  const canSubmit = name && email && starRating > 0;
+  const canSubmit = name && starRating > 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/10 to-background">
@@ -152,14 +161,27 @@ const Feedback = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email *</Label>
+                  <Label htmlFor="phone">Phone Number (Optional)</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="087 123 4567"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Provide your phone to receive referral rewards
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email (Optional)</Label>
                   <Input
                     id="email"
                     type="email"
                     placeholder="your@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    required
                   />
                 </div>
 
@@ -221,6 +243,7 @@ const Feedback = () => {
         onClose={() => setShowReferralModal(false)}
         customerEmail={submittedEmail}
         customerName={name}
+        customerPhone={submittedPhone}
         staffId={staffId}
       />
     </div>

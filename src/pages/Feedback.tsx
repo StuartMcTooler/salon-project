@@ -58,6 +58,15 @@ const Feedback = () => {
 
   const submitFeedback = useMutation({
     mutationFn: async () => {
+      console.log('🚀 Starting feedback submission...', {
+        customer_name: name,
+        customer_email: email || null,
+        star_rating: starRating,
+        has_audio: !!audioBase64,
+        staff_id: staffId,
+        order_id: appointmentId,
+      });
+
       const { data, error } = await supabase
         .from('feedback')
         .insert([
@@ -75,15 +84,25 @@ const Feedback = () => {
         .single();
 
       if (error) {
-        console.error('Feedback submission error:', error);
+        console.error('❌ Feedback submission error:', error);
         throw error;
       }
 
+      console.log('✅ Feedback submitted successfully:', data);
       return data;
     },
-    onSuccess: () => {
-      toast.success("Thank you for your feedback! We really appreciate it.", {
+    onSuccess: (data) => {
+      console.log('✅ Feedback mutation success callback triggered, ID:', data?.id);
+      
+      toast.success("✅ Thank you! Your feedback has been submitted successfully.", {
         duration: 5000,
+        style: {
+          background: 'hsl(142 76% 36%)',
+          color: 'white',
+          fontSize: '16px',
+          padding: '16px',
+          fontWeight: '600',
+        },
       });
       
       setSubmittedEmail(email);
@@ -91,7 +110,7 @@ const Feedback = () => {
       
       // Only show referral modal if we have phone number
       if (phone) {
-        setTimeout(() => setShowReferralModal(true), 500);
+        setTimeout(() => setShowReferralModal(true), 1500);
       }
       
       // Reset form
@@ -103,9 +122,16 @@ const Feedback = () => {
       setAudioBase64("");
     },
     onError: (error: any) => {
-      console.error('Submit feedback error:', error);
-      toast.error(error.message || "Failed to submit feedback. Please check your connection and try again.", {
+      console.error('❌ Submit feedback error:', error);
+      toast.error(`Failed to submit feedback: ${error.message || 'Please check your connection and try again.'}`, {
         duration: 6000,
+        style: {
+          background: 'hsl(0 84% 60%)',
+          color: 'white',
+          fontSize: '16px',
+          padding: '16px',
+          fontWeight: '600',
+        },
       });
     },
   });
@@ -225,7 +251,10 @@ const Feedback = () => {
                   size="lg"
                 >
                   {submitFeedback.isPending ? (
-                    "Submitting..."
+                    <>
+                      <span className="animate-spin mr-2">⏳</span>
+                      Submitting your feedback...
+                    </>
                   ) : (
                     <>
                       <Send className="mr-2 h-4 w-4" />

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Smartphone, Loader2, Banknote } from "lucide-react";
+import { CreditCard, Smartphone, Loader2, Banknote, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -15,6 +15,9 @@ interface PaymentMethodSelectorProps {
   customerPhone?: string;
   staffId?: string;
   businessId?: string;
+  depositAmount?: number;
+  depositPaid?: boolean;
+  remainingBalance?: number;
   onPaymentComplete: () => void;
 }
 
@@ -28,10 +31,18 @@ export const PaymentMethodSelector = ({
   customerPhone,
   staffId,
   businessId,
+  depositAmount,
+  depositPaid,
+  remainingBalance,
   onPaymentComplete,
 }: PaymentMethodSelectorProps) => {
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"card_reader" | "payment_link" | "cash" | null>(null);
+
+  // Calculate the actual amount to charge
+  const amountToCharge = (depositPaid && remainingBalance) 
+    ? remainingBalance 
+    : amount;
 
   const pollPaymentStatus = async () => {
     const maxAttempts = 60;
@@ -89,7 +100,7 @@ export const PaymentMethodSelector = ({
 
       const { error: payErr } = await supabase.functions.invoke('create-terminal-payment', {
         body: {
-          amount: Number(amount),
+          amount: Number(amountToCharge),
           currency: 'eur',
           readerId,
           appointmentId,
@@ -121,7 +132,7 @@ export const PaymentMethodSelector = ({
           appointmentId,
           serviceId,
           serviceName,
-          amount,
+          amount: amountToCharge,
           customerEmail,
           customerName,
         },
@@ -167,7 +178,17 @@ export const PaymentMethodSelector = ({
       <CardHeader>
         <CardTitle>Select Payment Method</CardTitle>
         <CardDescription>
-          Choose how the customer wants to pay for {serviceName}
+          {depositPaid ? (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1 text-green-600">
+                <CheckCircle2 className="h-3 w-3" />
+                Deposit paid: €{depositAmount?.toFixed(2)}
+              </div>
+              <div>Collecting remaining balance</div>
+            </div>
+          ) : (
+            `Choose how the customer wants to pay for ${serviceName}`
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -256,8 +277,25 @@ export const PaymentMethodSelector = ({
         </div>
 
         <div className="text-center pt-4 border-t">
-          <div className="text-2xl font-bold">€{amount.toFixed(2)}</div>
-          <div className="text-sm text-muted-foreground">{serviceName}</div>
+          {depositPaid && depositAmount ? (
+            <div className="space-y-1">
+              <div className="text-sm text-muted-foreground">
+                Total: €{amount.toFixed(2)}
+              </div>
+              <div className="text-sm text-green-600">
+                Deposit: -€{depositAmount.toFixed(2)}
+              </div>
+              <div className="text-2xl font-bold">
+                €{amountToCharge.toFixed(2)}
+              </div>
+              <div className="text-xs text-muted-foreground">Remaining Balance</div>
+            </div>
+          ) : (
+            <>
+              <div className="text-2xl font-bold">€{amountToCharge.toFixed(2)}</div>
+              <div className="text-sm text-muted-foreground">{serviceName}</div>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>

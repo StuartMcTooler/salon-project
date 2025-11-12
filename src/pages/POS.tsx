@@ -389,6 +389,9 @@ const POS = () => {
               customerPhone={lastAppointment.customer_phone}
               staffId={lastAppointment.staff_id}
               businessId={businessId}
+              depositAmount={lastAppointment.deposit_amount}
+              depositPaid={lastAppointment.deposit_paid}
+              remainingBalance={lastAppointment.remaining_balance}
               onPaymentComplete={() => {
                 setShowPaymentSelector(false);
                 setShowPostCheckout(true);

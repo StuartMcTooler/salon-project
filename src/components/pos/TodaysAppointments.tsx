@@ -132,6 +132,25 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
                       <div className="text-lg font-bold text-primary">
                         €{Number(appointment.price).toFixed(2)}
                       </div>
+                      {appointment.deposit_amount && (
+                        <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                          {appointment.deposit_paid ? (
+                            <>
+                              <div className="flex items-center gap-1 text-green-700 font-medium">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Deposit Paid: €{Number(appointment.deposit_amount).toFixed(2)}
+                              </div>
+                              <div className="text-muted-foreground">
+                                Remaining Balance: €{Number(appointment.remaining_balance).toFixed(2)}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-orange-600 font-medium">
+                              Deposit Pending: €{Number(appointment.deposit_amount).toFixed(2)}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <Button

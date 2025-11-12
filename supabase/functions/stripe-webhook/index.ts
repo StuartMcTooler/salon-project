@@ -98,19 +98,30 @@ serve(async (req) => {
     if (event.type === "payment_intent.succeeded") {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
       const appointmentId = paymentIntent.metadata?.appointment_id;
+      const isDeposit = paymentIntent.metadata?.is_deposit === 'true';
 
       console.log("Payment succeeded for PaymentIntent:", paymentIntent.id);
 
       if (appointmentId) {
+        const updateData: any = {
+          payment_method: 'card',
+        };
+
+        if (isDeposit) {
+          updateData.deposit_paid = true;
+          updateData.payment_status = 'deposit_paid';
+          updateData.status = 'confirmed';
+        } else {
+          updateData.payment_status = 'paid';
+          updateData.status = 'completed';
+        }
+
         await supabaseClient
           .from("salon_appointments")
-          .update({
-            payment_status: "paid",
-            status: "completed",
-          })
+          .update(updateData)
           .eq("id", appointmentId);
 
-        console.log("Updated appointment to paid:", appointmentId);
+        console.log("Updated appointment:", appointmentId, isDeposit ? "deposit paid" : "fully paid");
       }
     }
 

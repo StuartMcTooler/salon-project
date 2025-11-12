@@ -13,7 +13,16 @@ serve(async (req) => {
   }
 
   try {
-    const { appointmentId, serviceId, serviceName, amount, customerEmail, customerName } = await req.json();
+    const { 
+      appointmentId, 
+      serviceId, 
+      serviceName, 
+      amount, 
+      customerEmail, 
+      customerName,
+      isDeposit = false,
+      fullAmount
+    } = await req.json();
 
     console.log("Creating payment link:", { appointmentId, serviceName, amount, customerEmail });
 
@@ -81,6 +90,9 @@ serve(async (req) => {
         appointment_id: appointmentId || "",
         customer_email: customerEmail || "",
         customer_name: customerName || "",
+        is_deposit: isDeposit ? "true" : "false",
+        deposit_amount: isDeposit ? amount.toString() : "0",
+        remaining_balance: isDeposit && fullAmount ? (fullAmount - amount).toString() : "0",
       },
     });
 
@@ -91,7 +103,7 @@ serve(async (req) => {
       await supabaseClient
         .from("salon_appointments")
         .update({
-          payment_status: "pending",
+          payment_status: isDeposit ? "deposit_pending" : "pending",
           payment_method: "payment_link",
         })
         .eq("id", appointmentId);

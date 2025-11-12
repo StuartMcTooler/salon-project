@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Pencil, Trash2, Plus, Loader2, UserPlus, UserMinus, Building2 } from "lucide-react";
@@ -25,6 +25,10 @@ interface StaffMember {
   is_active: boolean;
   user_id: string | null;
   business_id: string | null;
+  require_booking_deposit?: boolean;
+  deposit_type?: 'percentage' | 'fixed_amount';
+  deposit_percentage?: number;
+  deposit_fixed_amount?: number;
 }
 
 export function StaffManagement() {
@@ -36,6 +40,10 @@ export function StaffManagement() {
   const [creatingLogin, setCreatingLogin] = useState<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [decouplingStaff, setDecouplingStaff] = useState<StaffMember | null>(null);
+  const [bulkDepositEnabled, setBulkDepositEnabled] = useState(false);
+  const [bulkDepositType, setBulkDepositType] = useState<'percentage' | 'fixed_amount'>('percentage');
+  const [bulkDepositPercentage, setBulkDepositPercentage] = useState(20);
+  const [bulkDepositAmount, setBulkDepositAmount] = useState(10);
 
   useEffect(() => {
     loadStaff();
@@ -70,7 +78,7 @@ export function StaffManagement() {
         .order("full_name");
 
       if (error) throw error;
-      setStaff(data || []);
+      setStaff((data || []) as StaffMember[]);
     } catch (error) {
       console.error("Error loading staff:", error);
       toast.error("Failed to load staff members");
@@ -205,6 +213,67 @@ export function StaffManagement() {
     }
   };
 
+  const handleApplyToAll = async () => {
+    try {
+      const updates = staff.map(s => ({
+        id: s.id,
+        require_booking_deposit: true,
+        deposit_type: bulkDepositType,
+        deposit_percentage: bulkDepositType === 'percentage' ? bulkDepositPercentage : 20,
+        deposit_fixed_amount: bulkDepositType === 'fixed_amount' ? bulkDepositAmount : 10,
+      }));
+
+      for (const update of updates) {
+        await supabase
+          .from('staff_members')
+          .update({
+            require_booking_deposit: update.require_booking_deposit,
+            deposit_type: update.deposit_type,
+            deposit_percentage: update.deposit_percentage,
+            deposit_fixed_amount: update.deposit_fixed_amount,
+          })
+          .eq('id', update.id);
+      }
+
+      toast.success('Deposit settings applied to all staff');
+      loadStaff();
+    } catch (error) {
+      console.error('Error applying bulk settings:', error);
+      toast.error('Failed to apply settings');
+    }
+  };
+
+  const handleDisableAll = async () => {
+    try {
+      for (const member of staff) {
+        await supabase
+          .from('staff_members')
+          .update({ require_booking_deposit: false })
+          .eq('id', member.id);
+      }
+      toast.success('Deposits disabled for all staff');
+      loadStaff();
+    } catch (error) {
+      console.error('Error disabling deposits:', error);
+      toast.error('Failed to disable deposits');
+    }
+  };
+
+  const handleToggleDeposit = async (staffId: string, enabled: boolean) => {
+    try {
+      await supabase
+        .from('staff_members')
+        .update({ require_booking_deposit: enabled })
+        .eq('id', staffId);
+      
+      toast.success(enabled ? 'Deposit enabled' : 'Deposit disabled');
+      loadStaff();
+    } catch (error) {
+      console.error('Error toggling deposit:', error);
+      toast.error('Failed to update deposit setting');
+    }
+  };
+
   if (loading) {
     return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
@@ -228,6 +297,88 @@ export function StaffManagement() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            💰 Bulk Deposit Settings
+          </CardTitle>
+          <CardDescription>
+            Configure deposit requirements for all staff members at once
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Enable deposits for all staff</Label>
+              <p className="text-sm text-muted-foreground">
+                {staff.filter(s => s.require_booking_deposit).length} of {staff.length} staff require deposits
+              </p>
+            </div>
+            <Switch
+              checked={bulkDepositEnabled}
+              onCheckedChange={setBulkDepositEnabled}
+            />
+          </div>
+
+          {bulkDepositEnabled && (
+            <>
+              <div className="space-y-2">
+                <Label>Default Deposit Type</Label>
+                <div className="flex gap-4">
+                  <Button
+                    variant={bulkDepositType === 'percentage' ? 'default' : 'outline'}
+                    onClick={() => setBulkDepositType('percentage')}
+                  >
+                    Percentage
+                  </Button>
+                  <Button
+                    variant={bulkDepositType === 'fixed_amount' ? 'default' : 'outline'}
+                    onClick={() => setBulkDepositType('fixed_amount')}
+                  >
+                    Fixed Amount
+                  </Button>
+                </div>
+              </div>
+
+              {bulkDepositType === 'percentage' && (
+                <div className="space-y-2">
+                  <Label>Percentage (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={bulkDepositPercentage}
+                    onChange={(e) => setBulkDepositPercentage(Number(e.target.value))}
+                  />
+                </div>
+              )}
+
+              {bulkDepositType === 'fixed_amount' && (
+                <div className="space-y-2">
+                  <Label>Fixed Amount (€)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={bulkDepositAmount}
+                    onChange={(e) => setBulkDepositAmount(Number(e.target.value))}
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button onClick={handleApplyToAll} className="flex-1">
+                  Apply to All Staff
+                </Button>
+                <Button onClick={handleDisableAll} variant="outline" className="flex-1">
+                  Disable All Deposits
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {staff.map((member) => (
@@ -279,6 +430,42 @@ export function StaffManagement() {
                   {member.is_active ? "Active" : "Inactive"}
                 </span>
               </p>
+
+              <div className="mt-4 pt-4 border-t space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-medium">Require Booking Deposit</Label>
+                    {member.require_booking_deposit && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {member.deposit_type === 'percentage' 
+                          ? `${member.deposit_percentage}% of service price`
+                          : `€${member.deposit_fixed_amount?.toFixed(2)} fixed amount`
+                        }
+                      </p>
+                    )}
+                  </div>
+                  <Switch
+                    checked={member.require_booking_deposit || false}
+                    onCheckedChange={(checked) => handleToggleDeposit(member.id, checked)}
+                  />
+                </div>
+
+                {member.require_booking_deposit && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full">
+                        Configure Deposit
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Deposit Settings for {member.display_name}</DialogTitle>
+                      </DialogHeader>
+                      <DepositConfigForm member={member} onSave={loadStaff} />
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
 
               {isMultiStaff && !member.user_id && (
                 <Button
@@ -355,6 +542,78 @@ export function StaffManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+function DepositConfigForm({ member, onSave }: { member: StaffMember; onSave: () => void }) {
+  const [depositType, setDepositType] = useState(member.deposit_type || 'percentage');
+  const [percentage, setPercentage] = useState(member.deposit_percentage || 20);
+  const [fixedAmount, setFixedAmount] = useState(member.deposit_fixed_amount || 10);
+
+  const handleSave = async () => {
+    try {
+      await supabase
+        .from('staff_members')
+        .update({
+          deposit_type: depositType,
+          deposit_percentage: depositType === 'percentage' ? percentage : 20,
+          deposit_fixed_amount: depositType === 'fixed_amount' ? fixedAmount : 10,
+        })
+        .eq('id', member.id);
+      
+      toast.success('Deposit settings updated');
+      onSave();
+    } catch (error) {
+      console.error('Error saving deposit config:', error);
+      toast.error('Failed to save settings');
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>Deposit Type</Label>
+        <Select value={depositType} onValueChange={(v) => setDepositType(v as any)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="percentage">Percentage of Price</SelectItem>
+            <SelectItem value="fixed_amount">Fixed Amount</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {depositType === 'percentage' && (
+        <div className="space-y-2">
+          <Label>Percentage (%)</Label>
+          <Input
+            type="number"
+            min="0"
+            max="100"
+            value={percentage}
+            onChange={(e) => setPercentage(Number(e.target.value))}
+          />
+        </div>
+      )}
+
+      {depositType === 'fixed_amount' && (
+        <div className="space-y-2">
+          <Label>Fixed Amount (€)</Label>
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            value={fixedAmount}
+            onChange={(e) => setFixedAmount(Number(e.target.value))}
+          />
+        </div>
+      )}
+
+      <Button onClick={handleSave} className="w-full">
+        Save Settings
+      </Button>
     </div>
   );
 }

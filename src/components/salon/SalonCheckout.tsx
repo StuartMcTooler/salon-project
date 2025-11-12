@@ -268,6 +268,32 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
 
       if (error) throw error;
 
+      // If deposit required, create payment link
+      if (depositAmount > 0) {
+        const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
+          'create-payment-link',
+          {
+            body: {
+              appointmentId: data.id,
+              serviceId: service.id,
+              serviceName: service.name,
+              amount: depositAmount,
+              customerEmail: customerEmail,
+              customerName: customerName,
+              isDeposit: true,
+              fullAmount: finalPrice,
+            },
+          }
+        );
+
+        if (paymentError) throw paymentError;
+
+        // Open payment link in new tab
+        if (paymentData?.url) {
+          window.open(paymentData.url, '_blank');
+        }
+      }
+
       // Track client ownership if booking via referral
       if (referralCode && customerEmail) {
         await supabase
@@ -309,11 +335,18 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
 
       return data;
     },
-    onSuccess: () => {
-      toast({
-        title: "Appointment booked!",
-        description: "Your appointment has been successfully scheduled.",
-      });
+    onSuccess: (data) => {
+      if (depositAmount > 0) {
+        toast({
+          title: "Booking created!",
+          description: "Complete deposit payment to confirm your appointment.",
+        });
+      } else {
+        toast({
+          title: "Appointment booked!",
+          description: "Your appointment has been successfully scheduled.",
+        });
+      }
       onComplete();
     },
     onError: (error: any) => {

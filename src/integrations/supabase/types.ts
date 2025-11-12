@@ -716,6 +716,7 @@ export type Database = {
           id: string
           referrer_email: string
           referrer_name: string
+          referrer_phone: string | null
         }
         Insert: {
           code: string
@@ -723,6 +724,7 @@ export type Database = {
           id?: string
           referrer_email: string
           referrer_name: string
+          referrer_phone?: string | null
         }
         Update: {
           code?: string
@@ -730,6 +732,7 @@ export type Database = {
           id?: string
           referrer_email?: string
           referrer_name?: string
+          referrer_phone?: string | null
         }
         Relationships: []
       }
@@ -1175,6 +1178,7 @@ export type Database = {
           created_at: string
           credit_type: string
           customer_email: string
+          customer_phone: string | null
           discount_percentage: number
           expires_at: string | null
           id: string
@@ -1188,6 +1192,7 @@ export type Database = {
           created_at?: string
           credit_type: string
           customer_email: string
+          customer_phone?: string | null
           discount_percentage: number
           expires_at?: string | null
           id?: string
@@ -1201,6 +1206,7 @@ export type Database = {
           created_at?: string
           credit_type?: string
           customer_email?: string
+          customer_phone?: string | null
           discount_percentage?: number
           expires_at?: string | null
           id?: string

@@ -12,11 +12,12 @@ interface ReferralModalProps {
   onClose: () => void;
   customerEmail: string;
   customerName: string;
+  customerPhone: string;
   staffId?: string;
   businessId?: string;
 }
 
-export const ReferralModal = ({ isOpen, onClose, customerEmail, customerName, staffId, businessId }: ReferralModalProps) => {
+export const ReferralModal = ({ isOpen, onClose, customerEmail, customerName, customerPhone, staffId, businessId }: ReferralModalProps) => {
   const { toast } = useToast();
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -34,6 +35,7 @@ export const ReferralModal = ({ isOpen, onClose, customerEmail, customerName, st
             code,
             referrer_email: customerEmail,
             referrer_name: customerName,
+            referrer_phone: customerPhone, // Phone as primary identifier
           }
         ])
         .select()
@@ -87,7 +89,7 @@ export const ReferralModal = ({ isOpen, onClose, customerEmail, customerName, st
           {!referralCode ? (
             <Button
               onClick={() => generateReferralCode.mutate()}
-              disabled={generateReferralCode.isPending || !customerEmail}
+              disabled={generateReferralCode.isPending || !customerPhone}
               className="w-full"
             >
               {generateReferralCode.isPending ? "Generating..." : "Generate My Referral Code"}

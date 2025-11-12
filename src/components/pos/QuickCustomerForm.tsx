@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, CreditCard, Smartphone, Banknote } from "lucide-react";
 import { LoyaltyPointsDisplay } from "./LoyaltyPointsDisplay";
@@ -35,6 +36,50 @@ export const QuickCustomerForm = ({
   const [processingPayment, setProcessingPayment] = useState(false);
   const [currentReaderId, setCurrentReaderId] = useState<string | null>(null);
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
+  
+  // Credit management
+  const [availableCredits, setAvailableCredits] = useState<any[]>([]);
+  const [applyCreditOptOut, setApplyCreditOptOut] = useState(false);
+  const [creditApplied, setCreditApplied] = useState<any>(null);
+  const [adjustedPrice, setAdjustedPrice] = useState(service.custom_price);
+
+  // Check for available credits when phone changes
+  useEffect(() => {
+    const checkCredits = async () => {
+      if (!customerPhone) {
+        setAvailableCredits([]);
+        setAdjustedPrice(service.custom_price);
+        return;
+      }
+
+      const normalizedPhone = normalizePhoneNumber(customerPhone);
+      
+      const { data } = await supabase
+        .from('user_credits')
+        .select('*')
+        .eq('customer_phone', normalizedPhone)
+        .eq('used', false)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: true })
+        .limit(3);
+
+      setAvailableCredits(data || []);
+      
+      // Auto-apply first credit if available and not opted out
+      if (data && data.length > 0 && !applyCreditOptOut) {
+        const credit = data[0];
+        const discount = (service.custom_price * credit.discount_percentage) / 100;
+        const newPrice = service.custom_price - discount;
+        setAdjustedPrice(newPrice);
+        setCreditApplied(credit);
+      } else {
+        setAdjustedPrice(service.custom_price);
+        setCreditApplied(null);
+      }
+    };
+
+    checkCredits();
+  }, [customerPhone, applyCreditOptOut, service.custom_price]);
 
   const createWalkIn = useMutation({
     mutationFn: async () => {
@@ -54,7 +99,7 @@ export const QuickCustomerForm = ({
           customer_email: customerEmail || null,
           appointment_date: now.toISOString(),
           duration_minutes: service.service.duration_minutes,
-          price: service.custom_price,
+          price: adjustedPrice, // Use adjusted price with credit applied
           notes: notes || null,
           status: 'pending',
           payment_status: 'pending',
@@ -66,6 +111,18 @@ export const QuickCustomerForm = ({
       if (error) throw error;
       
       setAppointmentId(data.id);
+
+      // Mark credit as used if applied
+      if (creditApplied && !applyCreditOptOut) {
+        await supabase
+          .from('user_credits')
+          .update({
+            used: true,
+            used_at: new Date().toISOString(),
+            order_id: data.id,
+          })
+          .eq('id', creditApplied.id);
+      }
 
       // Award loyalty points only if we have customer contact info
       if (customerEmail || customerPhone) {
@@ -167,7 +224,7 @@ export const QuickCustomerForm = ({
       
       const { data, error } = await supabase.functions.invoke("create-terminal-payment", {
         body: {
-          amount: Number(service.custom_price),
+          amount: Number(adjustedPrice), // Use adjusted price
           currency: "eur",
           readerId: readerId,
           appointmentId: apptId,
@@ -545,7 +602,18 @@ export const QuickCustomerForm = ({
             </div>
 
             <div className="text-center pt-4 border-t">
-              <div className="text-2xl font-bold">€{Number(service.custom_price).toFixed(2)}</div>
+              <div className="text-2xl font-bold">
+                {creditApplied && !applyCreditOptOut ? (
+                  <>
+                    <span className="line-through text-muted-foreground text-lg mr-2">
+                      €{Number(service.custom_price).toFixed(2)}
+                    </span>
+                    €{adjustedPrice.toFixed(2)}
+                  </>
+                ) : (
+                  `€${Number(service.custom_price).toFixed(2)}`
+                )}
+              </div>
               <div className="text-sm text-muted-foreground">{service.service.name}</div>
             </div>
           </CardContent>
@@ -567,7 +635,16 @@ export const QuickCustomerForm = ({
           <CardTitle className="flex items-center justify-between">
             <span>{service.service.name}</span>
             <span className="text-3xl font-bold text-primary">
-              €{Number(service.custom_price).toFixed(2)}
+              {creditApplied && !applyCreditOptOut ? (
+                <>
+                  <span className="line-through text-muted-foreground text-xl mr-2">
+                    €{Number(service.custom_price).toFixed(2)}
+                  </span>
+                  €{adjustedPrice.toFixed(2)}
+                </>
+              ) : (
+                `€${Number(service.custom_price).toFixed(2)}`
+              )}
             </span>
           </CardTitle>
           <CardDescription>
@@ -575,6 +652,52 @@ export const QuickCustomerForm = ({
           </CardDescription>
         </CardHeader>
       </Card>
+
+      {/* Credit Display Banner */}
+      {availableCredits.length > 0 && (
+        <Card className="border-green-500/50 bg-green-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-2">
+                <p className="font-semibold text-green-700">
+                  🎉 You have {availableCredits.length} referral reward{availableCredits.length > 1 ? 's' : ''} available!
+                </p>
+                {!applyCreditOptOut && creditApplied && (
+                  <>
+                    <p className="text-sm text-green-600">
+                      Applying {creditApplied.discount_percentage}% off (€{((service.custom_price * creditApplied.discount_percentage) / 100).toFixed(2)} savings)
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Expires: {new Date(creditApplied.expires_at).toLocaleDateString()}
+                    </p>
+                    {availableCredits.length > 1 && (
+                      <p className="text-xs text-muted-foreground">
+                        You have {availableCredits.length - 1} more credit{availableCredits.length > 2 ? 's' : ''} for future bookings
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="apply-credit-walkin"
+                  checked={!applyCreditOptOut}
+                  onCheckedChange={(checked) => {
+                    setApplyCreditOptOut(!checked);
+                    if (!checked) {
+                      setAdjustedPrice(service.custom_price);
+                      setCreditApplied(null);
+                    }
+                  }}
+                />
+                <Label htmlFor="apply-credit-walkin" className="text-sm cursor-pointer">
+                  Apply reward
+                </Label>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Customer Details */}
       <Card>

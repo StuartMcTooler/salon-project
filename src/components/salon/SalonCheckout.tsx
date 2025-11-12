@@ -5,10 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { ArrowLeft, AlertCircle } from "lucide-react";
 import { getAvailableSlots } from "@/lib/timeSlotUtils";
+import { normalizePhoneNumber } from "@/lib/utils";
 
 interface SalonCheckoutProps {
   service: any;
@@ -33,6 +35,11 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
   const [finalPrice, setFinalPrice] = useState(pricing.custom_price);
   const [requiresDeposit, setRequiresDeposit] = useState(false);
   const [depositAmount, setDepositAmount] = useState(0);
+  
+  // Credit management
+  const [availableCredits, setAvailableCredits] = useState<any[]>([]);
+  const [applyCreditOptOut, setApplyCreditOptOut] = useState(false);
+  const [creditApplied, setCreditApplied] = useState<any>(null);
 
   // Check if customer requires deposit
   const { data: customerLoyalty } = useQuery({
@@ -53,7 +60,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
     enabled: !!customerEmail && !!staff.id,
   });
 
-  // Calculate if deposit is required and amount
+  // Calculate if deposit is required and amount (after credit applied)
   useEffect(() => {
     const staffRequiresDeposit = staff.require_booking_deposit === true;
     const customerRequiresDeposit = customerLoyalty?.require_booking_deposit === true;
@@ -63,6 +70,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
 
     if (needsDeposit) {
       let deposit = 0;
+      // Use finalPrice which already has credit applied
       if (staff.deposit_type === 'percentage') {
         deposit = (finalPrice * (staff.deposit_percentage || 20)) / 100;
       } else {
@@ -225,6 +233,44 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
     }
   }, [user]);
 
+  // Check for available credits when phone changes
+  useEffect(() => {
+    const checkCredits = async () => {
+      if (!customerPhone) {
+        setAvailableCredits([]);
+        return;
+      }
+
+      const normalizedPhone = normalizePhoneNumber(customerPhone);
+      
+      const { data } = await supabase
+        .from('user_credits')
+        .select('*')
+        .eq('customer_phone', normalizedPhone)
+        .eq('used', false)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: true })
+        .limit(3);
+
+      setAvailableCredits(data || []);
+      
+      // Auto-apply first credit if available and not opted out
+      if (data && data.length > 0 && !applyCreditOptOut) {
+        const credit = data[0];
+        const discount = (pricing.custom_price * credit.discount_percentage) / 100;
+        const newPrice = pricing.custom_price - discount;
+        setFinalPrice(newPrice);
+        setCreditApplied(credit);
+      } else {
+        // No credits available or opted out - use original price
+        setFinalPrice(discountApplied ? finalPrice : pricing.custom_price);
+        setCreditApplied(null);
+      }
+    };
+
+    checkCredits();
+  }, [customerPhone, applyCreditOptOut, pricing.custom_price]);
+
   const createAppointment = useMutation({
     mutationFn: async () => {
       if (!date || !time) {
@@ -309,25 +355,39 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
           ]);
       }
 
+      // Mark credit as used if applied
+      if (creditApplied && !applyCreditOptOut) {
+        await supabase
+          .from('user_credits')
+          .update({
+            used: true,
+            used_at: new Date().toISOString(),
+            order_id: data.id,
+          })
+          .eq('id', creditApplied.id);
+      }
+
       // Create user credit for the referrer if applicable
-      if (referralCode && customerEmail) {
+      if (referralCode && customerPhone) {
         const { data: refCodeData } = await supabase
           .from('referral_codes')
-          .select('referrer_email')
+          .select('referrer_phone, referrer_email, referrer_name')
           .eq('code', referralCode)
           .single();
 
-        if (refCodeData) {
+        if (refCodeData?.referrer_phone) {
           await supabase
             .from('user_credits')
             .insert([
               {
+                customer_phone: refCodeData.referrer_phone,
                 customer_email: refCodeData.referrer_email,
                 staff_id: staff.id,
                 order_id: data.id,
                 credit_type: 'referral_reward',
                 discount_percentage: 15,
                 voucher_code: `REF-${referralCode}`,
+                expires_at: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString(),
               }
             ]);
         }
@@ -372,6 +432,53 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
         <p className="text-muted-foreground">Review and confirm your appointment details</p>
       </div>
 
+      {/* Credit Display Banner */}
+      {availableCredits.length > 0 && (
+        <Card className="border-green-500/50 bg-green-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-2">
+                <p className="font-semibold text-green-700">
+                  🎉 You have {availableCredits.length} referral reward{availableCredits.length > 1 ? 's' : ''} available!
+                </p>
+                {!applyCreditOptOut && creditApplied && (
+                  <>
+                    <p className="text-sm text-green-600">
+                      Applying {creditApplied.discount_percentage}% off (€{((pricing.custom_price * creditApplied.discount_percentage) / 100).toFixed(2)} savings)
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Expires: {new Date(creditApplied.expires_at).toLocaleDateString()}
+                    </p>
+                    {availableCredits.length > 1 && (
+                      <p className="text-xs text-muted-foreground">
+                        You have {availableCredits.length - 1} more credit{availableCredits.length > 2 ? 's' : ''} for future bookings
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="apply-credit"
+                  checked={!applyCreditOptOut}
+                  onCheckedChange={(checked) => {
+                    setApplyCreditOptOut(!checked);
+                    if (!checked) {
+                      // Opted out - restore original or discounted price
+                      setFinalPrice(discountApplied ? finalPrice : pricing.custom_price);
+                      setCreditApplied(null);
+                    }
+                  }}
+                />
+                <Label htmlFor="apply-credit" className="text-sm cursor-pointer">
+                  Apply reward
+                </Label>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Appointment Summary</CardTitle>
@@ -410,7 +517,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
             <div>
               <p className="text-muted-foreground">Price</p>
               <p className="font-semibold">
-                {discountApplied && (
+                {(discountApplied || creditApplied) && (
                   <span className="line-through text-muted-foreground mr-2">
                     €{pricing.custom_price}
                   </span>

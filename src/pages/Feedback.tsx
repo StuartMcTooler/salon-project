@@ -7,18 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { ReferralModal } from "@/components/ReferralModal";
 import { MessageSquare, Send } from "lucide-react";
+import { StarRatingInput } from "@/components/feedback/StarRatingInput";
+import { VoiceRecorder } from "@/components/feedback/VoiceRecorder";
 
 const Feedback = () => {
   const [searchParams] = useSearchParams();
   const appointmentId = searchParams.get('appointment');
   
-  const { toast } = useToast();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [feedback, setFeedback] = useState("");
+  const [feedbackText, setFeedbackText] = useState("");
+  const [starRating, setStarRating] = useState(0);
+  const [audioBase64, setAudioBase64] = useState("");
   const [showReferralModal, setShowReferralModal] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState("");
   const [staffId, setStaffId] = useState<string | undefined>(undefined);
@@ -58,7 +61,10 @@ const Feedback = () => {
           {
             customer_name: name,
             customer_email: email,
-            feedback_text: feedback,
+            feedback_text: feedbackText || null,
+            star_rating: starRating,
+            audio_transcript: audioBase64 ? "pending_transcription" : null,
+            staff_id: staffId || null,
             order_id: appointmentId || null,
           }
         ])
@@ -77,10 +83,7 @@ const Feedback = () => {
       return data;
     },
     onSuccess: () => {
-      toast({
-        title: "Thank you for your feedback!",
-        description: "We appreciate you taking the time to share your thoughts.",
-      });
+      toast.success("Thank you for your feedback!");
       
       setSubmittedEmail(email);
       setShowReferralModal(true);
@@ -88,21 +91,27 @@ const Feedback = () => {
       // Reset form
       setName("");
       setEmail("");
-      setFeedback("");
+      setFeedbackText("");
+      setStarRating(0);
+      setAudioBase64("");
     },
     onError: (error: any) => {
-      toast({
-        title: "Submission failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message || "Failed to submit feedback");
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (starRating === 0) {
+      toast.error("Please select a star rating");
+      return;
+    }
+
     submitFeedback.mutate();
   };
+
+  const canSubmit = name && email && starRating > 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/10 to-background">
@@ -129,9 +138,9 @@ const Feedback = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
+                  <Label htmlFor="name">Name *</Label>
                   <Input
                     id="name"
                     type="text"
@@ -143,31 +152,52 @@ const Feedback = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email (Optional)</Label>
+                  <Label htmlFor="email">Email *</Label>
                   <Input
                     id="email"
                     type="email"
                     placeholder="your@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    required
                   />
                 </div>
 
+                {/* Star Rating - REQUIRED */}
                 <div className="space-y-2">
-                  <Label htmlFor="feedback">Your Feedback</Label>
+                  <Label>Rating *</Label>
+                  <StarRatingInput
+                    value={starRating}
+                    onChange={setStarRating}
+                    required
+                  />
+                </div>
+
+                {/* Voice Recording - OPTIONAL */}
+                <div className="space-y-2">
+                  <Label>Voice Feedback (Optional - Max 2 minutes)</Label>
+                  <VoiceRecorder
+                    onRecordingComplete={setAudioBase64}
+                    maxDurationSeconds={120}
+                  />
+                </div>
+
+                {/* Text Feedback - OPTIONAL */}
+                <div className="space-y-2">
+                  <Label htmlFor="feedback">Written Feedback (Optional)</Label>
                   <Textarea
                     id="feedback"
                     placeholder="Tell us about your experience..."
-                    value={feedback}
-                    onChange={(e) => setFeedback(e.target.value)}
-                    required
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value)}
                     rows={6}
+                    className="min-h-[120px]"
                   />
                 </div>
 
                 <Button
                   type="submit"
-                  disabled={submitFeedback.isPending}
+                  disabled={!canSubmit || submitFeedback.isPending}
                   className="w-full"
                   size="lg"
                 >

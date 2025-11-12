@@ -485,6 +485,8 @@ export type Database = {
           order_id: string | null
           sentiment: string | null
           sentiment_score: number | null
+          staff_id: string | null
+          star_rating: number | null
           text_sentiment: string | null
           text_sentiment_score: number | null
         }
@@ -500,6 +502,8 @@ export type Database = {
           order_id?: string | null
           sentiment?: string | null
           sentiment_score?: number | null
+          staff_id?: string | null
+          star_rating?: number | null
           text_sentiment?: string | null
           text_sentiment_score?: number | null
         }
@@ -515,10 +519,20 @@ export type Database = {
           order_id?: string | null
           sentiment?: string | null
           sentiment_score?: number | null
+          staff_id?: string | null
+          star_rating?: number | null
           text_sentiment?: string | null
           text_sentiment_score?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "feedback_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       loyalty_program_settings: {
         Row: {
@@ -1278,6 +1292,7 @@ export type Database = {
         Args: { _admin_user_id: string; _staff_id: string }
         Returns: undefined
       }
+      update_staff_rating: { Args: { staff_uuid: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "staff" | "user"

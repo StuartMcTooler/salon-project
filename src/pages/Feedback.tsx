@@ -63,7 +63,7 @@ const Feedback = () => {
         .insert([
           {
             customer_name: name,
-            customer_email: email,
+            customer_email: email || null,
             feedback_text: feedbackText || null,
             star_rating: starRating,
             audio_transcript: audioBase64 ? "pending_transcription" : null,
@@ -74,7 +74,10 @@ const Feedback = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Feedback submission error:', error);
+        throw error;
+      }
 
       return data;
     },
@@ -100,7 +103,10 @@ const Feedback = () => {
       setAudioBase64("");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Failed to submit feedback");
+      console.error('Submit feedback error:', error);
+      toast.error(error.message || "Failed to submit feedback. Please check your connection and try again.", {
+        duration: 6000,
+      });
     },
   });
 

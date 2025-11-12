@@ -707,16 +707,6 @@ export const QuickCustomerForm = ({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Customer Name</Label>
-            <Input
-              id="name"
-              placeholder="Sarah Murphy"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="phone">Phone Number</Label>
             <Input
               id="phone"
@@ -731,24 +721,12 @@ export const QuickCustomerForm = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="name">Customer Name</Label>
             <Input
-              id="email"
-              type="email"
-              placeholder="sarah@example.com"
-              value={customerEmail}
-              onChange={(e) => setCustomerEmail(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              placeholder="Any special requests or notes..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
+              id="name"
+              placeholder="Sarah Murphy"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
             />
           </div>
           

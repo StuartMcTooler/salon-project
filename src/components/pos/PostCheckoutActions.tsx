@@ -65,7 +65,7 @@ export const PostCheckoutActions = ({
           client_phone: appointment.customer_phone,
           source: 'pos_booking_link',
         }, {
-          onConflict: 'customer_email,creative_id'
+          onConflict: 'client_email,creative_id'
         });
       }
 

@@ -16,6 +16,8 @@ import { MultiStaffCalendar } from "@/components/dashboard/MultiStaffCalendar";
 import { StaffPerformanceDashboard } from "@/components/admin/StaffPerformanceDashboard";
 import { ReferralDiscountSettings } from "@/components/admin/ReferralDiscountSettings";
 import { TierManagement } from "@/components/admin/TierManagement";
+import { FeedbackDashboard } from "@/components/admin/FeedbackDashboard";
+import { ReferralTestingTool } from "@/components/admin/ReferralTestingTool";
 import { toast } from "sonner";
 import { useBusinessConfig } from "@/hooks/useBusinessConfig";
 
@@ -96,7 +98,7 @@ export default function Admin() {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="business" className="space-y-6">
-          <TabsList className={`grid w-full ${features.staffManagement ? 'grid-cols-11' : 'grid-cols-4'}`}>
+          <TabsList className={`grid w-full ${features.staffManagement ? 'grid-cols-13' : 'grid-cols-6'}`}>
             <TabsTrigger value="business">Business</TabsTrigger>
             {features.staffManagement && <TabsTrigger value="staff">Staff</TabsTrigger>}
             {features.staffManagement && <TabsTrigger value="tiers">Tiers</TabsTrigger>}
@@ -107,6 +109,8 @@ export default function Admin() {
             {features.servicePricing && <TabsTrigger value="pricing">Pricing</TabsTrigger>}
             {features.loyaltyProgram && <TabsTrigger value="loyalty">Loyalty</TabsTrigger>}
             {features.staffPerformance && <TabsTrigger value="reports">Reports</TabsTrigger>}
+            <TabsTrigger value="feedback">Feedback</TabsTrigger>
+            <TabsTrigger value="referral-testing">Testing</TabsTrigger>
           </TabsList>
 
           <TabsContent value="business">
@@ -170,6 +174,14 @@ export default function Admin() {
               <StaffPerformanceDashboard />
             </TabsContent>
           )}
+
+          <TabsContent value="feedback">
+            <FeedbackDashboard />
+          </TabsContent>
+
+          <TabsContent value="referral-testing">
+            <ReferralTestingTool />
+          </TabsContent>
         </Tabs>
       </main>
     </div>

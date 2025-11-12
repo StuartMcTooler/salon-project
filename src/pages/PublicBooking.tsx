@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { SalonServiceSelection } from "@/components/salon/SalonServiceSelection";
 import { SalonCheckout } from "@/components/salon/SalonCheckout";
-import { Scissors, ArrowLeft } from "lucide-react";
+import { Scissors, ArrowLeft, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 type Step = 'service' | 'checkout';
@@ -131,12 +131,23 @@ const PublicBooking = () => {
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
               <Scissors className="h-6 w-6 text-primary" />
-              <div>
-                <h1 className="text-2xl font-bold">
-                  Book with {selectedStaff?.display_name}
-                </h1>
+              <div className="flex-1">
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl font-bold">
+                    Book with {selectedStaff?.display_name}
+                  </h1>
+                  {selectedStaff?.average_rating && Number(selectedStaff.average_rating) > 0 && (
+                    <div className="flex items-center gap-1 px-2 py-1 bg-yellow-500/10 rounded-full">
+                      <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
+                      <span className="font-semibold">{Number(selectedStaff.average_rating).toFixed(1)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({selectedStaff.total_bookings || 0} bookings)
+                      </span>
+                    </div>
+                  )}
+                </div>
                 {referralInfo && (
                   <Badge variant="secondary" className="mt-1">
                     Referred by {referralInfo.referrer_name}

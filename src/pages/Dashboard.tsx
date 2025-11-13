@@ -9,6 +9,7 @@ import { BookingCalendar } from "@/components/dashboard/BookingCalendar";
 import { ServiceManager } from "@/components/dashboard/ServiceManager";
 import { WalkInToggle } from "@/components/dashboard/WalkInToggle";
 import { MyLoyaltySettings } from "@/components/dashboard/MyLoyaltySettings";
+import { Lookbook } from "@/components/dashboard/Lookbook";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -111,6 +112,7 @@ const Dashboard = () => {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="bookings">Bookings</TabsTrigger>
             <TabsTrigger value="services">Services</TabsTrigger>
+            <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
@@ -125,6 +127,10 @@ const Dashboard = () => {
 
           <TabsContent value="services">
             <ServiceManager staffId={staffId} />
+          </TabsContent>
+
+          <TabsContent value="portfolio">
+            <Lookbook staffId={staffId} />
           </TabsContent>
 
           <TabsContent value="settings">

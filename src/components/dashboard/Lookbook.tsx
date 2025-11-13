@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useState } from 'react';
-import { Download, ExternalLink, Trash2, Camera, Sparkles } from 'lucide-react';
+import { Download, ExternalLink, Trash2, Camera, Sparkles, Share2, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import type { CreativeLookbook, ClientContent, ContentRequest } from '@/types/supabase-temp';
@@ -118,6 +118,49 @@ export const Lookbook = ({ staffId }: LookbookProps) => {
     }
   };
 
+  const handleShare = async (imageUrl: string, aiMetadata?: any) => {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const file = new File([blob], `portfolio-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      
+      // Generate caption from AI metadata
+      const caption = aiMetadata?.description 
+        ? `${aiMetadata.description}\n\n#beauty #salon #portfolio`
+        : 'Check out my latest work! #beauty #salon #portfolio';
+
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'My Portfolio',
+          text: caption,
+        });
+        toast.success('Shared successfully!');
+      } else {
+        // Fallback: copy caption to clipboard
+        await navigator.clipboard.writeText(caption);
+        toast.success('Caption copied! Image needs to be shared manually');
+      }
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        toast.error('Failed to share');
+      }
+    }
+  };
+
+  const handleCopyImage = async (imageUrl: string) => {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/jpeg': blob })
+      ]);
+      toast.success('Image copied to clipboard!');
+    } catch (err) {
+      toast.error('Failed to copy image. Try downloading instead.');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -228,22 +271,42 @@ export const Lookbook = ({ staffId }: LookbookProps) => {
                 alt="Full size"
                 className="w-full rounded-lg"
               />
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => handleDownload(selectedImage.imageUrl)}
-                  className="flex-1"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => handleRemoveFromLookbook(selectedImage.id)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Remove
-                </Button>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <Button
+                    variant="default"
+                    onClick={() => handleShare(selectedImage.imageUrl, selectedImage.content?.ai_metadata)}
+                    className="flex-1"
+                  >
+                    <Share2 className="mr-2 h-4 w-4" />
+                    Share
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleCopyImage(selectedImage.imageUrl)}
+                    className="flex-1"
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleDownload(selectedImage.imageUrl)}
+                    className="flex-1"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleRemoveFromLookbook(selectedImage.id)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Remove
+                  </Button>
+                </div>
               </div>
               {selectedImage.content?.ai_metadata && (
                 <div className="text-xs text-muted-foreground">

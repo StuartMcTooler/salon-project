@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.transcribe-audio]
 verify_jwt = false
+
+[functions.request-social-content]
+verify_jwt = false
+
+[functions.process-media]
+verify_jwt = false

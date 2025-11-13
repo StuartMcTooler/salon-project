@@ -153,8 +153,8 @@ export const QuickCustomerForm = ({
     },
     onSuccess: (data) => {
       toast({
-        title: "Appointment Created!",
-        description: "Please select a payment method",
+        title: "Walk-in Transaction Started",
+        description: "Ready for payment",
       });
       
       setShowPaymentMethods(true);

@@ -55,6 +55,17 @@ serve(async (req) => {
       throw new Error(`Upload failed: ${uploadError.message}`);
     }
 
+    // Generate signed URL for the raw image (7 days = 604800 seconds)
+    const { data: signedUrlData, error: signedUrlError } = await supabaseClient.storage
+      .from('client-content-raw')
+      .createSignedUrl(filePath, 604800);
+
+    if (signedUrlError) {
+      console.error('Failed to create signed URL:', signedUrlError);
+    }
+
+    const imageUrl = signedUrlData?.signedUrl || null;
+
     // Generate secure token
     const token = crypto.randomUUID();
     const tokenExpiresAt = new Date();
@@ -134,6 +145,7 @@ serve(async (req) => {
           to: appointment.customer_phone,
           message: message,
           businessId: null,
+          mediaUrl: imageUrl,
         },
       });
     }

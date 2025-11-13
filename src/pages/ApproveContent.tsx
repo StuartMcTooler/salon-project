@@ -97,8 +97,9 @@ export default function ApproveContent() {
       } else {
         setStatus('approved');
         setMessage(result.message || 'Thank you! 50 loyalty points have been added.');
-        toast.success('Content Approved!', {
-          description: result.message,
+        toast.success('Content Approved! 🎉', {
+          description: '50 loyalty points have been added to your account',
+          duration: 5000, // Show for 5 seconds
         });
       }
     } catch (err: any) {

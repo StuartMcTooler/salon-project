@@ -14,6 +14,7 @@ import Dashboard from "./pages/Dashboard";
 import AccountUpgrade from "./pages/AccountUpgrade";
 import NotFound from "./pages/NotFound";
 import POS from "./pages/POS";
+import ApproveContent from "./pages/ApproveContent";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/admin" element={<Admin />} />
           <Route path="/referrals" element={<ReferralHub />} />
           <Route path="/pos" element={<POS />} />
+          <Route path="/approve/:token" element={<ApproveContent />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

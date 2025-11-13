@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Gift, MessageSquare, Loader2, CheckCircle2 } from "lucide-react";
+import { Calendar, Gift, MessageSquare, Loader2, CheckCircle2, Camera } from "lucide-react";
 import { useReferralDiscount } from "@/hooks/useReferralDiscount";
 
 interface PostCheckoutActionsProps {
@@ -36,6 +36,9 @@ export const PostCheckoutActions = ({
 }: PostCheckoutActionsProps) => {
   const { toast } = useToast();
   const [sentActions, setSentActions] = useState<string[]>([]);
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState<File | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const APP_URL = window.location.origin;
   const discount = useReferralDiscount(appointment.staff_id, businessId);
 
@@ -105,6 +108,51 @@ export const PostCheckoutActions = ({
     sendWhatsApp.mutate({ message, actionType: 'feedback' });
   };
 
+  const handleRequestSocialContent = () => {
+    setShowCameraModal(true);
+  };
+
+  const handlePhotoCapture = async (file: File) => {
+    setCapturedPhoto(file);
+  };
+
+  const handleSendContentRequest = async () => {
+    if (!capturedPhoto) return;
+
+    setIsProcessing(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', capturedPhoto);
+      formData.append('appointmentId', appointment.id);
+      formData.append('creativeId', appointment.staff_id);
+      formData.append('mediaType', 'photo');
+
+      const { data, error } = await supabase.functions.invoke(
+        'request-social-content',
+        { body: formData }
+      );
+
+      if (error) throw error;
+
+      toast({
+        title: "✨ Content Request Sent!",
+        description: `Approval link sent to ${appointment.customer_phone}`,
+      });
+      
+      setShowCameraModal(false);
+      setCapturedPhoto(null);
+      setSentActions([...sentActions, 'content']);
+    } catch (error: any) {
+      toast({
+        title: "Upload Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -122,6 +170,25 @@ export const PostCheckoutActions = ({
           {appointment.customer_phone ? (
             <>
               <p className="text-sm font-medium">Send to {appointment.customer_phone}:</p>
+
+              <Button
+                variant="default"
+                className="w-full justify-start h-auto py-4 bg-primary"
+                onClick={handleRequestSocialContent}
+                disabled={sentActions.includes('content')}
+              >
+                {sentActions.includes('content') ? (
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                ) : (
+                  <Camera className="mr-2 h-4 w-4" />
+                )}
+                <div className="flex flex-col items-start">
+                  <span className="font-medium">📸 Request Social Media Content</span>
+                  <span className="text-xs opacity-90">
+                    Take photo & get client approval
+                  </span>
+                </div>
+              </Button>
 
               <Button
             variant="outline"
@@ -198,6 +265,71 @@ export const PostCheckoutActions = ({
           {appointment.customer_phone ? "Skip - Next Customer" : "Done - Next Customer"}
         </Button>
       </DialogContent>
+
+      {/* Camera Modal */}
+      <Dialog open={showCameraModal} onOpenChange={setShowCameraModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Take Client Photo</DialogTitle>
+            <DialogDescription>
+              Capture a photo of {appointment.customer_name}'s new look
+            </DialogDescription>
+          </DialogHeader>
+          
+          {!capturedPhoto ? (
+            <div className="space-y-4">
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    handlePhotoCapture(e.target.files[0]);
+                  }
+                }}
+                className="hidden"
+                id="camera-input"
+              />
+              <label htmlFor="camera-input">
+                <Button className="w-full" asChild>
+                  <span>📷 Open Camera</span>
+                </Button>
+              </label>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <img 
+                src={URL.createObjectURL(capturedPhoto)} 
+                alt="Preview"
+                className="w-full rounded-lg"
+              />
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setCapturedPhoto(null)}
+                  disabled={isProcessing}
+                >
+                  Retake
+                </Button>
+                <Button 
+                  className="flex-1"
+                  onClick={handleSendContentRequest}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    'Send Approval Request'
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };

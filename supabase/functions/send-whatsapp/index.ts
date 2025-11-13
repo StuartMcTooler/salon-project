@@ -14,9 +14,25 @@ Deno.serve(async (req) => {
   try {
     const { to, message, businessId, messageType = 'general', mediaUrl } = await req.json();
 
+    // SECURITY: Validate required fields
     if (!to || !message) {
       throw new Error('to and message are required');
     }
+
+    // SECURITY: Validate phone number format (E.164 format)
+    const phoneRegex = /^\+[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(to)) {
+      throw new Error('Invalid phone number format. Must be in E.164 format (e.g., +353851234567)');
+    }
+
+    // SECURITY: Validate message length
+    const MAX_MESSAGE_LENGTH = 1600; // WhatsApp limit
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      throw new Error(`Message too long. Maximum ${MAX_MESSAGE_LENGTH} characters allowed`);
+    }
+
+    // SECURITY: Sanitize message content - remove control characters
+    const sanitizedMessage = message.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
 
     const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
@@ -30,6 +46,19 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // SECURITY: Rate limiting check - max messages per hour to same number
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { data: recentMessages } = await supabase
+      .from('notification_logs')
+      .select('id')
+      .eq('recipient_phone', to)
+      .gte('created_at', oneHourAgo);
+    
+    const MAX_MESSAGES_PER_HOUR = 5;
+    if (recentMessages && recentMessages.length >= MAX_MESSAGES_PER_HOUR) {
+      throw new Error(`Rate limit exceeded. Maximum ${MAX_MESSAGES_PER_HOUR} messages per hour to this number`);
+    }
 
     // Get business notification preference if businessId provided
     let notificationMethod = 'hybrid';
@@ -59,7 +88,7 @@ Deno.serve(async (req) => {
         const formData = new URLSearchParams();
         formData.append('To', formattedTo);
         formData.append('From', formattedFrom);
-        formData.append('Body', message);
+        formData.append('Body', sanitizedMessage);
         
         if (mediaUrl) {
           formData.append('MediaUrl', mediaUrl);
@@ -108,7 +137,7 @@ Deno.serve(async (req) => {
         const formData = new URLSearchParams();
         formData.append('To', to);
         formData.append('From', whatsappNumber);
-        formData.append('Body', message);
+        formData.append('Body', sanitizedMessage);
         
         if (mediaUrl) {
           formData.append('MediaUrl', mediaUrl);

@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Download, ExternalLink, Trash2, Camera, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import type { CreativeLookbook, ClientContent, ContentRequest } from '@/types/supabase-temp';
 
 interface LookbookProps {
   staffId: string;
@@ -19,7 +20,7 @@ export const Lookbook = ({ staffId }: LookbookProps) => {
     queryKey: ['lookbook', staffId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('creative_lookbooks')
+        .from('creative_lookbooks' as any)
         .select(`
           *,
           content:client_content(
@@ -37,7 +38,7 @@ export const Lookbook = ({ staffId }: LookbookProps) => {
 
       // Get public URLs for each image
       const itemsWithUrls = await Promise.all(
-        (data || []).map(async (item) => {
+        ((data || []) as any[]).map(async (item: any) => {
           if (item.content?.enhanced_file_path) {
             const { data: urlData } = supabase.storage
               .from('client-content-enhanced')
@@ -61,14 +62,15 @@ export const Lookbook = ({ staffId }: LookbookProps) => {
     queryFn: async () => {
       // Get approval stats
       const { data: requests, error: reqError } = await supabase
-        .from('content_requests')
+        .from('content_requests' as any)
         .select('status')
         .eq('creative_id', staffId);
 
       if (reqError) throw reqError;
 
-      const approved = requests?.filter(r => r.status === 'approved').length || 0;
-      const total = requests?.length || 0;
+      const typedRequests = requests as any as ContentRequest[] | null;
+      const approved = typedRequests?.filter(r => r.status === 'approved').length || 0;
+      const total = typedRequests?.length || 0;
       const approvalRate = total > 0 ? Math.round((approved / total) * 100) : 0;
 
       return {
@@ -82,7 +84,7 @@ export const Lookbook = ({ staffId }: LookbookProps) => {
   const handleRemoveFromLookbook = async (lookbookId: string) => {
     try {
       const { error } = await supabase
-        .from('creative_lookbooks')
+        .from('creative_lookbooks' as any)
         .delete()
         .eq('id', lookbookId);
 

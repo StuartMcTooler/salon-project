@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { to, message, businessId, messageType = 'general' } = await req.json();
+    const { to, message, businessId, messageType = 'general', mediaUrl } = await req.json();
 
     if (!to || !message) {
       throw new Error('to and message are required');
@@ -60,6 +60,10 @@ Deno.serve(async (req) => {
         formData.append('To', formattedTo);
         formData.append('From', formattedFrom);
         formData.append('Body', message);
+        
+        if (mediaUrl) {
+          formData.append('MediaUrl', mediaUrl);
+        }
 
         const response = await fetch(twilioUrl, {
           method: 'POST',
@@ -105,6 +109,10 @@ Deno.serve(async (req) => {
         formData.append('To', to);
         formData.append('From', whatsappNumber);
         formData.append('Body', message);
+        
+        if (mediaUrl) {
+          formData.append('MediaUrl', mediaUrl);
+        }
 
         const response = await fetch(twilioUrl, {
           method: 'POST',

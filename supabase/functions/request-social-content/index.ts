@@ -123,10 +123,10 @@ serve(async (req) => {
       .single();
 
     // Send WhatsApp notification
-    const appUrl = Deno.env.get('VITE_SUPABASE_URL')?.replace('/v1', '') || '';
-    const approvalUrl = `${appUrl}/approve/${token}`;
+    const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://salon-project.lovable.app';
+    const approvalUrl = `${frontendUrl}/approve/${token}`;
     
-    const message = `Hi ${appointment.customer_name}! ✨\n\n${creative?.display_name || 'Your stylist'} loved your new look and would love to feature your photo in their portfolio!\n\nTap here to approve & get 50 loyalty points:\n${approvalUrl}\n\nYour photo will only be shared if you approve. This link expires in 7 days.`;
+    const message = `Hi ${appointment.customer_name}! ✨\n\n${creative?.display_name || 'Your stylist'} loved your new look and would love to feature your photo in their portfolio and on social media!\n\nTap here to approve & get 50 loyalty points:\n${approvalUrl}\n\nYour photo will only be shared if you approve. This link expires in 7 days.`;
 
     if (appointment.customer_phone) {
       await supabaseClient.functions.invoke('send-whatsapp', {

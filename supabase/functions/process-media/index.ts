@@ -15,7 +15,7 @@ serve(async (req) => {
     const { contentId, rawFilePath, mediaType, creativeId } = await req.json();
 
     const supabaseAdmin = createClient(
-      Deno.env.get('VITE_SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
@@ -153,7 +153,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error processing media:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,

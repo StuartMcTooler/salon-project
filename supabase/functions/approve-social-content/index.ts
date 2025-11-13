@@ -23,52 +23,28 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Validate token
+    // SECURITY: Validate token and check all conditions before revealing specific errors
+    // This prevents timing attacks by ensuring consistent response times
     const { data: contentRequest, error: requestError } = await supabaseAdmin
       .from('content_requests')
       .select('*, client_content(*)')
       .eq('token', token)
       .single();
 
-    if (requestError || !contentRequest) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Invalid token',
-          message: 'This approval link is not valid. Please contact your stylist.'
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 404,
-        }
-      );
-    }
+    const isInvalidToken = requestError || !contentRequest;
+    const isExpired = contentRequest && new Date(contentRequest.token_expires_at) < new Date();
+    const isAlreadyProcessed = contentRequest && contentRequest.status !== 'pending';
 
-    // Check expiry
-    if (new Date(contentRequest.token_expires_at) < new Date()) {
+    // SECURITY: Return consistent generic error for all invalid states to prevent timing attacks
+    if (isInvalidToken || isExpired || isAlreadyProcessed) {
       return new Response(
         JSON.stringify({ 
-          error: 'Token expired',
-          message: 'This approval link has expired. Please contact your stylist for a new link.'
+          error: 'Invalid or expired approval link',
+          message: 'This approval link is no longer valid. Please contact your stylist if you need assistance.'
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 410,
-        }
-      );
-    }
-
-    // Check if already processed
-    if (contentRequest.status !== 'pending') {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Already processed',
-          message: `You have already ${contentRequest.status === 'approved' ? 'approved' : 'declined'} this content.`,
-          alreadyProcessed: true,
-          status: contentRequest.status
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
+          status: 400,
         }
       );
     }

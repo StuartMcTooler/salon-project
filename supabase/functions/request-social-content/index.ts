@@ -61,12 +61,14 @@ serve(async (req) => {
     tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 7); // 7 days expiry
 
     // Create content request
+    const clientEmail = appointment.customer_email || (appointment.customer_phone ? `${appointment.customer_phone}@phone.temp` : `no-email-${appointmentId}@placeholder.temp`);
+
     const { data: contentRequest, error: requestError } = await supabaseClient
       .from('content_requests')
       .insert({
         appointment_id: appointmentId,
         creative_id: creativeId,
-        client_email: appointment.customer_email,
+        client_email: clientEmail,
         client_phone: appointment.customer_phone,
         client_name: appointment.customer_name,
         request_type: 'creative_first',

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { Image } from "https://deno.land/x/imagescript@1.3.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -44,10 +45,38 @@ serve(async (req) => {
     const fileName = `${timestamp}-${file.name}`;
     const filePath = `${creativeId}/${fileName}`;
 
+    // Process image to fix EXIF orientation if it's an image
+    let fileToUpload: File | Blob = file;
+    let contentType = file.type;
+    
+    if (file.type.startsWith('image/')) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        
+        // Decode image
+        const image = await Image.decode(uint8Array);
+        
+        // ImageScript automatically handles EXIF orientation
+        // Re-encode to JPEG with good quality
+        const processedImage = await image.encodeJPEG(95);
+        
+        // Create a proper Blob from the processed image bytes
+        const imageArray = new Uint8Array(processedImage);
+        fileToUpload = new Blob([imageArray], { type: 'image/jpeg' });
+        contentType = 'image/jpeg';
+        
+        console.log('Image processed and orientation corrected');
+      } catch (error) {
+        console.error('Image processing failed, using original:', error);
+        // If processing fails, use original file
+      }
+    }
+
     const { error: uploadError } = await supabaseClient.storage
       .from('client-content-raw')
-      .upload(filePath, file, {
-        contentType: file.type,
+      .upload(filePath, fileToUpload, {
+        contentType: contentType,
         upsert: false,
       });
 

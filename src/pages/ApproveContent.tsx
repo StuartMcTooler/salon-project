@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, XCircle, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import type { ContentRequest } from '@/types/supabase-temp';
 
 export default function ApproveContent() {
   const { token } = useParams();
@@ -21,7 +22,7 @@ export default function ApproveContent() {
   const validateToken = async () => {
     try {
       const { data: request, error } = await supabase
-        .from('content_requests')
+        .from('content_requests' as any)
         .select(`
           *,
           client_content (
@@ -44,32 +45,34 @@ export default function ApproveContent() {
         return;
       }
 
+      const typedRequest = request as any;
+
       // Check expiry
-      if (new Date(request.token_expires_at) < new Date()) {
+      if (new Date(typedRequest.token_expires_at) < new Date()) {
         setStatus('expired');
         setMessage('This approval link has expired. Please contact your stylist for a new link.');
         return;
       }
 
       // Check if already processed
-      if (request.status === 'approved') {
+      if (typedRequest.status === 'approved') {
         setStatus('approved');
         setMessage('You have already approved this content. Thank you!');
-      } else if (request.status === 'declined') {
+      } else if (typedRequest.status === 'declined') {
         setStatus('declined');
         setMessage('You have already declined this content.');
       }
 
       // Get enhanced image URL
-      if (request.client_content?.[0]?.enhanced_file_path) {
+      if (typedRequest.client_content?.[0]?.enhanced_file_path) {
         const { data: urlData } = supabase.storage
           .from('client-content-enhanced')
-          .getPublicUrl(request.client_content[0].enhanced_file_path);
+          .getPublicUrl(typedRequest.client_content[0].enhanced_file_path);
         
-        request.imageUrl = urlData.publicUrl;
+        typedRequest.imageUrl = urlData.publicUrl;
       }
 
-      setData(request);
+      setData(typedRequest);
     } catch (err) {
       console.error('Error validating token:', err);
       setStatus('invalid');

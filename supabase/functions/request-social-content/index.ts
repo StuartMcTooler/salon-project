@@ -181,9 +181,10 @@ serve(async (req) => {
     // Get creative name for SMS
     const { data: creative } = await supabaseClient
       .from('staff_members')
-      .select('display_name')
+      .select('display_name, business_id')
       .eq('id', creativeId)
       .single();
+
 
     // Send WhatsApp notification
     const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://salon-project.lovable.app';
@@ -196,7 +197,7 @@ serve(async (req) => {
         body: {
           to: appointment.customer_phone,
           message: message,
-          businessId: null,
+          businessId: creative?.business_id ?? null,
           mediaUrl: enhancedPublicUrl || imageUrl,
         },
       });

@@ -122,16 +122,17 @@ export default function CreateContent() {
         video.addEventListener('loadedmetadata', () => console.log('video event: loadedmetadata', { w: video.videoWidth, h: video.videoHeight }));
         video.addEventListener('loadeddata', () => console.log('video event: loadeddata', { readyState: video.readyState }));
         video.addEventListener('canplay', () => console.log('video event: canplay', { readyState: video.readyState }));
-        // Set playback attributes BEFORE attaching stream (important for iOS)
+        
+        // Clear and reattach stream (mirrors reattach logic that works)
+        video.srcObject = null;
         video.muted = true;
         video.setAttribute('playsinline', 'true');
-        
-        // Attach stream
         video.srcObject = stream;
         
         // Explicit play call for iOS
         try {
           await video.play();
+          console.log('video.play() succeeded');
         } catch (playErr) {
           console.warn('video.play() failed:', playErr);
         }

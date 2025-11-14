@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, XCircle, Loader2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, AlertCircle, RotateCcw, RotateCw } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ContentRequest } from '@/types/supabase-temp';
 
@@ -14,6 +14,7 @@ export default function ApproveContent() {
   const [status, setStatus] = useState<'valid' | 'expired' | 'invalid' | 'approved' | 'declined'>('valid');
   const [data, setData] = useState<any>(null);
   const [message, setMessage] = useState('');
+  const [rotation, setRotation] = useState(0);
 
   useEffect(() => {
     validateToken();
@@ -32,10 +33,6 @@ export default function ApproveContent() {
             enhanced_file_path,
             raw_file_path,
             media_type
-          ),
-          staff:staff_members!creative_id (
-            display_name,
-            profile_image_url
           )
         `)
         .eq('token', token)
@@ -213,8 +210,17 @@ export default function ApproveContent() {
                 <img 
                   src={data.imageUrl} 
                   alt="Your enhanced photo"
-                  className="w-full h-auto"
+                  className="w-full h-auto transition-transform"
+                  style={{ transform: `rotate(${rotation}deg)` }}
                 />
+                <div className="mt-3 flex items-center justify-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setRotation((r) => (r - 90 + 360) % 360)}>
+                    <RotateCcw className="mr-2 h-4 w-4" /> Rotate left
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setRotation((r) => (r + 90) % 360)}>
+                    <RotateCw className="mr-2 h-4 w-4" /> Rotate right
+                  </Button>
+                </div>
               </div>
             )}
 

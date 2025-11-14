@@ -180,6 +180,66 @@ export type Database = {
           },
         ]
       }
+      client_content: {
+        Row: {
+          ai_metadata: Json | null
+          approved_at: string | null
+          client_approved: boolean
+          created_at: string
+          creative_id: string
+          enhanced_file_path: string | null
+          file_size_bytes: number | null
+          id: string
+          media_type: string
+          points_awarded: boolean
+          raw_file_path: string
+          request_id: string
+        }
+        Insert: {
+          ai_metadata?: Json | null
+          approved_at?: string | null
+          client_approved?: boolean
+          created_at?: string
+          creative_id: string
+          enhanced_file_path?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          media_type: string
+          points_awarded?: boolean
+          raw_file_path: string
+          request_id: string
+        }
+        Update: {
+          ai_metadata?: Json | null
+          approved_at?: string | null
+          client_approved?: boolean
+          created_at?: string
+          creative_id?: string
+          enhanced_file_path?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          media_type?: string
+          points_awarded?: boolean
+          raw_file_path?: string
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_content_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_content_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "content_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_ownership: {
         Row: {
           client_email: string
@@ -211,6 +271,66 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "client_ownership_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_requests: {
+        Row: {
+          appointment_id: string
+          client_email: string
+          client_name: string
+          client_phone: string | null
+          created_at: string
+          creative_id: string
+          id: string
+          request_type: string
+          status: string
+          token: string
+          token_expires_at: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id: string
+          client_email: string
+          client_name: string
+          client_phone?: string | null
+          created_at?: string
+          creative_id: string
+          id?: string
+          request_type?: string
+          status?: string
+          token: string
+          token_expires_at: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string
+          client_email?: string
+          client_name?: string
+          client_phone?: string | null
+          created_at?: string
+          creative_id?: string
+          id?: string
+          request_type?: string
+          status?: string
+          token?: string
+          token_expires_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_requests_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_requests_creative_id_fkey"
             columns: ["creative_id"]
             isOneToOne: false
             referencedRelation: "staff_members"
@@ -263,6 +383,51 @@ export type Database = {
           {
             foreignKeyName: "creative_invites_inviter_creative_id_fkey"
             columns: ["inviter_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creative_lookbooks: {
+        Row: {
+          added_at: string
+          content_id: string
+          creative_id: string
+          display_order: number
+          id: string
+          is_featured: boolean
+          tags: string[] | null
+        }
+        Insert: {
+          added_at?: string
+          content_id: string
+          creative_id: string
+          display_order?: number
+          id?: string
+          is_featured?: boolean
+          tags?: string[] | null
+        }
+        Update: {
+          added_at?: string
+          content_id?: string
+          creative_id?: string
+          display_order?: number
+          id?: string
+          is_featured?: boolean
+          tags?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creative_lookbooks_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "client_content"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creative_lookbooks_creative_id_fkey"
+            columns: ["creative_id"]
             isOneToOne: false
             referencedRelation: "staff_members"
             referencedColumns: ["id"]
@@ -415,9 +580,9 @@ export type Database = {
           created_at: string
           creative_id: string
           current_balance: number
-          customer_email: string
+          customer_email: string | null
           customer_name: string
-          customer_phone: string | null
+          customer_phone: string
           deposit_notes: string | null
           first_visit_date: string
           id: string
@@ -432,9 +597,9 @@ export type Database = {
           created_at?: string
           creative_id: string
           current_balance?: number
-          customer_email: string
+          customer_email?: string | null
           customer_name: string
-          customer_phone?: string | null
+          customer_phone: string
           deposit_notes?: string | null
           first_visit_date?: string
           id?: string
@@ -449,9 +614,9 @@ export type Database = {
           created_at?: string
           creative_id?: string
           current_balance?: number
-          customer_email?: string
+          customer_email?: string | null
           customer_name?: string
-          customer_phone?: string | null
+          customer_phone?: string
           deposit_notes?: string | null
           first_visit_date?: string
           id?: string
@@ -536,6 +701,7 @@ export type Database = {
       }
       loyalty_program_settings: {
         Row: {
+          allow_staff_override: boolean | null
           business_id: string
           created_at: string
           id: string
@@ -548,6 +714,7 @@ export type Database = {
           welcome_bonus_points: number | null
         }
         Insert: {
+          allow_staff_override?: boolean | null
           business_id: string
           created_at?: string
           id?: string
@@ -560,6 +727,7 @@ export type Database = {
           welcome_bonus_points?: number | null
         }
         Update: {
+          allow_staff_override?: boolean | null
           business_id?: string
           created_at?: string
           id?: string
@@ -588,7 +756,7 @@ export type Database = {
           booking_amount: number | null
           created_at: string
           creative_id: string
-          customer_email: string
+          customer_email: string | null
           id: string
           notes: string | null
           points_change: number
@@ -600,7 +768,7 @@ export type Database = {
           booking_amount?: number | null
           created_at?: string
           creative_id: string
-          customer_email: string
+          customer_email?: string | null
           id?: string
           notes?: string | null
           points_change: number
@@ -612,7 +780,7 @@ export type Database = {
           booking_amount?: number | null
           created_at?: string
           creative_id?: string
-          customer_email?: string
+          customer_email?: string | null
           id?: string
           notes?: string | null
           points_change?: number

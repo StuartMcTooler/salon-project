@@ -62,23 +62,30 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get creative's loyalty settings (overrides)
-    const { data: creativeSettings } = await supabase
-      .from('creative_loyalty_settings')
-      .select('*')
-      .eq('creative_id', creativeId)
-      .eq('is_active', true)
-      .maybeSingle();
+    // Check if staff can override settings
+    const allowOverride = businessSettings.allow_staff_override ?? true;
+
+    // Get creative's loyalty settings (only if overrides allowed)
+    let creativeSettings = null;
+    if (allowOverride) {
+      const { data: settings } = await supabase
+        .from('creative_loyalty_settings')
+        .select('*')
+        .eq('creative_id', creativeId)
+        .eq('is_active', true)
+        .maybeSingle();
+      creativeSettings = settings;
+    }
 
     // Calculate points
     const pointsPerEuro = creativeSettings?.override_points_per_euro ?? businessSettings.points_per_euro_spent;
     let pointsToAward = Math.floor(bookingAmount * pointsPerEuro);
 
-    // Get or create customer loyalty record
+    // Get or create customer loyalty record (using phone as primary identifier)
     const { data: existingCustomer } = await supabase
       .from('customer_loyalty_points')
       .select('*')
-      .eq('customer_email', customerEmail)
+      .eq('customer_phone', customerPhone)
       .eq('creative_id', creativeId)
       .maybeSingle();
 
@@ -123,8 +130,8 @@ Deno.serve(async (req) => {
     const { error: upsertError } = await supabase
       .from('customer_loyalty_points')
       .upsert({
-        customer_email: customerEmail,
         customer_phone: customerPhone,
+        customer_email: customerEmail,
         customer_name: customerName,
         creative_id: creativeId,
         current_balance: newBalance,
@@ -133,18 +140,18 @@ Deno.serve(async (req) => {
         last_visit_date: new Date().toISOString(),
         ...(isFirstVisit && { first_visit_date: new Date().toISOString() }),
       }, {
-        onConflict: 'customer_email,creative_id'
+        onConflict: 'creative_id,customer_phone'
       });
 
     if (upsertError) {
       throw new Error(`Failed to update customer points: ${upsertError.message}`);
     }
 
-    // Insert transaction record
+    // Insert transaction record (phone is used for customer identification, email is optional)
     const { error: transactionError } = await supabase
       .from('loyalty_transactions')
       .insert({
-        customer_email: customerEmail,
+        customer_email: customerPhone, // Using phone as primary identifier in transaction log
         creative_id: creativeId,
         appointment_id: appointmentId,
         transaction_type: 'earned',

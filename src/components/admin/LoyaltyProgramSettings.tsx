@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Gift } from "lucide-react";
+import { Loader2, Gift, Info } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface LoyaltyProgramSettingsProps {
   businessId: string;
@@ -38,6 +39,7 @@ export const LoyaltyProgramSettings = ({ businessId }: LoyaltyProgramSettingsPro
     min_points_for_redemption: settings?.min_points_for_redemption ?? 100,
     points_expiry_days: settings?.points_expiry_days ?? null,
     welcome_bonus_points: settings?.welcome_bonus_points ?? 0,
+    allow_staff_override: settings?.allow_staff_override ?? true,
   });
 
   const saveMutation = useMutation({
@@ -199,6 +201,31 @@ export const LoyaltyProgramSettings = ({ businessId }: LoyaltyProgramSettingsPro
               Leave empty for no expiry
             </p>
           </div>
+        </div>
+
+        <div className="border-t pt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="allow_staff_override">Allow Staff to Customize Rewards</Label>
+              <p className="text-sm text-muted-foreground">
+                Choose your business model
+              </p>
+            </div>
+            <Switch
+              id="allow_staff_override"
+              checked={formData.allow_staff_override}
+              onCheckedChange={(checked) =>
+                setFormData({ ...formData, allow_staff_override: checked })
+              }
+            />
+          </div>
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Chair Rental Model:</strong> Enable this to let each staff member set their own loyalty rewards<br/>
+              <strong>Employee Model:</strong> Disable this to apply the same rewards across all staff
+            </AlertDescription>
+          </Alert>
         </div>
 
         <Button

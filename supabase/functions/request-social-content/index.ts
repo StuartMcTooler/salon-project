@@ -113,20 +113,70 @@ serve(async (req) => {
       throw new Error(`Failed to create content record: ${contentError.message}`);
     }
 
-    // Trigger background processing
-    fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/process-media`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
-      },
-      body: JSON.stringify({
-        contentId: clientContent.id,
-        rawFilePath: filePath,
-        mediaType: mediaType,
-        creativeId: creativeId,
-      }),
-    }).catch(err => console.error('Failed to trigger processing:', err));
+    // Process image inline with Lovable AI to ensure correct orientation
+    let enhancedPublicUrl: string | null = null;
+    try {
+      const fileArrayBuffer = await file.arrayBuffer();
+      const base64Image = btoa(
+        new Uint8Array(fileArrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+      );
+      const dataUrl = `data:${file.type};base64,${base64Image}`;
+
+      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-image-preview",
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Correct the image orientation based on EXIF and lightly enhance for social media. Return only the properly oriented image." },
+                { type: "image_url", image_url: { url: dataUrl } }
+              ]
+            }
+          ],
+          modalities: ["image", "text"]
+        })
+      });
+
+      if (aiResp.ok) {
+        const aiJson = await aiResp.json();
+        const outUrl: string | undefined = aiJson.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+        if (outUrl && outUrl.includes('base64,')) {
+          const base64 = outUrl.split('base64,')[1];
+          const bin = atob(base64);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          const enhancedBlob = new Blob([bytes], { type: 'image/jpeg' });
+
+          const enhancedName = `enhanced-${Date.now()}-${file.name}`;
+          const enhancedPath = `${creativeId}/${enhancedName}`;
+
+          const { error: upErr } = await supabaseClient.storage
+            .from('client-content-enhanced')
+            .upload(enhancedPath, enhancedBlob, { contentType: 'image/jpeg', upsert: false });
+
+          if (!upErr) {
+            const { data: pub } = supabaseClient.storage
+              .from('client-content-enhanced')
+              .getPublicUrl(enhancedPath);
+            enhancedPublicUrl = pub.publicUrl;
+
+            // Update client_content record
+            await supabaseClient
+              .from('client_content')
+              .update({ enhanced_file_path: enhancedPath })
+              .eq('id', clientContent.id);
+          }
+        }
+      }
+    } catch (procErr) {
+      console.error('Inline processing failed, continuing with raw image:', procErr);
+    }
 
     // Get creative name for SMS
     const { data: creative } = await supabaseClient
@@ -147,7 +197,7 @@ serve(async (req) => {
           to: appointment.customer_phone,
           message: message,
           businessId: null,
-          mediaUrl: imageUrl,
+          mediaUrl: enhancedPublicUrl || imageUrl,
         },
       });
     }

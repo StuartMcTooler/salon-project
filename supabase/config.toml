@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.process-media]
 verify_jwt = false
+
+[functions.approve-social-content]
+verify_jwt = false
+
+[functions.validate-approval-token]
+verify_jwt = false

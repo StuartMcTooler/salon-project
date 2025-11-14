@@ -3,20 +3,24 @@ import { Card, CardContent } from "@/components/ui/card";
 
 interface LoyaltyPointsDisplayProps {
   pointsAwarded: number;
-  basePoints: number;
-  bonusPoints: number;
-  bonusReasons: string[];
+  basePoints?: number;
+  bonusPoints?: number;
+  bonusReasons?: string[];
   newBalance: number;
-  isFirstVisit: boolean;
+  isFirstVisit?: boolean;
+  pointsRedeemed?: number;
+  redemptionValue?: number;
 }
 
 export const LoyaltyPointsDisplay = ({
   pointsAwarded,
-  basePoints,
-  bonusPoints,
-  bonusReasons,
+  basePoints = 0,
+  bonusPoints = 0,
+  bonusReasons = [],
   newBalance,
-  isFirstVisit,
+  isFirstVisit = false,
+  pointsRedeemed = 0,
+  redemptionValue = 0,
 }: LoyaltyPointsDisplayProps) => {
   if (pointsAwarded === 0) return null;
 
@@ -24,6 +28,19 @@ export const LoyaltyPointsDisplay = ({
     <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
       <CardContent className="pt-6">
         <div className="space-y-4">
+          {pointsRedeemed > 0 && (
+            <div className="flex items-center justify-between p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <div className="flex items-center gap-2">
+                <Gift className="h-4 w-4 text-destructive" />
+                <span className="text-sm font-medium">Points Redeemed</span>
+              </div>
+              <div className="text-right">
+                <div className="text-lg font-bold text-destructive">-{pointsRedeemed}</div>
+                <div className="text-xs text-muted-foreground">€{redemptionValue.toFixed(2)} saved</div>
+              </div>
+            </div>
+          )}
+          
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Gift className="h-5 w-5 text-primary" />

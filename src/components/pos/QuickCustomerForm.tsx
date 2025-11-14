@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, CreditCard, Smartphone, Banknote } from "lucide-react";
 import { LoyaltyPointsDisplay } from "./LoyaltyPointsDisplay";
+import { LoyaltyBalanceCard } from "./LoyaltyBalanceCard";
 import { normalizePhoneNumber } from "@/lib/utils";
 // import { PaymentMethodSelector } from "./PaymentMethodSelector"; // Commented out - auto-launching card reader instead
 
@@ -42,28 +43,56 @@ export const QuickCustomerForm = ({
   const [applyCreditOptOut, setApplyCreditOptOut] = useState(false);
   const [creditApplied, setCreditApplied] = useState<any>(null);
   const [adjustedPrice, setAdjustedPrice] = useState(service.custom_price);
+  const [loyaltyBalance, setLoyaltyBalance] = useState<number>(0);
+  const [loyaltySettings, setLoyaltySettings] = useState<any>(null);
+  const [pointsRedeemed, setPointsRedeemed] = useState<number>(0);
+  const [loyaltyDiscount, setLoyaltyDiscount] = useState<number>(0);
 
-  // Check for available credits and auto-fill customer name when phone changes
+  // Check for available credits, loyalty balance, and auto-fill customer name when phone changes
   useEffect(() => {
     const checkCreditsAndCustomer = async () => {
       if (!customerPhone) {
         setAvailableCredits([]);
         setAdjustedPrice(service.custom_price);
+        setLoyaltyBalance(0);
+        setLoyaltySettings(null);
         return;
       }
 
       const normalizedPhone = normalizePhoneNumber(customerPhone);
       
-      // Check for existing customer to auto-fill name
+      // Check for existing customer to auto-fill name and get loyalty balance
       const { data: existingCustomer } = await supabase
         .from('customer_loyalty_points')
-        .select('customer_name')
+        .select('customer_name, current_balance')
         .eq('customer_phone', normalizedPhone)
         .eq('creative_id', staffMember.id)
         .maybeSingle();
 
-      if (existingCustomer && existingCustomer.customer_name && !customerName) {
-        setCustomerName(existingCustomer.customer_name);
+      if (existingCustomer) {
+        if (existingCustomer.customer_name && !customerName) {
+          setCustomerName(existingCustomer.customer_name);
+        }
+        setLoyaltyBalance(existingCustomer.current_balance || 0);
+      }
+
+      // Get loyalty program settings
+      const { data: staffData } = await supabase
+        .from('staff_members')
+        .select('business_id')
+        .eq('id', staffMember.id)
+        .single();
+
+      if (staffData?.business_id) {
+        const { data: settings } = await supabase
+          .from('loyalty_program_settings')
+          .select('*')
+          .eq('business_id', staffData.business_id)
+          .maybeSingle();
+
+        if (settings && settings.is_enabled) {
+          setLoyaltySettings(settings);
+        }
       }
 
       // Check for available credits
@@ -78,21 +107,23 @@ export const QuickCustomerForm = ({
 
       setAvailableCredits(data || []);
       
-      // Auto-apply first credit if available and not opted out
+      // Calculate adjusted price with both credit discount and loyalty discount
+      const creditDiscount = (data && data.length > 0 && !applyCreditOptOut)
+        ? (service.custom_price * data[0].discount_percentage) / 100
+        : 0;
+      
+      const newPrice = service.custom_price - creditDiscount - loyaltyDiscount;
+      setAdjustedPrice(newPrice);
+      
       if (data && data.length > 0 && !applyCreditOptOut) {
-        const credit = data[0];
-        const discount = (service.custom_price * credit.discount_percentage) / 100;
-        const newPrice = service.custom_price - discount;
-        setAdjustedPrice(newPrice);
-        setCreditApplied(credit);
+        setCreditApplied(data[0]);
       } else {
-        setAdjustedPrice(service.custom_price);
         setCreditApplied(null);
       }
     };
 
     checkCreditsAndCustomer();
-  }, [customerPhone, applyCreditOptOut, service.custom_price, staffMember.id, customerName]);
+  }, [customerPhone, applyCreditOptOut, service.custom_price, staffMember.id, customerName, loyaltyDiscount]);
 
   const createWalkIn = useMutation({
     mutationFn: async () => {
@@ -616,7 +647,7 @@ export const QuickCustomerForm = ({
 
             <div className="text-center pt-4 border-t">
               <div className="text-2xl font-bold">
-                {creditApplied && !applyCreditOptOut ? (
+                {(creditApplied && !applyCreditOptOut) || loyaltyDiscount > 0 ? (
                   <>
                     <span className="line-through text-muted-foreground text-lg mr-2">
                       €{Number(service.custom_price).toFixed(2)}
@@ -648,7 +679,7 @@ export const QuickCustomerForm = ({
           <CardTitle className="flex items-center justify-between">
             <span>{service.service.name}</span>
             <span className="text-3xl font-bold text-primary">
-              {creditApplied && !applyCreditOptOut ? (
+              {(creditApplied && !applyCreditOptOut) || loyaltyDiscount > 0 ? (
                 <>
                   <span className="line-through text-muted-foreground text-xl mr-2">
                     €{Number(service.custom_price).toFixed(2)}
@@ -712,6 +743,32 @@ export const QuickCustomerForm = ({
         </Card>
       )}
 
+      {/* Loyalty Balance Card */}
+      {loyaltySettings && loyaltyBalance > 0 && customerPhone && (
+        <LoyaltyBalanceCard
+          currentBalance={loyaltyBalance}
+          pointsRedemptionValue={loyaltySettings.points_redemption_value}
+          minPointsForRedemption={loyaltySettings.min_points_for_redemption}
+          onRedeem={(points) => {
+            const discount = points * loyaltySettings.points_redemption_value;
+            setPointsRedeemed(points);
+            setLoyaltyDiscount(discount);
+            
+            // Recalculate adjusted price with both discounts
+            const creditDiscount = creditApplied 
+              ? (service.custom_price * creditApplied.discount_percentage) / 100 
+              : 0;
+            setAdjustedPrice(service.custom_price - creditDiscount - discount);
+            
+            toast({
+              title: "Points Applied",
+              description: `${points} points redeemed for €${discount.toFixed(2)} discount`,
+            });
+          }}
+          isProcessing={createWalkIn.isPending}
+        />
+      )}
+
       {/* Customer Details */}
       <Card>
         <CardHeader>
@@ -769,6 +826,8 @@ export const QuickCustomerForm = ({
           bonusReasons={loyaltyResult.bonusReasons}
           newBalance={loyaltyResult.newBalance}
           isFirstVisit={loyaltyResult.isFirstVisit}
+          pointsRedeemed={loyaltyResult.pointsRedeemed}
+          redemptionValue={loyaltyResult.redemptionValue}
         />
       )}
     </div>

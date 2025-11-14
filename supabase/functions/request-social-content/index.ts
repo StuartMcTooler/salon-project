@@ -134,7 +134,7 @@ serve(async (req) => {
             {
               role: "user",
               content: [
-                { type: "text", text: "Correct the image orientation based on EXIF and lightly enhance for social media. Return only the properly oriented image." },
+                { type: "text", text: "CRITICAL: This image may be rotated incorrectly. Read the EXIF orientation data and rotate the image so it displays upright and correctly oriented (not sideways, not upside down). The subject should be standing normally, not lying down. After fixing orientation, lightly enhance colors and sharpness for social media. Return the properly oriented and enhanced image." },
                 { type: "image_url", image_url: { url: dataUrl } }
               ]
             }

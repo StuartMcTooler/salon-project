@@ -66,13 +66,13 @@ export default function ApproveContent() {
         setMessage('You have already declined this content.');
       }
 
-      // Get enhanced image URL
-      if (typedRequest.client_content?.[0]?.enhanced_file_path) {
-        const { data: urlData } = supabase.storage
-          .from('client-content-enhanced')
-          .getPublicUrl(typedRequest.client_content[0].enhanced_file_path);
-        
-        typedRequest.imageUrl = urlData.publicUrl;
+      // Use RAW image (avoid rotated enhanced image)
+      const rawPath = typedRequest.client_content?.[0]?.raw_file_path;
+      if (rawPath) {
+        const { data: rawUrl } = supabase.storage
+          .from('client-content-raw')
+          .getPublicUrl(rawPath);
+        typedRequest.imageUrl = rawUrl.publicUrl;
       }
 
       setData(typedRequest);

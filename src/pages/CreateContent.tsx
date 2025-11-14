@@ -19,6 +19,7 @@ export default function CreateContent() {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [showIframeWarning, setShowIframeWarning] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -118,6 +119,22 @@ export default function CreateContent() {
             video.addEventListener('loadedmetadata', () => resolve(), { once: true });
           });
         }
+
+        // Wait for video dimensions to be available
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+          await new Promise<void>((resolve) => {
+            const checkDimensions = () => {
+              if (video.videoWidth > 0 && video.videoHeight > 0) {
+                resolve();
+              } else {
+                requestAnimationFrame(checkDimensions);
+              }
+            };
+            checkDimensions();
+          });
+        }
+
+        setIsVideoReady(true);
       }
 
       setStep('capture');
@@ -156,6 +173,13 @@ export default function CreateContent() {
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
+    
+    // Ensure video has dimensions before capturing
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      toast.error('Camera not ready yet, please wait a moment');
+      return;
+    }
+    
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     
@@ -178,6 +202,7 @@ export default function CreateContent() {
 
   const retakePhoto = () => {
     setCapturedImage(null);
+    setIsVideoReady(false);
     startCamera();
   };
 
@@ -325,11 +350,16 @@ export default function CreateContent() {
                 />
               </div>
               <div className="flex gap-2">
-                <Button onClick={capturePhoto} size="lg" className="flex-1">
+                <Button 
+                  onClick={capturePhoto} 
+                  size="lg" 
+                  className="flex-1"
+                  disabled={!isVideoReady}
+                >
                   <Camera className="mr-2" />
-                  Capture Photo
+                  {isVideoReady ? 'Capture Photo' : 'Loading...'}
                 </Button>
-                <Button onClick={() => { stopCamera(); setStep('start'); }} variant="outline" size="lg">
+                <Button onClick={() => { stopCamera(); setStep('start'); setIsVideoReady(false); }} variant="outline" size="lg">
                   Cancel
                 </Button>
               </div>

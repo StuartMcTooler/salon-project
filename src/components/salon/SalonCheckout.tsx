@@ -18,7 +18,7 @@ interface SalonCheckoutProps {
   pricing: any;
   user: any;
   onBack: () => void;
-  onComplete: () => void;
+  onComplete: (appointmentId?: string) => void;
   businessId?: string | null;
   referralCode?: string | null;
 }
@@ -407,7 +407,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
           description: "Your appointment has been successfully scheduled.",
         });
       }
-      onComplete();
+      onComplete(data.id);
     },
     onError: (error: any) => {
       toast({

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Gift, MessageSquare, Loader2, CheckCircle2, Camera } from "lucide-react";
+import { Calendar, Gift, MessageSquare, Loader2, CheckCircle2, Camera, Sparkles } from "lucide-react";
 import { useReferralDiscount } from "@/hooks/useReferralDiscount";
 
 interface PostCheckoutActionsProps {
@@ -36,6 +36,7 @@ export const PostCheckoutActions = ({
 }: PostCheckoutActionsProps) => {
   const { toast } = useToast();
   const [sentActions, setSentActions] = useState<string[]>([]);
+  const [showStrategyChoice, setShowStrategyChoice] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -109,7 +110,43 @@ export const PostCheckoutActions = ({
   };
 
   const handleRequestSocialContent = () => {
+    setShowStrategyChoice(true);
+  };
+
+  const handleCreativeFirst = () => {
+    setShowStrategyChoice(false);
     setShowCameraModal(true);
+  };
+
+  const handleClientFirst = async () => {
+    setShowStrategyChoice(false);
+    setIsProcessing(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('request-client-creation', {
+        body: {
+          appointmentId: appointment.id,
+          creativeId: appointment.staff_id,
+        }
+      });
+
+      if (error) throw error;
+
+      setSentActions([...sentActions, 'socialContent']);
+      toast({
+        title: "Link sent!",
+        description: "Customer will receive a link to create their content",
+      });
+    } catch (error: any) {
+      console.error('Error sending client creation request:', error);
+      toast({
+        title: "Failed to send",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handlePhotoCapture = async (file: File) => {
@@ -154,17 +191,20 @@ export const PostCheckoutActions = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-primary" />
-            Payment Received - €{Number(appointment.price).toFixed(2)}
-          </DialogTitle>
-          <DialogDescription>
-            Thank you, {appointment.customer_name}!
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md">
+          {!showStrategyChoice ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-primary" />
+                  Payment Received - €{Number(appointment.price).toFixed(2)}
+                </DialogTitle>
+                <DialogDescription>
+                  Thank you, {appointment.customer_name}!
+                </DialogDescription>
+              </DialogHeader>
 
         <div className="space-y-3 py-4">
           {appointment.customer_phone ? (

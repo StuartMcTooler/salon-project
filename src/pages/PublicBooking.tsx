@@ -24,6 +24,7 @@ const PublicBooking = () => {
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [businessType, setBusinessType] = useState<string | null>(null);
   const [referralInfo, setReferralInfo] = useState<any>(null);
+  const [contentRef, setContentRef] = useState<string | null>(null);
 
   const referralCode = searchParams.get('ref');
 
@@ -66,14 +67,20 @@ const PublicBooking = () => {
 
         // Load referral code info if present
         if (referralCode) {
-          const { data: refCode } = await supabase
-            .from("referral_codes")
-            .select("referrer_name, referrer_email")
-            .eq("code", referralCode)
-            .single();
+          // Check if it's a content referral (UUID format)
+          if (referralCode.includes('-') && referralCode.length === 36) {
+            setContentRef(referralCode);
+            localStorage.setItem('content_ref', referralCode);
+          } else {
+            const { data: refCode } = await supabase
+              .from("referral_codes")
+              .select("referrer_name, referrer_email")
+              .eq("code", referralCode)
+              .single();
 
-          if (refCode) {
-            setReferralInfo(refCode);
+            if (refCode) {
+              setReferralInfo(refCode);
+            }
           }
         }
 
@@ -103,7 +110,73 @@ const PublicBooking = () => {
     }
   };
 
-  const handleBookingComplete = () => {
+  const handleBookingComplete = async (appointmentId: string) => {
+    // Handle content referral attribution
+    const storedContentRef = localStorage.getItem('content_ref') || contentRef;
+    if (storedContentRef) {
+      try {
+        const { data: contentData } = await supabase
+          .from('client_content')
+          .select('creative_id, request_id')
+          .eq('id', storedContentRef)
+          .single();
+
+        if (contentData) {
+          // Get referrer info
+          const { data: requestData } = await supabase
+            .from('content_requests')
+            .select('client_email, client_name, client_phone')
+            .eq('id', contentData.request_id)
+            .single();
+
+          if (requestData) {
+            // Tag client ownership for the referrer
+            await supabase.from('client_ownership').insert({
+              creative_id: contentData.creative_id,
+              client_email: requestData.client_email,
+              client_name: requestData.client_name,
+              client_phone: requestData.client_phone,
+              source: 'content_referral',
+            });
+
+            // Award 100 points to referrer
+            const { data: loyaltyData } = await supabase
+              .from('customer_loyalty_points')
+              .select('*')
+              .eq('creative_id', contentData.creative_id)
+              .eq('customer_phone', requestData.client_phone)
+              .single();
+
+            if (loyaltyData) {
+              const newBalance = loyaltyData.current_balance + 100;
+              await supabase
+                .from('customer_loyalty_points')
+                .update({
+                  current_balance: newBalance,
+                  lifetime_earned: loyaltyData.lifetime_earned + 100,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', loyaltyData.id);
+
+              await supabase.from('loyalty_transactions').insert({
+                creative_id: contentData.creative_id,
+                customer_email: requestData.client_email,
+                points_change: 100,
+                balance_after: newBalance,
+                transaction_type: 'referral',
+                appointment_id: appointmentId,
+                notes: 'Referral bonus from shared content',
+              });
+            }
+          }
+
+          localStorage.removeItem('content_ref');
+        }
+      } catch (error) {
+        console.error('Error processing content referral:', error);
+      }
+    }
+
     toast({
       title: "Booking successful!",
       description: "Your appointment has been confirmed.",

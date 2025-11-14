@@ -1,0 +1,88 @@
+import React, { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+type Props = {
+  streamRef: React.MutableRefObject<MediaStream | null>;
+  videoRef: React.RefObject<HTMLVideoElement>;
+  isInIframe: boolean;
+};
+
+const prettyReadyState = (rs?: number) =>
+  ({
+    0: "HAVE_NOTHING",
+    1: "HAVE_METADATA",
+    2: "HAVE_CURRENT_DATA",
+    3: "HAVE_FUTURE_DATA",
+    4: "HAVE_ENOUGH_DATA",
+  } as any)[rs ?? -1] ?? String(rs);
+
+const CameraDebugPanel: React.FC<Props> = ({ streamRef, videoRef, isInIframe }) => {
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [permission, setPermission] = useState<string>("unknown");
+  const [trackSettings, setTrackSettings] = useState<MediaTrackSettings | null>(null);
+  const [videoMetrics, setVideoMetrics] = useState({ width: 0, height: 0, readyState: 0 });
+
+  const refresh = async () => {
+    try {
+      if (navigator.mediaDevices?.enumerateDevices) {
+        const list = await navigator.mediaDevices.enumerateDevices();
+        setDevices(list.filter((d) => d.kind === "videoinput"));
+      }
+      // Permissions API may not exist on all browsers
+      try {
+        const permAny = (navigator as any).permissions;
+        const status = await permAny?.query({ name: 'camera' });
+        if (status) {
+          setPermission(status.state);
+          status.onchange = () => setPermission(status.state);
+        }
+      } catch {}
+
+      const track = streamRef.current?.getVideoTracks?.()[0] ?? null;
+      setTrackSettings(track ? track.getSettings() : null);
+
+      if (videoRef.current) {
+        setVideoMetrics({
+          width: videoRef.current.videoWidth,
+          height: videoRef.current.videoHeight,
+          readyState: videoRef.current.readyState,
+        });
+      }
+    } catch (e) {
+      console.warn("CameraDebugPanel refresh error", e);
+    }
+  };
+
+  useEffect(() => {
+    refresh();
+    const id = setInterval(refresh, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <Card className="p-4">
+      <div className="flex items-center justify-between">
+        <div className="font-semibold">Camera Debug</div>
+        <Button variant="outline" size="sm" onClick={refresh}>
+          Refresh
+        </Button>
+      </div>
+      <div className="mt-3 grid gap-2 text-sm">
+        <div>In iframe: {String(isInIframe)}</div>
+        <div>Permission: {permission}</div>
+        <div>
+          Devices: {devices.length > 0 ? devices.map((d) => d.label || "Camera").join(", ") : "none"}
+        </div>
+        <div>Track settings: {trackSettings ? JSON.stringify(trackSettings) : "no track"}</div>
+        <div>
+          Video readyState: {prettyReadyState(videoMetrics.readyState)} ({videoMetrics.readyState})
+        </div>
+        <div>Video dimensions: {videoMetrics.width} x {videoMetrics.height}</div>
+        <div>Active stream: {Boolean(streamRef.current)?.toString()}</div>
+      </div>
+    </Card>
+  );
+};
+
+export default CameraDebugPanel;

@@ -4,8 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Camera, Download, Share2, Loader2, CheckCircle, ExternalLink, X } from "lucide-react";
+import { Camera, Download, Share2, Loader2, CheckCircle, ExternalLink, X, Bug } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import CameraDebugPanel from "@/components/debug/CameraDebugPanel";
 
 export default function CreateContent() {
   const { token } = useParams<{ token: string }>();
@@ -19,6 +20,7 @@ export default function CreateContent() {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [showIframeWarning, setShowIframeWarning] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -90,6 +92,8 @@ export default function CreateContent() {
       };
       const fallbackConstraints = { video: true };
 
+      console.log('Requesting camera with constraints', { primaryConstraints, fallbackConstraints });
+
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia(primaryConstraints);
@@ -100,8 +104,24 @@ export default function CreateContent() {
 
       streamRef.current = stream;
       
+      // Debug: log tracks and settings
+      try {
+        const tracks = stream.getVideoTracks();
+        console.log('getUserMedia success', {
+          trackCount: tracks.length,
+          labels: tracks.map(t => t.label),
+          settings: tracks[0]?.getSettings?.(),
+        });
+      } catch (e) {
+        console.log('Track info unavailable', e);
+      }
+      
       if (videoRef.current) {
         const video = videoRef.current;
+        // Debug: log video element events
+        video.addEventListener('loadedmetadata', () => console.log('video event: loadedmetadata', { w: video.videoWidth, h: video.videoHeight }));
+        video.addEventListener('loadeddata', () => console.log('video event: loadeddata', { readyState: video.readyState }));
+        video.addEventListener('canplay', () => console.log('video event: canplay', { readyState: video.readyState }));
         // Set playback attributes BEFORE attaching stream (important for iOS)
         video.muted = true;
         video.setAttribute('playsinline', 'true');
@@ -334,6 +354,16 @@ export default function CreateContent() {
               </div>
             </AlertDescription>
           </Alert>
+        )}
+        
+        <div className="flex justify-end">
+          <Button variant="ghost" size="sm" onClick={() => setShowDebug((v) => !v)} className="gap-1">
+            <Bug className="w-4 h-4" />
+            {showDebug ? 'Hide Debug' : 'Show Debug'}
+          </Button>
+        </div>
+        {showDebug && (
+          <CameraDebugPanel streamRef={streamRef} videoRef={videoRef} isInIframe={isInIframe} />
         )}
         
         <Card className="p-6">

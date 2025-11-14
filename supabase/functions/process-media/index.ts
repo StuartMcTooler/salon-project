@@ -50,7 +50,7 @@ serve(async (req) => {
             content: [
               {
                 type: "text",
-                text: "Enhance this professional hair salon photo for social media. Improve lighting, color balance, and sharpness. Make it look polished and magazine-quality while keeping it natural. Return ONLY the enhanced image with no additional text or explanations."
+                text: "Enhance this professional hair salon photo for social media. Correct the image orientation if needed (fix any rotation issues from camera EXIF data). Improve lighting, color balance, and sharpness. Make it look polished and magazine-quality while keeping it natural. Return ONLY the enhanced image with correct orientation."
               },
               {
                 type: "image_url",
@@ -61,6 +61,7 @@ serve(async (req) => {
             ]
           }
         ],
+        modalities: ["image", "text"],
         max_tokens: 4096,
       })
     });
@@ -70,7 +71,14 @@ serve(async (req) => {
     }
 
     const aiData = await aiResponse.json();
-    let enhancedImageUrl = aiData.choices?.[0]?.message?.content;
+    
+    // Gemini returns images in the images array, not content
+    let enhancedImageUrl = aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    
+    if (!enhancedImageUrl) {
+      console.error('AI response did not contain image:', JSON.stringify(aiData));
+      throw new Error('AI processing did not return an image');
+    }
 
     // If AI returns base64, extract it
     if (enhancedImageUrl && enhancedImageUrl.includes('base64,')) {
@@ -84,13 +92,9 @@ serve(async (req) => {
       .eq('id', creativeId)
       .single();
 
-    // For now, use the enhanced image directly
-    // In a production environment, you would add watermark using Canvas API
-    // or image processing library
-    
-    // Convert base64 back to blob
+    // Convert base64 to blob
     let enhancedBlob: Blob;
-    if (enhancedImageUrl && !enhancedImageUrl.startsWith('http')) {
+    if (!enhancedImageUrl.startsWith('http')) {
       const binaryString = atob(enhancedImageUrl);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {

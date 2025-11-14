@@ -14,6 +14,8 @@ serve(async (req) => {
   try {
     const { token, approved } = await req.json();
 
+    console.log('Approve request received:', { token, approved });
+
     if (!token || typeof approved !== 'boolean') {
       throw new Error('Missing required fields');
     }

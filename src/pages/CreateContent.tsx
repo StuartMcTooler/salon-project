@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Camera, Download, Share2, Loader2, CheckCircle } from "lucide-react";
+import { Camera, Download, Share2, Loader2, CheckCircle, ExternalLink, X } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function CreateContent() {
   const { token } = useParams<{ token: string }>();
@@ -17,9 +18,11 @@ export default function CreateContent() {
   const [enhancedUrl, setEnhancedUrl] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [showIframeWarning, setShowIframeWarning] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const isInIframe = window.self !== window.top;
 
   useEffect(() => {
     validateToken();
@@ -65,17 +68,86 @@ export default function CreateContent() {
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user', width: 1920, height: 1080 } 
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+      // Feature detection
+      if (!navigator.mediaDevices?.getUserMedia) {
+        toast.error('Camera not supported in this browser');
+        return;
       }
+
+      // Show iframe warning if embedded
+      if (isInIframe) {
+        setShowIframeWarning(true);
+      }
+
+      // Try flexible constraints with fallback
+      const primaryConstraints = { 
+        video: { 
+          facingMode: { ideal: 'user' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        } 
+      };
+      const fallbackConstraints = { video: true };
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(primaryConstraints);
+      } catch {
+        console.log('Falling back to basic camera constraints');
+        stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+      }
+
+      streamRef.current = stream;
+      
+      if (videoRef.current) {
+        const video = videoRef.current;
+        video.srcObject = stream;
+        video.setAttribute('playsinline', 'true');
+        video.muted = true;
+
+        // Explicit play call for iOS
+        try {
+          await video.play();
+        } catch (playErr) {
+          console.warn('video.play() failed:', playErr);
+        }
+
+        // Wait for metadata to be loaded
+        if (video.readyState < 2) {
+          await new Promise<void>((resolve) => {
+            video.addEventListener('loadedmetadata', () => resolve(), { once: true });
+          });
+        }
+      }
+
       setStep('capture');
     } catch (err) {
       console.error('Camera access error:', err);
-      toast.error('Camera access denied. Please allow camera access and try again.');
+      
+      // Specific error messages based on DOMException type
+      if (err instanceof DOMException) {
+        switch (err.name) {
+          case 'NotAllowedError':
+            toast.error('Camera permission denied. Please allow camera access and try again.');
+            break;
+          case 'NotFoundError':
+            toast.error('No camera found on this device.');
+            break;
+          case 'NotReadableError':
+            toast.error('Camera is being used by another app. Please close other apps and try again.');
+            break;
+          case 'AbortError':
+            toast.error('Camera request was cancelled. Please try again.');
+            break;
+          case 'OverconstrainedError':
+            toast.error('Camera settings not supported. Try a different device.');
+            break;
+          default:
+            toast.error(`Camera error: ${err.message}`);
+        }
+      } else {
+        toast.error('Could not start camera. Try opening this page in a new tab.');
+      }
     }
   };
 
@@ -160,6 +232,10 @@ export default function CreateContent() {
     toast.success('Share link copied! Share it to earn rewards when friends book!');
   };
 
+  const openInNewTab = () => {
+    window.open(window.location.href, '_blank');
+  };
+
   useEffect(() => {
     return () => {
       stopCamera();
@@ -187,7 +263,35 @@ export default function CreateContent() {
 
   return (
     <div className="min-h-screen bg-background p-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto space-y-4">
+        {isInIframe && showIframeWarning && (
+          <Alert className="border-yellow-500 bg-yellow-500/10">
+            <AlertDescription className="flex items-center justify-between gap-2">
+              <div className="flex-1 text-sm">
+                Camera may be blocked in preview. Open in a new tab for best experience.
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={openInNewTab}
+                  className="gap-1"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  Open
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowIframeWarning(false)}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <Card className="p-6">
           {step === 'start' && (
             <div className="text-center space-y-6">

@@ -194,7 +194,59 @@ export const PostCheckoutActions = ({
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-md">
-          {!showStrategyChoice ? (
+          {showStrategyChoice ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Choose Content Strategy</DialogTitle>
+                <DialogDescription>
+                  How would you like to get {appointment.customer_name}'s approval?
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3 py-4">
+                <Button
+                  variant="default"
+                  className="w-full justify-start h-auto py-6"
+                  onClick={handleCreativeFirst}
+                >
+                  <Camera className="mr-3 h-5 w-5" />
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium text-lg">📸 Get Approval for MY Photo</span>
+                    <span className="text-sm opacity-90">
+                      You take the photo, client approves it
+                    </span>
+                  </div>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  className="w-full justify-start h-auto py-6"
+                  onClick={handleClientFirst}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? (
+                    <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-3 h-5 w-5" />
+                  )}
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium text-lg">✨ Ask Client to Create Theirs</span>
+                    <span className="text-sm opacity-90">
+                      Client creates content in Glow-Up Studio
+                    </span>
+                  </div>
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => setShowStrategyChoice(false)}
+                >
+                  Back
+                </Button>
+              </div>
+            </>
+          ) : (
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
@@ -206,105 +258,108 @@ export const PostCheckoutActions = ({
                 </DialogDescription>
               </DialogHeader>
 
-        <div className="space-y-3 py-4">
-          {appointment.customer_phone ? (
-            <>
-              <p className="text-sm font-medium">Send to {appointment.customer_phone}:</p>
+              <div className="space-y-3 py-4">
+                {appointment.customer_phone ? (
+                  <>
+                    <p className="text-sm font-medium">Send to {appointment.customer_phone}:</p>
 
-              <Button
-                variant="default"
-                className="w-full justify-start h-auto py-4 bg-primary"
-                onClick={handleRequestSocialContent}
-                disabled={sentActions.includes('content')}
-              >
-                {sentActions.includes('content') ? (
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                    <Button
+                      variant="default"
+                      className="w-full justify-start h-auto py-4 bg-primary"
+                      onClick={handleRequestSocialContent}
+                      disabled={sentActions.includes('content')}
+                    >
+                      {sentActions.includes('content') ? (
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Camera className="mr-2 h-4 w-4" />
+                      )}
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">📸 Request Social Media Content</span>
+                        <span className="text-xs opacity-90">
+                          Take photo & get client approval
+                        </span>
+                      </div>
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start h-auto py-4"
+                      onClick={handleSendBookingLink}
+                      disabled={sendWhatsApp.isPending || sentActions.includes('booking')}
+                    >
+                      {sendWhatsApp.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : sentActions.includes('booking') ? (
+                        <CheckCircle2 className="mr-2 h-4 w-4 text-primary" />
+                      ) : (
+                        <Calendar className="mr-2 h-4 w-4" />
+                      )}
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">Send Booking Link</span>
+                        <span className="text-xs text-muted-foreground">
+                          "Book your next appointment"
+                        </span>
+                      </div>
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start h-auto py-4"
+                      onClick={handleSendReferral}
+                      disabled={sendWhatsApp.isPending || sentActions.includes('referral')}
+                    >
+                      {sendWhatsApp.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : sentActions.includes('referral') ? (
+                        <CheckCircle2 className="mr-2 h-4 w-4 text-primary" />
+                      ) : (
+                        <Gift className="mr-2 h-4 w-4" />
+                      )}
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">Send Referral Invite</span>
+                        <span className="text-xs text-muted-foreground">
+                          "Get {discount.displayText} - Refer a friend"
+                        </span>
+                      </div>
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start h-auto py-4"
+                      onClick={handleSendFeedback}
+                      disabled={sendWhatsApp.isPending || sentActions.includes('feedback')}
+                    >
+                      {sendWhatsApp.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : sentActions.includes('feedback') ? (
+                        <CheckCircle2 className="mr-2 h-4 w-4 text-primary" />
+                      ) : (
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                      )}
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">Request Feedback</span>
+                        <span className="text-xs text-muted-foreground">
+                          "How was your experience?"
+                        </span>
+                      </div>
+                    </Button>
+                  </>
                 ) : (
-                  <Camera className="mr-2 h-4 w-4" />
+                  <div className="text-center py-4 text-muted-foreground">
+                    <p className="text-sm">No phone number provided for this customer.</p>
+                    <p className="text-xs mt-1">Collect phone numbers to send booking links and feedback requests.</p>
+                  </div>
                 )}
-                <div className="flex flex-col items-start">
-                  <span className="font-medium">📸 Request Social Media Content</span>
-                  <span className="text-xs opacity-90">
-                    Take photo & get client approval
-                  </span>
-                </div>
+              </div>
+
+              <Button variant="default" className="w-full" onClick={onClose}>
+                {appointment.customer_phone ? "Skip - Next Customer" : "Done - Next Customer"}
               </Button>
-
-              <Button
-            variant="outline"
-            className="w-full justify-start h-auto py-4"
-            onClick={handleSendBookingLink}
-            disabled={sendWhatsApp.isPending || sentActions.includes('booking')}
-          >
-            {sendWhatsApp.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : sentActions.includes('booking') ? (
-              <CheckCircle2 className="mr-2 h-4 w-4 text-primary" />
-            ) : (
-              <Calendar className="mr-2 h-4 w-4" />
-            )}
-            <div className="flex flex-col items-start">
-              <span className="font-medium">Send Booking Link</span>
-              <span className="text-xs text-muted-foreground">
-                "Book your next appointment"
-              </span>
-            </div>
-          </Button>
-
-          <Button
-            variant="outline"
-            className="w-full justify-start h-auto py-4"
-            onClick={handleSendReferral}
-            disabled={sendWhatsApp.isPending || sentActions.includes('referral')}
-          >
-            {sendWhatsApp.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : sentActions.includes('referral') ? (
-              <CheckCircle2 className="mr-2 h-4 w-4 text-primary" />
-            ) : (
-              <Gift className="mr-2 h-4 w-4" />
-            )}
-            <div className="flex flex-col items-start">
-              <span className="font-medium">Send Referral Invite</span>
-              <span className="text-xs text-muted-foreground">
-                "Get {discount.displayText} - Refer a friend"
-              </span>
-            </div>
-          </Button>
-
-          <Button
-            variant="outline"
-            className="w-full justify-start h-auto py-4"
-            onClick={handleSendFeedback}
-            disabled={sendWhatsApp.isPending || sentActions.includes('feedback')}
-          >
-            {sendWhatsApp.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : sentActions.includes('feedback') ? (
-              <CheckCircle2 className="mr-2 h-4 w-4 text-primary" />
-            ) : (
-              <MessageSquare className="mr-2 h-4 w-4" />
-            )}
-            <div className="flex flex-col items-start">
-              <span className="font-medium">Request Feedback</span>
-              <span className="text-xs text-muted-foreground">
-                "How was your experience?"
-              </span>
-            </div>
-          </Button>
             </>
-          ) : (
-            <div className="text-center py-4 text-muted-foreground">
-              <p className="text-sm">No phone number provided for this customer.</p>
-              <p className="text-xs mt-1">Collect phone numbers to send booking links and feedback requests.</p>
-            </div>
           )}
-        </div>
-
-        <Button variant="default" className="w-full" onClick={onClose}>
-          {appointment.customer_phone ? "Skip - Next Customer" : "Done - Next Customer"}
-        </Button>
-      </DialogContent>
+        </DialogContent>
+      </Dialog>
 
       {/* Camera Modal */}
       <Dialog open={showCameraModal} onOpenChange={setShowCameraModal}>
@@ -370,6 +425,6 @@ export const PostCheckoutActions = ({
           )}
         </DialogContent>
       </Dialog>
-    </Dialog>
+    </>
   );
 };

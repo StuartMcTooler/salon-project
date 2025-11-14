@@ -9,6 +9,8 @@ import type { ContentRequest } from '@/types/supabase-temp';
 
 export default function ApproveContent() {
   const { token } = useParams();
+  // Sanitize token (WhatsApp/SMS may append words after the URL)
+  const safeToken = (token?.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0] ?? token) as string;
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [status, setStatus] = useState<'valid' | 'expired' | 'invalid' | 'approved' | 'declined'>('valid');
@@ -17,11 +19,11 @@ export default function ApproveContent() {
 
   useEffect(() => {
     validateToken();
-  }, [token]);
+  }, [safeToken]);
 
   const validateToken = async () => {
     try {
-      console.log('Validating token:', token);
+      console.log('Validating token:', safeToken);
       
       const { data: request, error } = await supabase
         .from('content_requests' as any)
@@ -34,7 +36,7 @@ export default function ApproveContent() {
             media_type
           )
         `)
-        .eq('token', token)
+        .eq('token', safeToken)
         .single();
 
       console.log('Token validation result:', { request, error });
@@ -87,7 +89,7 @@ export default function ApproveContent() {
     setProcessing(true);
     try {
       const { data: result, error } = await supabase.functions.invoke('approve-social-content', {
-        body: { token, approved: true }
+        body: { token: safeToken, approved: true }
       });
 
       if (error) throw error;
@@ -117,7 +119,7 @@ export default function ApproveContent() {
     setProcessing(true);
     try {
       const { data: result, error } = await supabase.functions.invoke('approve-social-content', {
-        body: { token, approved: false }
+        body: { token: safeToken, approved: false }
       });
 
       if (error) throw error;

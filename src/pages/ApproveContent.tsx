@@ -66,14 +66,29 @@ export default function ApproveContent() {
         setMessage('You have already declined this content.');
       }
 
-      // Use RAW image (avoid rotated enhanced image)
+      // Build image URLs with fallback: try RAW first, then Enhanced
       const rawPath = typedRequest.client_content?.[0]?.raw_file_path;
+      const enhancedPath = typedRequest.client_content?.[0]?.enhanced_file_path;
+
+      let rawPublicUrl: string | undefined;
+      let enhancedPublicUrl: string | undefined;
+
       if (rawPath) {
         const { data: rawUrl } = supabase.storage
           .from('client-content-raw')
           .getPublicUrl(rawPath);
-        typedRequest.imageUrl = rawUrl.publicUrl;
+        rawPublicUrl = rawUrl?.publicUrl;
       }
+      if (enhancedPath) {
+        const { data: enhUrl } = supabase.storage
+          .from('client-content-enhanced')
+          .getPublicUrl(enhancedPath);
+        enhancedPublicUrl = enhUrl?.publicUrl;
+      }
+
+      // Prefer RAW (orientation correct), fallback to Enhanced if RAW is unavailable
+      typedRequest.imageUrl = rawPublicUrl || enhancedPublicUrl;
+      typedRequest.fallbackImageUrl = rawPublicUrl ? enhancedPublicUrl : undefined;
 
       setData(typedRequest);
     } catch (err) {
@@ -186,6 +201,11 @@ export default function ApproveContent() {
                 src={data.imageUrl} 
                 alt="Your photo"
                 className="w-full rounded-lg"
+                onError={(e) => {
+                  if (data?.fallbackImageUrl && e.currentTarget.src !== data.fallbackImageUrl) {
+                    e.currentTarget.src = data.fallbackImageUrl;
+                  }
+                }}
               />
             </CardContent>
           )}
@@ -210,8 +230,13 @@ export default function ApproveContent() {
               <div className="relative rounded-lg overflow-hidden bg-muted">
                 <img 
                   src={data.imageUrl} 
-                  alt="Your enhanced photo"
+                  alt="Your photo"
                   className="w-full h-auto"
+                  onError={(e) => {
+                    if (data?.fallbackImageUrl && e.currentTarget.src !== data.fallbackImageUrl) {
+                      e.currentTarget.src = data.fallbackImageUrl;
+                    }
+                  }}
                 />
               </div>
             )}

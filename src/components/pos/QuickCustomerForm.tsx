@@ -43,9 +43,9 @@ export const QuickCustomerForm = ({
   const [creditApplied, setCreditApplied] = useState<any>(null);
   const [adjustedPrice, setAdjustedPrice] = useState(service.custom_price);
 
-  // Check for available credits when phone changes
+  // Check for available credits and auto-fill customer name when phone changes
   useEffect(() => {
-    const checkCredits = async () => {
+    const checkCreditsAndCustomer = async () => {
       if (!customerPhone) {
         setAvailableCredits([]);
         setAdjustedPrice(service.custom_price);
@@ -54,6 +54,19 @@ export const QuickCustomerForm = ({
 
       const normalizedPhone = normalizePhoneNumber(customerPhone);
       
+      // Check for existing customer to auto-fill name
+      const { data: existingCustomer } = await supabase
+        .from('customer_loyalty_points')
+        .select('customer_name')
+        .eq('customer_phone', normalizedPhone)
+        .eq('creative_id', staffMember.id)
+        .maybeSingle();
+
+      if (existingCustomer && existingCustomer.customer_name && !customerName) {
+        setCustomerName(existingCustomer.customer_name);
+      }
+
+      // Check for available credits
       const { data } = await supabase
         .from('user_credits')
         .select('*')
@@ -78,8 +91,8 @@ export const QuickCustomerForm = ({
       }
     };
 
-    checkCredits();
-  }, [customerPhone, applyCreditOptOut, service.custom_price]);
+    checkCreditsAndCustomer();
+  }, [customerPhone, applyCreditOptOut, service.custom_price, staffMember.id, customerName]);
 
   const createWalkIn = useMutation({
     mutationFn: async () => {

@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { Image } from "https://deno.land/x/imagescript@1.3.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,14 +35,54 @@ serve(async (req) => {
     );
     const dataUrl = `data:${fileData.type};base64,${base64Image}`;
 
-    // Load image with ImageScript to fix rotation
-    const imageBuffer = new Uint8Array(arrayBuffer);
-    const image = await Image.decode(imageBuffer);
+    // Use Lovable AI to fix orientation and enhance
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-image-preview",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Fix the image orientation if needed (correct any rotation from camera EXIF data). Return the properly oriented image."
+              },
+              {
+                type: "image_url",
+                image_url: { url: dataUrl }
+              }
+            ]
+          }
+        ],
+        modalities: ["image", "text"]
+      })
+    });
+
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      throw new Error(`AI processing failed: ${errorText}`);
+    }
+
+    const aiData = await aiResponse.json();
+    const enhancedImageUrl = aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
     
-    // ImageScript automatically handles EXIF rotation
-    // Re-encode as JPEG
-    const enhancedBuffer = await image.encodeJPEG(95);
-    const enhancedBlob = new Blob([enhancedBuffer as any], { type: 'image/jpeg' });
+    if (!enhancedImageUrl) {
+      throw new Error('AI did not return an image');
+    }
+
+    // Convert base64 to blob
+    const base64Data = enhancedImageUrl.split('base64,')[1];
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const enhancedBlob = new Blob([bytes], { type: 'image/jpeg' });
 
     // Get creative name for watermark
     const { data: creative } = await supabaseAdmin
@@ -79,7 +118,7 @@ serve(async (req) => {
         enhanced_file_path: enhancedPath,
         ai_metadata: {
           processed_at: new Date().toISOString(),
-          model: 'google/gemini-2.5-flash',
+          model: 'google/gemini-2.5-flash-image-preview',
           watermark: `@${creative?.display_name || 'creative'}`,
         },
       })

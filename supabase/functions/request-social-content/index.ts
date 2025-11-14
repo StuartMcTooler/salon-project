@@ -198,7 +198,6 @@ serve(async (req) => {
           to: appointment.customer_phone,
           message: message,
           businessId: creative?.business_id ?? null,
-          mediaUrl: enhancedPublicUrl || imageUrl,
         },
       });
     }

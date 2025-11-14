@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { CheckCircle2, XCircle, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ContentRequest } from '@/types/supabase-temp';
+import exifr from 'exifr';
 
 export default function ApproveContent() {
   const { token } = useParams();
@@ -16,10 +17,41 @@ export default function ApproveContent() {
   const [status, setStatus] = useState<'valid' | 'expired' | 'invalid' | 'approved' | 'declined'>('valid');
   const [data, setData] = useState<any>(null);
   const [message, setMessage] = useState('');
+  const [imgStyle, setImgStyle] = useState<Record<string, string>>({});
 
   useEffect(() => {
     validateToken();
   }, [safeToken]);
+
+  // EXIF orientation handling
+  async function computeOrientation(url: string) {
+    try {
+      const resp = await fetch(url, { mode: 'cors' });
+      const blob = await resp.blob();
+      const orientation = await exifr.orientation(blob);
+      switch (orientation) {
+        case 3:
+          setImgStyle({ transform: 'rotate(180deg)', transformOrigin: 'center' });
+          break;
+        case 6:
+          setImgStyle({ transform: 'rotate(90deg)', transformOrigin: 'center' });
+          break;
+        case 8:
+          setImgStyle({ transform: 'rotate(-90deg)', transformOrigin: 'center' });
+          break;
+        default:
+          setImgStyle({});
+      }
+    } catch (e) {
+      setImgStyle({});
+    }
+  }
+
+  useEffect(() => {
+    if (data?.imageUrl) {
+      computeOrientation(data.imageUrl);
+    }
+  }, [data?.imageUrl]);
 
   const validateToken = async () => {
     try {
@@ -201,9 +233,11 @@ export default function ApproveContent() {
                 src={data.imageUrl} 
                 alt="Your photo"
                 className="w-full rounded-lg"
+                style={imgStyle}
                 onError={(e) => {
                   if (data?.fallbackImageUrl && e.currentTarget.src !== data.fallbackImageUrl) {
                     e.currentTarget.src = data.fallbackImageUrl;
+                    computeOrientation(data.fallbackImageUrl);
                   }
                 }}
               />
@@ -232,9 +266,11 @@ export default function ApproveContent() {
                   src={data.imageUrl} 
                   alt="Your photo"
                   className="w-full h-auto"
+                  style={imgStyle}
                   onError={(e) => {
                     if (data?.fallbackImageUrl && e.currentTarget.src !== data.fallbackImageUrl) {
                       e.currentTarget.src = data.fallbackImageUrl;
+                      computeOrientation(data.fallbackImageUrl);
                     }
                   }}
                 />

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
-import { ArrowLeft, AlertCircle } from "lucide-react";
+import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
 import { getAvailableSlots } from "@/lib/timeSlotUtils";
 import { normalizePhoneNumber } from "@/lib/utils";
 
@@ -647,7 +647,8 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
         className="w-full"
         size="lg"
       >
-        {createAppointment.isPending ? "Booking..." : requiresDeposit ? `Confirm & Pay €${depositAmount.toFixed(2)} Deposit` : "Confirm Booking"}
+        {createAppointment.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        {requiresDeposit ? `Confirm & Pay €${depositAmount.toFixed(2)} Deposit` : "Confirm Booking"}
       </Button>
     </div>
   );

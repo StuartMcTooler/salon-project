@@ -102,30 +102,37 @@ export default function CreateContent() {
       
       if (videoRef.current) {
         const video = videoRef.current;
-        video.srcObject = stream;
-        video.setAttribute('playsinline', 'true');
+        // Set playback attributes BEFORE attaching stream (important for iOS)
         video.muted = true;
-
+        video.setAttribute('playsinline', 'true');
+        
+        // Attach stream
+        video.srcObject = stream;
+        
         // Explicit play call for iOS
         try {
           await video.play();
         } catch (playErr) {
           console.warn('video.play() failed:', playErr);
         }
-
-        // Wait for metadata to be loaded
-        if (video.readyState < 2) {
-          await new Promise<void>((resolve) => {
-            video.addEventListener('loadedmetadata', () => resolve(), { once: true });
-          });
-        }
-
-        // Wait for video dimensions to be available (with timeout)
+        
+        // Wait for readiness: canplay/loadeddata/metadata
+        await Promise.race([
+          new Promise<void>((resolve) => video.readyState >= 2 ? resolve() : video.addEventListener('canplay', () => resolve(), { once: true })),
+          new Promise<void>((resolve) => video.readyState >= 1 ? resolve() : video.addEventListener('loadeddata', () => resolve(), { once: true })),
+          new Promise<void>((resolve) => video.readyState >= 1 ? resolve() : video.addEventListener('loadedmetadata', () => resolve(), { once: true })),
+          new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+        ]);
+        
+        // After initial readiness, wait a bit for dimensions or poll up to 2s
         if (video.videoWidth === 0 || video.videoHeight === 0) {
           await Promise.race([
             new Promise<void>((resolve) => {
+              const start = performance.now();
               const checkDimensions = () => {
                 if (video.videoWidth > 0 && video.videoHeight > 0) {
+                  resolve();
+                } else if (performance.now() - start > 2000) {
                   resolve();
                 } else {
                   requestAnimationFrame(checkDimensions);
@@ -133,19 +140,19 @@ export default function CreateContent() {
               };
               checkDimensions();
             }),
-            new Promise<void>((resolve) => setTimeout(resolve, 5000)) // 5 second timeout
+            new Promise<void>((resolve) => setTimeout(resolve, 2000))
           ]);
         }
-
-        // Final check - if still no dimensions after timeout, show error
+        
+        // Final check - bail gracefully if no dimensions
         if (video.videoWidth === 0 || video.videoHeight === 0) {
-          console.error('Video dimensions not available after timeout');
-          toast.error('Camera preview failed to load. Try refreshing the page or opening in a new tab.');
+          console.error('Video dimensions not available after readiness window');
+          toast.error('Camera preview failed to load. Open in a new tab or switch device.');
           stopCamera();
           setStep('start');
           return;
         }
-
+        
         setIsVideoReady(true);
       }
 

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { Image } from "https://deno.land/x/imagescript@1.3.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,55 +36,14 @@ serve(async (req) => {
     );
     const dataUrl = `data:${fileData.type};base64,${base64Image}`;
 
-    // Call Lovable AI for enhancement
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Enhance this professional hair salon photo for social media. Correct the image orientation if needed (fix any rotation issues from camera EXIF data). Improve lighting, color balance, and sharpness. Make it look polished and magazine-quality while keeping it natural. Return ONLY the enhanced image with correct orientation."
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: dataUrl
-                }
-              }
-            ]
-          }
-        ],
-        modalities: ["image", "text"],
-        max_tokens: 4096,
-      })
-    });
-
-    if (!aiResponse.ok) {
-      throw new Error(`AI processing failed: ${await aiResponse.text()}`);
-    }
-
-    const aiData = await aiResponse.json();
+    // Load image with ImageScript to fix rotation
+    const imageBuffer = new Uint8Array(arrayBuffer);
+    const image = await Image.decode(imageBuffer);
     
-    // Gemini returns images in the images array, not content
-    let enhancedImageUrl = aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    
-    if (!enhancedImageUrl) {
-      console.error('AI response did not contain image:', JSON.stringify(aiData));
-      throw new Error('AI processing did not return an image');
-    }
-
-    // If AI returns base64, extract it
-    if (enhancedImageUrl && enhancedImageUrl.includes('base64,')) {
-      enhancedImageUrl = enhancedImageUrl.split('base64,')[1];
-    }
+    // ImageScript automatically handles EXIF rotation
+    // Re-encode as JPEG
+    const enhancedBuffer = await image.encodeJPEG(95);
+    const enhancedBlob = new Blob([enhancedBuffer as any], { type: 'image/jpeg' });
 
     // Get creative name for watermark
     const { data: creative } = await supabaseAdmin
@@ -91,21 +51,6 @@ serve(async (req) => {
       .select('display_name')
       .eq('id', creativeId)
       .single();
-
-    // Convert base64 to blob
-    let enhancedBlob: Blob;
-    if (!enhancedImageUrl.startsWith('http')) {
-      const binaryString = atob(enhancedImageUrl);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      enhancedBlob = new Blob([bytes], { type: 'image/jpeg' });
-    } else {
-      // If AI returned URL, download it
-      const imgResponse = await fetch(enhancedImageUrl);
-      enhancedBlob = await imgResponse.blob();
-    }
 
     // Upload enhanced file
     const enhancedFileName = `enhanced-${Date.now()}-${rawFilePath.split('/').pop()}`;

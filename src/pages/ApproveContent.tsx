@@ -21,6 +21,8 @@ export default function ApproveContent() {
 
   const validateToken = async () => {
     try {
+      console.log('Validating token:', token);
+      
       const { data: request, error } = await supabase
         .from('content_requests' as any)
         .select(`
@@ -39,7 +41,10 @@ export default function ApproveContent() {
         .eq('token', token)
         .single();
 
+      console.log('Token validation result:', { request, error });
+
       if (error || !request) {
+        console.error('Token validation failed:', error);
         setStatus('invalid');
         setMessage('This approval link is not valid. Please contact your stylist.');
         return;

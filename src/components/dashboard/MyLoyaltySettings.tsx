@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, Info } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, Sparkles, Info, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface MyLoyaltySettingsProps {
   staffId: string;
@@ -127,6 +127,52 @@ export const MyLoyaltySettings = ({ staffId, businessId }: MyLoyaltySettingsProp
               Loyalty program is not enabled by your business. Contact your admin to enable it.
             </AlertDescription>
           </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Check if staff override is allowed
+  const canCustomize = businessSettings?.allow_staff_override ?? true;
+
+  if (!canCustomize) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5" />
+            <CardTitle>Loyalty Rewards Settings</CardTitle>
+          </div>
+          <CardDescription>
+            Your business uses centralized loyalty settings
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              Your business owner manages loyalty settings for all staff. 
+              Contact them if you'd like to customize your rewards program.
+            </AlertDescription>
+          </Alert>
+          
+          <div className="space-y-3 rounded-lg border p-4 bg-muted/50">
+            <Label className="text-base">Current Business-Wide Settings:</Label>
+            <div className="text-sm space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Points per €:</span>
+                <span className="font-medium">{businessSettings?.points_per_euro_spent ?? 1}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Point Value:</span>
+                <span className="font-medium">€{businessSettings?.points_redemption_value ?? 0.01}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Welcome Bonus:</span>
+                <span className="font-medium">{businessSettings?.welcome_bonus_points ?? 0} points</span>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     );

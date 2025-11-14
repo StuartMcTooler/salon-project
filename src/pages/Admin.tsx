@@ -98,7 +98,7 @@ export default function Admin() {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="business" className="space-y-6">
-          <TabsList className={`grid w-full ${features.staffManagement ? 'grid-cols-13' : 'grid-cols-6'}`}>
+          <TabsList className="w-full flex flex-wrap justify-start h-auto gap-2">
             <TabsTrigger value="business">Business</TabsTrigger>
             {features.staffManagement && <TabsTrigger value="staff">Staff</TabsTrigger>}
             {features.staffManagement && <TabsTrigger value="tiers">Tiers</TabsTrigger>}

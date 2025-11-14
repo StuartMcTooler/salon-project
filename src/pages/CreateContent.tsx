@@ -120,18 +120,30 @@ export default function CreateContent() {
           });
         }
 
-        // Wait for video dimensions to be available
+        // Wait for video dimensions to be available (with timeout)
         if (video.videoWidth === 0 || video.videoHeight === 0) {
-          await new Promise<void>((resolve) => {
-            const checkDimensions = () => {
-              if (video.videoWidth > 0 && video.videoHeight > 0) {
-                resolve();
-              } else {
-                requestAnimationFrame(checkDimensions);
-              }
-            };
-            checkDimensions();
-          });
+          await Promise.race([
+            new Promise<void>((resolve) => {
+              const checkDimensions = () => {
+                if (video.videoWidth > 0 && video.videoHeight > 0) {
+                  resolve();
+                } else {
+                  requestAnimationFrame(checkDimensions);
+                }
+              };
+              checkDimensions();
+            }),
+            new Promise<void>((resolve) => setTimeout(resolve, 5000)) // 5 second timeout
+          ]);
+        }
+
+        // Final check - if still no dimensions after timeout, show error
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+          console.error('Video dimensions not available after timeout');
+          toast.error('Camera preview failed to load. Try refreshing the page or opening in a new tab.');
+          stopCamera();
+          setStep('start');
+          return;
         }
 
         setIsVideoReady(true);

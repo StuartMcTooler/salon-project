@@ -64,9 +64,16 @@ serve(async (req) => {
       throw new Error('Failed to create signed URL');
     }
 
-    // Convert image to base64 for AI processing
+    // Convert image to base64 for AI processing (chunk to avoid stack overflow)
     const arrayBuffer = await file.arrayBuffer();
-    const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+      binary += String.fromCharCode(...chunk);
+    }
+    const base64Image = btoa(binary);
     const imageDataUrl = `data:image/jpeg;base64,${base64Image}`;
 
     // Enhance image with AI

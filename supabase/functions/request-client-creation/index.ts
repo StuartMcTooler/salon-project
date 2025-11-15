@@ -25,7 +25,7 @@ serve(async (req) => {
     // Get appointment details
     const { data: appointment, error: appointmentError } = await supabase
       .from('salon_appointments')
-      .select('*, staff_members!inner(display_name, business_id)')
+      .select('*, staff_members!inner(display_name, business_id), client_id')
       .eq('id', appointmentId)
       .single();
 
@@ -48,6 +48,7 @@ serve(async (req) => {
       .insert({
         appointment_id: appointmentId,
         creative_id: creativeId,
+        client_id: appointment.client_id || null,
         client_email: appointment.customer_email || '',
         client_name: appointment.customer_name,
         client_phone: appointment.customer_phone,

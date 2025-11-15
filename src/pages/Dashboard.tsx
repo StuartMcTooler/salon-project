@@ -9,7 +9,7 @@ import { BookingCalendar } from "@/components/dashboard/BookingCalendar";
 import { ServiceManager } from "@/components/dashboard/ServiceManager";
 import { WalkInToggle } from "@/components/dashboard/WalkInToggle";
 import { MyLoyaltySettings } from "@/components/dashboard/MyLoyaltySettings";
-import { Lookbook } from "@/components/dashboard/Lookbook";
+import { ContentHub } from "@/components/dashboard/ContentHub";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -112,7 +112,7 @@ const Dashboard = () => {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="bookings">Bookings</TabsTrigger>
             <TabsTrigger value="services">Services</TabsTrigger>
-            <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
+            <TabsTrigger value="content">Content</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
@@ -129,8 +129,8 @@ const Dashboard = () => {
             <ServiceManager staffId={staffId} />
           </TabsContent>
 
-          <TabsContent value="portfolio">
-            <Lookbook staffId={staffId} />
+          <TabsContent value="content">
+            <ContentHub staffId={staffId} />
           </TabsContent>
 
           <TabsContent value="settings">

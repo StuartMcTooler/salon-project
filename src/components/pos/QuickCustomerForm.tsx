@@ -12,6 +12,7 @@ import { ArrowLeft, Loader2, CreditCard, Smartphone, Banknote } from "lucide-rea
 import { LoyaltyPointsDisplay } from "./LoyaltyPointsDisplay";
 import { LoyaltyBalanceCard } from "./LoyaltyBalanceCard";
 import { normalizePhoneNumber } from "@/lib/utils";
+import { findOrCreateClient } from "@/lib/clientUtils";
 // import { PaymentMethodSelector } from "./PaymentMethodSelector"; // Commented out - auto-launching card reader instead
 
 interface QuickCustomerFormProps {
@@ -130,6 +131,22 @@ export const QuickCustomerForm = ({
       // Normalize phone number if provided
       const normalizedPhone = customerPhone ? normalizePhoneNumber(customerPhone) : null;
 
+      // Find or create client record
+      let clientId: string | null = null;
+      if (normalizedPhone && customerName) {
+        try {
+          const client = await findOrCreateClient({
+            phone: normalizedPhone,
+            email: customerEmail || null,
+            name: customerName,
+            creativeId: staffMember.id,
+          });
+          clientId = client.id;
+        } catch (err) {
+          console.error('Failed to find/create client:', err);
+        }
+      }
+
       const now = new Date();
 
       const { data, error } = await supabase
@@ -141,9 +158,10 @@ export const QuickCustomerForm = ({
           customer_name: customerName || 'Walk-in Customer',
           customer_phone: normalizedPhone,
           customer_email: customerEmail || null,
+          client_id: clientId,
           appointment_date: now.toISOString(),
           duration_minutes: service.service.duration_minutes,
-          price: adjustedPrice, // Use adjusted price with credit applied
+          price: adjustedPrice,
           notes: notes || null,
           status: 'pending',
           payment_status: 'pending',

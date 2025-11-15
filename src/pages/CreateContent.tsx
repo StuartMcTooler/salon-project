@@ -240,6 +240,48 @@ export default function CreateContent() {
     }
   };
 
+  // Ensures the active stream is bound to the <video> after the capture view mounts
+  const attachStreamToVideo = async () => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!video || !stream) return;
+
+    // Mirror the working logic from the debug panel's reattach
+    video.srcObject = null;
+    video.muted = true;
+    video.setAttribute('playsinline', 'true');
+    video.srcObject = stream;
+
+    try {
+      await video.play();
+      console.log('auto attach: video.play() succeeded');
+    } catch (e) {
+      console.warn('auto attach: video.play() failed', e);
+    }
+
+    // Wait for readiness
+    await Promise.race([
+      new Promise<void>((resolve) => (video.readyState >= 2 ? resolve() : video.addEventListener('canplay', () => resolve(), { once: true }))),
+      new Promise<void>((resolve) => (video.readyState >= 1 ? resolve() : video.addEventListener('loadeddata', () => resolve(), { once: true }))),
+      new Promise<void>((resolve) => (video.readyState >= 1 ? resolve() : video.addEventListener('loadedmetadata', () => resolve(), { once: true }))),
+      new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+    ]);
+
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      const start = performance.now();
+      await new Promise<void>((resolve) => {
+        const check = () => {
+          if (video.videoWidth > 0 && video.videoHeight > 0) resolve();
+          else if (performance.now() - start > 2000) resolve();
+          else requestAnimationFrame(check);
+        };
+        check();
+      });
+    }
+
+    setIsVideoReady(video.videoWidth > 0 && video.videoHeight > 0);
+  };
+
   const retakePhoto = () => {
     setCapturedImage(null);
     setIsVideoReady(false);
@@ -306,6 +348,19 @@ export default function CreateContent() {
       stopCamera();
     };
   }, []);
+
+  // Auto-reattach stream when entering the capture step (video element now exists)
+  useEffect(() => {
+    if (step !== 'capture') return;
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!video || !stream) return;
+
+    const hasSrc = Boolean(video.srcObject);
+    if (!hasSrc || video.readyState === 0) {
+      attachStreamToVideo();
+    }
+  }, [step]);
 
   if (loading) {
     return (

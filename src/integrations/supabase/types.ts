@@ -278,10 +278,61 @@ export type Database = {
           },
         ]
       }
+      clients: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          first_visit_date: string | null
+          id: string
+          last_visit_date: string | null
+          name: string
+          notes: string | null
+          phone: string
+          primary_creative_id: string | null
+          total_visits: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          first_visit_date?: string | null
+          id?: string
+          last_visit_date?: string | null
+          name: string
+          notes?: string | null
+          phone: string
+          primary_creative_id?: string | null
+          total_visits?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          first_visit_date?: string | null
+          id?: string
+          last_visit_date?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string
+          primary_creative_id?: string | null
+          total_visits?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_primary_creative_id_fkey"
+            columns: ["primary_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_requests: {
         Row: {
           appointment_id: string
           client_email: string
+          client_id: string | null
           client_name: string
           client_phone: string | null
           created_at: string
@@ -296,6 +347,7 @@ export type Database = {
         Insert: {
           appointment_id: string
           client_email: string
+          client_id?: string | null
           client_name: string
           client_phone?: string | null
           created_at?: string
@@ -310,6 +362,7 @@ export type Database = {
         Update: {
           appointment_id?: string
           client_email?: string
+          client_id?: string | null
           client_name?: string
           client_phone?: string | null
           created_at?: string
@@ -327,6 +380,13 @@ export type Database = {
             columns: ["appointment_id"]
             isOneToOne: false
             referencedRelation: "salon_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -392,32 +452,57 @@ export type Database = {
       creative_lookbooks: {
         Row: {
           added_at: string
+          booking_link_enabled: boolean | null
+          client_id: string | null
           content_id: string
           creative_id: string
           display_order: number
           id: string
           is_featured: boolean
+          private_notes: string | null
+          service_id: string | null
+          service_price: number | null
           tags: string[] | null
+          visibility_type: string | null
         }
         Insert: {
           added_at?: string
+          booking_link_enabled?: boolean | null
+          client_id?: string | null
           content_id: string
           creative_id: string
           display_order?: number
           id?: string
           is_featured?: boolean
+          private_notes?: string | null
+          service_id?: string | null
+          service_price?: number | null
           tags?: string[] | null
+          visibility_type?: string | null
         }
         Update: {
           added_at?: string
+          booking_link_enabled?: boolean | null
+          client_id?: string | null
           content_id?: string
           creative_id?: string
           display_order?: number
           id?: string
           is_featured?: boolean
+          private_notes?: string | null
+          service_id?: string | null
+          service_price?: number | null
           tags?: string[] | null
+          visibility_type?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "creative_lookbooks_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "creative_lookbooks_content_id_fkey"
             columns: ["content_id"]
@@ -430,6 +515,13 @@ export type Database = {
             columns: ["creative_id"]
             isOneToOne: false
             referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creative_lookbooks_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]
@@ -577,6 +669,7 @@ export type Database = {
       }
       customer_loyalty_points: {
         Row: {
+          client_id: string | null
           created_at: string
           creative_id: string
           current_balance: number
@@ -594,6 +687,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          client_id?: string | null
           created_at?: string
           creative_id: string
           current_balance?: number
@@ -611,6 +705,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          client_id?: string | null
           created_at?: string
           creative_id?: string
           current_balance?: number
@@ -628,6 +723,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "customer_loyalty_points_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customer_loyalty_points_creative_id_fkey"
             columns: ["creative_id"]
@@ -977,6 +1079,7 @@ export type Database = {
       salon_appointments: {
         Row: {
           appointment_date: string | null
+          client_id: string | null
           created_at: string
           customer_email: string | null
           customer_name: string
@@ -998,6 +1101,7 @@ export type Database = {
         }
         Insert: {
           appointment_date?: string | null
+          client_id?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name: string
@@ -1019,6 +1123,7 @@ export type Database = {
         }
         Update: {
           appointment_date?: string | null
+          client_id?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string
@@ -1039,6 +1144,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "salon_appointments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "salon_appointments_service_id_fkey"
             columns: ["service_id"]

@@ -28,7 +28,7 @@ serve(async (req) => {
     // Validate token
     const { data: contentRequest, error: requestError } = await supabase
       .from('content_requests')
-      .select('*, staff_members!inner(display_name)')
+      .select('*, staff_members!inner(display_name), client_id')
       .eq('token', token)
       .eq('request_type', 'client_first')
       .single();
@@ -147,6 +147,7 @@ serve(async (req) => {
       .insert({
         request_id: contentRequest.id,
         creative_id: contentRequest.creative_id,
+        client_id: contentRequest.client_id || null,
         raw_file_path: fileName,
         enhanced_file_path: enhancedFileName,
         media_type: 'photo',

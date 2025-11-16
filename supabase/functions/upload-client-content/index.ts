@@ -147,7 +147,6 @@ serve(async (req) => {
       .insert({
         request_id: contentRequest.id,
         creative_id: contentRequest.creative_id,
-        client_id: contentRequest.client_id || null,
         raw_file_path: fileName,
         enhanced_file_path: enhancedFileName,
         media_type: 'photo',

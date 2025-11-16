@@ -11,6 +11,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
 import { getAvailableSlots } from "@/lib/timeSlotUtils";
 import { normalizePhoneNumber } from "@/lib/utils";
+import { findOrCreateClient } from "@/lib/clientUtils";
 
 interface SalonCheckoutProps {
   service: any;
@@ -314,6 +315,20 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
 
       if (error) throw error;
 
+      // Create or update client profile
+      const client = await findOrCreateClient({
+        phone: customerPhone,
+        email: customerEmail,
+        name: customerName,
+        creativeId: staff.id,
+      });
+
+      // Update appointment with client_id
+      await supabase
+        .from('salon_appointments')
+        .update({ client_id: client.id })
+        .eq('id', data.id);
+
       // Send WhatsApp confirmation message
       if (customerPhone) {
         const appointmentDate = new Date(appointmentDateTime);
@@ -340,15 +355,6 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
               messageType: 'booking_confirmation'
             }
           });
-
-          // Send portal OTP for immediate access
-          try {
-            await supabase.functions.invoke('send-portal-otp', {
-              body: { phone: normalizePhoneNumber(customerPhone) }
-            });
-          } catch (otpError) {
-            console.error('Failed to send portal OTP:', otpError);
-          }
         } catch (whatsappError) {
           console.error('Failed to send confirmation message:', whatsappError);
           // Don't throw - booking succeeded, notification is optional
@@ -440,12 +446,12 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
       if (depositAmount > 0) {
         toast({
           title: "Booking created!",
-          description: "Complete deposit payment to confirm your appointment. Portal access code sent to your phone.",
+          description: "Complete deposit payment to confirm your appointment. Confirmation sent with your portal access link.",
         });
       } else {
         toast({
           title: "Appointment booked!",
-          description: "Confirmation sent! Check your phone for your portal access code.",
+          description: "Confirmation sent with your portal access link",
         });
       }
       onComplete(data.id);

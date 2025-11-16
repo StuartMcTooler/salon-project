@@ -286,19 +286,14 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
       const [hours, minutes] = time.split(':');
       appointmentDateTime.setHours(parseInt(hours), parseInt(minutes));
 
-      // Create or update client profile before inserting appointment
-      const client = await findOrCreateClient({
-        phone: customerPhone,
-        email: customerEmail,
-        name: customerName,
-        creativeId: staff.id,
-      });
+      // Prepare appointment payload
+      const appointmentId = crypto.randomUUID();
 
       const appointmentData: any = {
+        id: appointmentId,
         service_id: service.id,
         service_name: service.name,
         staff_id: staff.id,
-        client_id: client.id,
         customer_name: customerName,
         customer_email: customerEmail,
         customer_phone: customerPhone,
@@ -307,7 +302,6 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
         price: finalPrice,
         notes,
       };
-
       // Add deposit info if required
       if (requiresDeposit) {
         appointmentData.deposit_amount = depositAmount;
@@ -316,11 +310,9 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
         appointmentData.payment_status = 'deposit_pending';
       }
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('salon_appointments')
-        .insert([appointmentData])
-        .select()
-        .single();
+        .insert([appointmentData]);
 
       if (error) throw error;
 
@@ -363,7 +355,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
           'create-payment-link',
           {
             body: {
-              appointmentId: data.id,
+              appointmentId: appointmentId,
               serviceId: service.id,
               serviceName: service.name,
               amount: depositAmount,
@@ -405,7 +397,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
           .update({
             used: true,
             used_at: new Date().toISOString(),
-            order_id: data.id,
+            order_id: appointmentId,
           })
           .eq('id', creditApplied.id);
       }
@@ -426,7 +418,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
                 customer_phone: refCodeData.referrer_phone,
                 customer_email: refCodeData.referrer_email,
                 staff_id: staff.id,
-                order_id: data.id,
+                order_id: appointmentId,
                 credit_type: 'referral_reward',
                 discount_percentage: 15,
                 voucher_code: `REF-${referralCode}`,
@@ -436,7 +428,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
         }
       }
 
-      return data;
+      return { id: appointmentId };
     },
     onSuccess: (data) => {
       if (depositAmount > 0) {

@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      auth_otp_requests: {
+        Row: {
+          client_id: string
+          code_hash: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          phone_number: string
+          verified: boolean | null
+          verified_at: string | null
+        }
+        Insert: {
+          client_id: string
+          code_hash: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          phone_number: string
+          verified?: boolean | null
+          verified_at?: string | null
+        }
+        Update: {
+          client_id?: string
+          code_hash?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          phone_number?: string
+          verified?: boolean | null
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auth_otp_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_accounts: {
         Row: {
           address: string | null
@@ -735,6 +776,44 @@ export type Database = {
             columns: ["creative_id"]
             isOneToOne: false
             referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_portal_sessions: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          last_accessed_at: string | null
+          remember_me: boolean | null
+          session_token: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          last_accessed_at?: string | null
+          remember_me?: boolean | null
+          session_token: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          last_accessed_at?: string | null
+          remember_me?: boolean | null
+          session_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_portal_sessions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]

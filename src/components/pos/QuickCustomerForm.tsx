@@ -447,6 +447,37 @@ export const QuickCustomerForm = ({
       .eq('id', apptId)
       .single();
     
+    // Send booking confirmation with portal link
+    if (customerPhone && updatedAppointment) {
+      try {
+        const appointmentDate = new Date(updatedAppointment.appointment_date);
+        const formattedDate = appointmentDate.toLocaleDateString('en-IE', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
+        const formattedTime = appointmentDate.toLocaleTimeString('en-IE', {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        const portalLink = `${window.location.origin}/portal`;
+        const message = `✅ Booking Confirmed!\n\n📅 ${formattedDate}\n🕐 ${formattedTime}\n💇 ${service.service.name}\n👤 with ${staffMember.display_name}\n💰 €${Number(service.custom_price).toFixed(2)}\n\n📱 Access your portal to view appointments, loyalty points & more:\n${portalLink}`;
+
+        await supabase.functions.invoke('send-whatsapp', {
+          body: {
+            to: normalizePhoneNumber(customerPhone),
+            message,
+            businessId: staffMember.business_id,
+            messageType: 'booking_confirmation'
+          }
+        });
+      } catch (whatsappError) {
+        console.error('Failed to send confirmation:', whatsappError);
+      }
+    }
+    
     if (updatedAppointment) {
       onCheckoutComplete(updatedAppointment);
     }

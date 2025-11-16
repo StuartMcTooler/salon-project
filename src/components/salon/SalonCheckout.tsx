@@ -286,10 +286,19 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
       const [hours, minutes] = time.split(':');
       appointmentDateTime.setHours(parseInt(hours), parseInt(minutes));
 
+      // Create or update client profile before inserting appointment
+      const client = await findOrCreateClient({
+        phone: customerPhone,
+        email: customerEmail,
+        name: customerName,
+        creativeId: staff.id,
+      });
+
       const appointmentData: any = {
         service_id: service.id,
         service_name: service.name,
         staff_id: staff.id,
+        client_id: client.id,
         customer_name: customerName,
         customer_email: customerEmail,
         customer_phone: customerPhone,
@@ -315,20 +324,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
 
       if (error) throw error;
 
-      // Create or update client profile
-      const client = await findOrCreateClient({
-        phone: customerPhone,
-        email: customerEmail,
-        name: customerName,
-        creativeId: staff.id,
-      });
-
-      // Update appointment with client_id
-      await supabase
-        .from('salon_appointments')
-        .update({ client_id: client.id })
-        .eq('id', data.id);
-
+      // Proceed to notifications and follow-ups
       // Send WhatsApp confirmation message
       if (customerPhone) {
         const appointmentDate = new Date(appointmentDateTime);

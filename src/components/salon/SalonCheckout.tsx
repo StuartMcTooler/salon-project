@@ -278,8 +278,8 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
         throw new Error("Please select both date and time");
       }
 
-      if (!customerName || !customerEmail || !customerPhone) {
-        throw new Error("Please provide your name, email and phone number");
+      if (!customerName || !customerPhone) {
+        throw new Error("Please provide your name and phone number");
       }
 
       const appointmentDateTime = new Date(date);
@@ -606,6 +606,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
               required
             />
           </div>
+          {/* Email field commented out - not required for booking
           <div className="space-y-2">
             <Label htmlFor="email">Email *</Label>
             <input
@@ -618,6 +619,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
               required
             />
           </div>
+          */}
           <div className="space-y-2">
             <Label htmlFor="phone">Phone Number *</Label>
             <input

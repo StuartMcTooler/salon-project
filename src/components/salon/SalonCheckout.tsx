@@ -314,6 +314,38 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
 
       if (error) throw error;
 
+      // Send WhatsApp confirmation message
+      if (customerPhone) {
+        const appointmentDate = new Date(appointmentDateTime);
+        const formattedDate = appointmentDate.toLocaleDateString('en-IE', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
+        const formattedTime = appointmentDate.toLocaleTimeString('en-IE', {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        const portalLink = `${window.location.origin}/portal`;
+        const message = `✅ Booking Confirmed!\n\n📅 ${formattedDate}\n🕐 ${formattedTime}\n💇 ${service.name}\n👤 with ${staff.display_name}\n💰 €${finalPrice.toFixed(2)}\n\n📱 Access your portal to view appointments, loyalty points & more:\n${portalLink}`;
+
+        try {
+          await supabase.functions.invoke('send-whatsapp', {
+            body: {
+              to: normalizePhoneNumber(customerPhone),
+              message,
+              businessId: staff.business_id,
+              messageType: 'booking_confirmation'
+            }
+          });
+        } catch (whatsappError) {
+          console.error('Failed to send confirmation message:', whatsappError);
+          // Don't throw - booking succeeded, notification is optional
+        }
+      }
+
       // If deposit required, create payment link
       if (depositAmount > 0) {
         const { data: paymentData, error: paymentError } = await supabase.functions.invoke(

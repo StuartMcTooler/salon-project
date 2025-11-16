@@ -10,12 +10,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Copy, Gift, Users, DollarSign } from "lucide-react";
 import { format } from "date-fns";
+import { normalizePhoneNumber } from "@/lib/utils";
 
 export const ReferralTestingTool = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [newReferralName, setNewReferralName] = useState("");
-  const [newReferralEmail, setNewReferralEmail] = useState("");
+  const [newReferralPhone, setNewReferralPhone] = useState("");
 
   const { data: referralCodes, isLoading: codesLoading } = useQuery({
     queryKey: ["referral-codes"],
@@ -60,6 +61,7 @@ export const ReferralTestingTool = () => {
   const createReferralCode = useMutation({
     mutationFn: async () => {
       const code = `REF${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      const normalizedPhone = normalizePhoneNumber(newReferralPhone);
       
       const { data, error } = await supabase
         .from("referral_codes")
@@ -67,7 +69,8 @@ export const ReferralTestingTool = () => {
           {
             code,
             referrer_name: newReferralName,
-            referrer_email: newReferralEmail,
+            referrer_phone: normalizedPhone,
+            referrer_email: null,
           },
         ])
         .select()
@@ -83,7 +86,7 @@ export const ReferralTestingTool = () => {
       });
       queryClient.invalidateQueries({ queryKey: ["referral-codes"] });
       setNewReferralName("");
-      setNewReferralEmail("");
+      setNewReferralPhone("");
     },
     onError: (error: any) => {
       toast({
@@ -193,19 +196,19 @@ export const ReferralTestingTool = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Referrer Email</Label>
+              <Label htmlFor="phone">Referrer Phone</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="john@example.com"
-                value={newReferralEmail}
-                onChange={(e) => setNewReferralEmail(e.target.value)}
+                id="phone"
+                type="tel"
+                placeholder="087 1234567"
+                value={newReferralPhone}
+                onChange={(e) => setNewReferralPhone(e.target.value)}
               />
             </div>
             <div className="flex items-end">
               <Button
                 onClick={() => createReferralCode.mutate()}
-                disabled={!newReferralName || !newReferralEmail || createReferralCode.isPending}
+                disabled={!newReferralName || !newReferralPhone || createReferralCode.isPending}
                 className="w-full"
               >
                 {createReferralCode.isPending ? (
@@ -253,7 +256,7 @@ export const ReferralTestingTool = () => {
                     <TableCell>
                       <div>
                         <div className="font-medium">{code.referrer_name}</div>
-                        <div className="text-sm text-muted-foreground">{code.referrer_email}</div>
+                        <div className="text-sm text-muted-foreground font-mono">{code.referrer_phone}</div>
                       </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">

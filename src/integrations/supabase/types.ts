@@ -984,25 +984,25 @@ export type Database = {
           code: string
           created_at: string
           id: string
-          referrer_email: string
+          referrer_email: string | null
           referrer_name: string
-          referrer_phone: string | null
+          referrer_phone: string
         }
         Insert: {
           code: string
           created_at?: string
           id?: string
-          referrer_email: string
+          referrer_email?: string | null
           referrer_name: string
-          referrer_phone?: string | null
+          referrer_phone: string
         }
         Update: {
           code?: string
           created_at?: string
           id?: string
-          referrer_email?: string
+          referrer_email?: string | null
           referrer_name?: string
-          referrer_phone?: string | null
+          referrer_phone?: string
         }
         Relationships: []
       }
@@ -1457,8 +1457,8 @@ export type Database = {
         Row: {
           created_at: string
           credit_type: string
-          customer_email: string
-          customer_phone: string | null
+          customer_email: string | null
+          customer_phone: string
           discount_percentage: number
           expires_at: string | null
           id: string
@@ -1471,8 +1471,8 @@ export type Database = {
         Insert: {
           created_at?: string
           credit_type: string
-          customer_email: string
-          customer_phone?: string | null
+          customer_email?: string | null
+          customer_phone: string
           discount_percentage: number
           expires_at?: string | null
           id?: string
@@ -1485,8 +1485,8 @@ export type Database = {
         Update: {
           created_at?: string
           credit_type?: string
-          customer_email?: string
-          customer_phone?: string | null
+          customer_email?: string | null
+          customer_phone?: string
           discount_percentage?: number
           expires_at?: string | null
           id?: string

@@ -16,6 +16,9 @@ import NotFound from "./pages/NotFound";
 import POS from "./pages/POS";
 import ApproveContent from "./pages/ApproveContent";
 import CreateContent from "./pages/CreateContent";
+import Portal from "./pages/Portal";
+import PortalVerify from "./pages/PortalVerify";
+import PortalHome from "./pages/PortalHome";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +42,9 @@ const App = () => (
           <Route path="/pos" element={<POS />} />
           <Route path="/approve/:token" element={<ApproveContent />} />
           <Route path="/create/:token" element={<CreateContent />} />
+          <Route path="/portal" element={<Portal />} />
+          <Route path="/portal/verify" element={<PortalVerify />} />
+          <Route path="/portal/home" element={<PortalHome />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

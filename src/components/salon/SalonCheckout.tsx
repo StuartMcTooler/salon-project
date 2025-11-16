@@ -340,6 +340,15 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
               messageType: 'booking_confirmation'
             }
           });
+
+          // Send portal OTP for immediate access
+          try {
+            await supabase.functions.invoke('send-portal-otp', {
+              body: { phone: normalizePhoneNumber(customerPhone) }
+            });
+          } catch (otpError) {
+            console.error('Failed to send portal OTP:', otpError);
+          }
         } catch (whatsappError) {
           console.error('Failed to send confirmation message:', whatsappError);
           // Don't throw - booking succeeded, notification is optional
@@ -431,12 +440,12 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
       if (depositAmount > 0) {
         toast({
           title: "Booking created!",
-          description: "Complete deposit payment to confirm your appointment.",
+          description: "Complete deposit payment to confirm your appointment. Portal access code sent to your phone.",
         });
       } else {
         toast({
           title: "Appointment booked!",
-          description: "Your appointment has been successfully scheduled.",
+          description: "Confirmation sent! Check your phone for your portal access code.",
         });
       }
       onComplete(data.id);
@@ -573,55 +582,53 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
         </CardContent>
       </Card>
 
-      {!user && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Information</CardTitle>
-            <CardDescription>We'll use this to confirm your appointment</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
-              <input
-                id="name"
-                type="text"
-                className="w-full px-3 py-2 border rounded-md"
-                placeholder="Your name"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
-              <input
-                id="email"
-                type="email"
-                className="w-full px-3 py-2 border rounded-md"
-                placeholder="your@email.com"
-                value={customerEmail}
-                onChange={(e) => setCustomerEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number *</Label>
-              <input
-                id="phone"
-                type="tel"
-                className="w-full px-3 py-2 border rounded-md"
-                placeholder="+353 123 456 789"
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                Required for booking confirmation & portal access
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Customer Information</CardTitle>
+          <CardDescription>Required for booking confirmation & portal access</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Name *</Label>
+            <input
+              id="name"
+              type="text"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="Customer name"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email *</Label>
+            <input
+              id="email"
+              type="email"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="customer@email.com"
+              value={customerEmail}
+              onChange={(e) => setCustomerEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="phone">Phone Number *</Label>
+            <input
+              id="phone"
+              type="tel"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="+353 123 456 789"
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value)}
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Required for booking confirmation & portal access
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

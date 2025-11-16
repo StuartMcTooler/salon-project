@@ -91,7 +91,7 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {staffData?.map((item) => {
+        {staffData?.filter(item => item.staff !== null).map((item) => {
           const staff = item.staff;
           const pricing = item.custom_price;
           

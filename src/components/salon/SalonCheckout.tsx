@@ -277,8 +277,8 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
         throw new Error("Please select both date and time");
       }
 
-      if (!customerName || !customerEmail) {
-        throw new Error("Please provide your name and email");
+      if (!customerName || !customerEmail || !customerPhone) {
+        throw new Error("Please provide your name, email and phone number");
       }
 
       const appointmentDateTime = new Date(date);
@@ -605,7 +605,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="phone">Phone Number *</Label>
               <input
                 id="phone"
                 type="tel"
@@ -613,7 +613,11 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
                 placeholder="+353 123 456 789"
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
+                required
               />
+              <p className="text-xs text-muted-foreground">
+                Required for booking confirmation & portal access
+              </p>
             </div>
           </CardContent>
         </Card>

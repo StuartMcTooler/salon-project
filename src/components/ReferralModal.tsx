@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, Gift, Check } from "lucide-react";
 import { useReferralDiscount } from "@/hooks/useReferralDiscount";
+import { normalizePhoneNumber } from "@/lib/utils";
 
 interface ReferralModalProps {
   isOpen: boolean;
@@ -27,15 +28,16 @@ export const ReferralModal = ({ isOpen, onClose, customerEmail, customerName, cu
     mutationFn: async () => {
       // Generate unique code
       const code = `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      const normalizedPhone = normalizePhoneNumber(customerPhone);
       
       const { data, error } = await supabase
         .from('referral_codes')
         .insert([
           {
             code,
-            referrer_email: customerEmail,
+            referrer_phone: normalizedPhone, // Phone as primary identifier
             referrer_name: customerName,
-            referrer_phone: customerPhone, // Phone as primary identifier
+            referrer_email: customerEmail || null,
           }
         ])
         .select()

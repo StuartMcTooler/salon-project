@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useReferralDiscount } from "@/hooks/useReferralDiscount";
 import { HowItWorksCard } from "./HowItWorksCard";
 import { useBusinessConfig } from "@/hooks/useBusinessConfig";
+import { normalizePhoneNumber } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -25,8 +26,9 @@ interface CustomerReferralManagerProps {
 interface ReferralCode {
   id: string;
   code: string;
-  referrer_email: string;
+  referrer_phone: string;
   referrer_name: string;
+  referrer_email?: string | null;
   created_at: string;
 }
 
@@ -36,7 +38,7 @@ export const CustomerReferralManager = ({ staffMemberId }: CustomerReferralManag
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
-  const [newCustomerEmail, setNewCustomerEmail] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const discount = useReferralDiscount(staffMemberId);
   const { config, loading: configLoading } = useBusinessConfig();
 
@@ -47,12 +49,23 @@ export const CustomerReferralManager = ({ staffMemberId }: CustomerReferralManag
   const loadCodes = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.email) return;
+      if (!user) return;
+
+      // Get staff member's phone
+      const { data: staffData } = await supabase
+        .from('staff_members')
+        .select('phone')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!staffData?.phone) return;
+
+      const normalizedPhone = normalizePhoneNumber(staffData.phone);
 
       const { data, error } = await supabase
         .from('referral_codes')
         .select('*')
-        .eq('referrer_email', user.email)
+        .eq('referrer_phone', normalizedPhone)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -66,27 +79,29 @@ export const CustomerReferralManager = ({ staffMemberId }: CustomerReferralManag
   };
 
   const handleGenerateCode = async () => {
-    if (!newCustomerName || !newCustomerEmail) {
-      toast.error("Please enter both name and email");
+    if (!newCustomerName || !newCustomerPhone) {
+      toast.error("Please enter both name and phone number");
       return;
     }
 
     try {
       const code = `REF-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+      const normalizedPhone = normalizePhoneNumber(newCustomerPhone);
       
       const { error } = await supabase
         .from('referral_codes')
         .insert({
           code,
           referrer_name: newCustomerName,
-          referrer_email: newCustomerEmail.toLowerCase()
+          referrer_phone: normalizedPhone,
+          referrer_email: null,
         });
 
       if (error) throw error;
 
       toast.success("Referral code generated!");
       setNewCustomerName("");
-      setNewCustomerEmail("");
+      setNewCustomerPhone("");
       setShowDialog(false);
       loadCodes();
     } catch (error: any) {
@@ -176,13 +191,13 @@ export const CustomerReferralManager = ({ staffMemberId }: CustomerReferralManag
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Customer Email</Label>
+                    <Label htmlFor="phone">Customer Phone</Label>
                     <Input
-                      id="email"
-                      type="email"
-                      value={newCustomerEmail}
-                      onChange={(e) => setNewCustomerEmail(e.target.value)}
-                      placeholder="sarah@example.com"
+                      id="phone"
+                      type="tel"
+                      value={newCustomerPhone}
+                      onChange={(e) => setNewCustomerPhone(e.target.value)}
+                      placeholder="087 1234567"
                     />
                   </div>
                   <Button onClick={handleGenerateCode} className="w-full">
@@ -207,7 +222,7 @@ export const CustomerReferralManager = ({ staffMemberId }: CustomerReferralManag
                 <div key={code.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex-1">
                     <div className="font-medium">{code.referrer_name}</div>
-                    <div className="text-sm text-muted-foreground">{code.referrer_email}</div>
+                    <div className="text-sm text-muted-foreground font-mono">{code.referrer_phone}</div>
                     <div className="text-xs text-muted-foreground mt-1">
                       Created: {new Date(code.created_at).toLocaleDateString()}
                     </div>

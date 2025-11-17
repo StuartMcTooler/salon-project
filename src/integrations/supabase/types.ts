@@ -1338,6 +1338,7 @@ export type Database = {
           full_name: string
           hourly_rate: number | null
           id: string
+          is_accepting_referrals: boolean | null
           is_active: boolean | null
           phone: string | null
           profile_image_url: string | null
@@ -1367,6 +1368,7 @@ export type Database = {
           full_name: string
           hourly_rate?: number | null
           id?: string
+          is_accepting_referrals?: boolean | null
           is_active?: boolean | null
           phone?: string | null
           profile_image_url?: string | null
@@ -1396,6 +1398,7 @@ export type Database = {
           full_name?: string
           hourly_rate?: number | null
           id?: string
+          is_accepting_referrals?: boolean | null
           is_active?: boolean | null
           phone?: string | null
           profile_image_url?: string | null

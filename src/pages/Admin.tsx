@@ -12,7 +12,10 @@ import { BusinessManagement } from "@/components/admin/BusinessManagement";
 import { TerminalSettings } from "@/components/admin/TerminalSettings";
 import { BusinessHoursSettings } from "@/components/admin/BusinessHoursSettings";
 import { StaffHoursSettings } from "@/components/admin/StaffHoursSettings";
-import { MultiStaffCalendar } from "@/components/dashboard/MultiStaffCalendar";
+import { VerticalStaffCalendar } from "@/components/admin/VerticalStaffCalendar";
+import { ScheduleToolbar } from "@/components/admin/ScheduleToolbar";
+import { ClientManagement } from "@/components/admin/ClientManagement";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StaffPerformanceDashboard } from "@/components/admin/StaffPerformanceDashboard";
 import { ReferralDiscountSettings } from "@/components/admin/ReferralDiscountSettings";
 import { TierManagement } from "@/components/admin/TierManagement";
@@ -25,6 +28,7 @@ export default function Admin() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const { config, loading: configLoading } = useBusinessConfig();
   const businessId = config.businessId || "";
 
@@ -97,21 +101,43 @@ export default function Admin() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="business" className="space-y-6">
+        <Tabs defaultValue="schedule" className="space-y-6">
           <TabsList className="w-full flex flex-wrap justify-start h-auto gap-2">
-            <TabsTrigger value="business">Business</TabsTrigger>
-            {features.staffManagement && <TabsTrigger value="staff">Staff</TabsTrigger>}
-            {features.staffManagement && <TabsTrigger value="tiers">Tiers</TabsTrigger>}
-            {features.terminalSettings && <TabsTrigger value="terminal">Terminal</TabsTrigger>}
-            {features.businessHours && <TabsTrigger value="hours">Hours</TabsTrigger>}
-            {features.multiStaffCalendar && <TabsTrigger value="schedule">Schedule</TabsTrigger>}
-            <TabsTrigger value="services">Services</TabsTrigger>
-            {features.servicePricing && <TabsTrigger value="pricing">Pricing</TabsTrigger>}
-            {features.loyaltyProgram && <TabsTrigger value="loyalty">Loyalty</TabsTrigger>}
+            <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            <TabsTrigger value="clients">Clients</TabsTrigger>
             {features.staffPerformance && <TabsTrigger value="reports">Reports</TabsTrigger>}
-            <TabsTrigger value="feedback">Feedback</TabsTrigger>
-            <TabsTrigger value="referral-testing">Testing</TabsTrigger>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">Settings ▼</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => navigate('?tab=business')}>Business</DropdownMenuItem>
+                {features.staffManagement && <DropdownMenuItem onClick={() => navigate('?tab=staff')}>Staff</DropdownMenuItem>}
+                {features.staffManagement && <DropdownMenuItem onClick={() => navigate('?tab=tiers')}>Tiers</DropdownMenuItem>}
+                <DropdownMenuItem onClick={() => navigate('?tab=services')}>Services</DropdownMenuItem>
+                {features.servicePricing && <DropdownMenuItem onClick={() => navigate('?tab=pricing')}>Pricing</DropdownMenuItem>}
+                {features.businessHours && <DropdownMenuItem onClick={() => navigate('?tab=hours')}>Hours</DropdownMenuItem>}
+                {features.terminalSettings && <DropdownMenuItem onClick={() => navigate('?tab=terminal')}>Terminal</DropdownMenuItem>}
+                {features.loyaltyProgram && <DropdownMenuItem onClick={() => navigate('?tab=loyalty')}>Loyalty</DropdownMenuItem>}
+                <DropdownMenuItem onClick={() => navigate('?tab=feedback')}>Feedback</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </TabsList>
+
+          <TabsContent value="schedule">
+            <ScheduleToolbar selectedDate={selectedDate} onDateChange={setSelectedDate} />
+            <VerticalStaffCalendar selectedDate={selectedDate} />
+          </TabsContent>
+
+          <TabsContent value="clients">
+            <ClientManagement />
+          </TabsContent>
+
+          {features.staffPerformance && (
+            <TabsContent value="reports">
+              <StaffPerformanceDashboard />
+            </TabsContent>
+          )}
 
           <TabsContent value="business">
             <BusinessManagement />
@@ -154,24 +180,12 @@ export default function Admin() {
             </TabsContent>
           )}
 
-          {features.multiStaffCalendar && (
-            <TabsContent value="schedule">
-              <MultiStaffCalendar />
-            </TabsContent>
-          )}
-
           {features.loyaltyProgram && (
             <TabsContent value="loyalty">
               <div className="space-y-6">
                 <LoyaltyProgramSettings businessId={businessId} />
                 <ReferralDiscountSettings businessId={businessId} />
               </div>
-            </TabsContent>
-          )}
-
-          {features.staffPerformance && (
-            <TabsContent value="reports">
-              <StaffPerformanceDashboard />
             </TabsContent>
           )}
 

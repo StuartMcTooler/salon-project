@@ -5,17 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Scissors } from "lucide-react";
 import { QuickStats } from "@/components/dashboard/QuickStats";
-import { BookingCalendar } from "@/components/dashboard/BookingCalendar";
+import { TimelineAppointments } from "@/components/dashboard/TimelineAppointments";
+import { AllBookingsView } from "@/components/dashboard/AllBookingsView";
 import { ServiceManager } from "@/components/dashboard/ServiceManager";
 import { WalkInToggle } from "@/components/dashboard/WalkInToggle";
 import { MyLoyaltySettings } from "@/components/dashboard/MyLoyaltySettings";
 import { ContentHub } from "@/components/dashboard/ContentHub";
+import { ReferralIncomeCard } from "@/components/dashboard/ReferralIncomeCard";
+import { SmartWaitlistToggle } from "@/components/dashboard/SmartWaitlistToggle";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [staffId, setStaffId] = useState<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -107,37 +111,49 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="overview" className="space-y-4">
+        <Tabs defaultValue="today" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="bookings">Bookings</TabsTrigger>
-            <TabsTrigger value="services">Services</TabsTrigger>
+            <TabsTrigger value="today">Today</TabsTrigger>
+            <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="content">Content</TabsTrigger>
+            <TabsTrigger value="income">Income</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-4">
+          <TabsContent value="today" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <ReferralIncomeCard staffId={staffId} />
+              <SmartWaitlistToggle staffId={staffId} />
+            </div>
             <QuickStats staffId={staffId} />
-            <BookingCalendar staffId={staffId} />
+            <TimelineAppointments 
+              staffId={staffId} 
+              onAppointmentSelect={(apt) => {
+                setSelectedAppointment(apt);
+                navigate('/pos');
+              }}
+            />
           </TabsContent>
 
-          <TabsContent value="bookings">
-            <BookingCalendar staffId={staffId} showAll />
+          <TabsContent value="schedule">
+            <AllBookingsView staffId={staffId} />
           </TabsContent>
 
-          <TabsContent value="services">
-            <ServiceManager staffId={staffId} />
+          <TabsContent value="income">
+            <div className="space-y-4">
+              <ReferralIncomeCard staffId={staffId} />
+              <QuickStats staffId={staffId} />
+            </div>
           </TabsContent>
 
           <TabsContent value="content">
             <ContentHub staffId={staffId} />
           </TabsContent>
 
-          <TabsContent value="settings">
+          <TabsContent value="settings" className="space-y-6">
+            <ServiceManager staffId={staffId} />
             <WalkInToggle businessId={businessId} />
-            <div className="mt-6">
-              <MyLoyaltySettings staffId={staffId} businessId={businessId} />
-            </div>
+            <MyLoyaltySettings staffId={staffId} businessId={businessId} />
           </TabsContent>
         </Tabs>
       </main>

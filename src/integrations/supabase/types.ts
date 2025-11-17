@@ -1160,6 +1160,7 @@ export type Database = {
           appointment_date: string | null
           client_id: string | null
           created_at: string
+          created_by_user_id: string | null
           customer_email: string | null
           customer_name: string
           customer_phone: string | null
@@ -1182,6 +1183,7 @@ export type Database = {
           appointment_date?: string | null
           client_id?: string | null
           created_at?: string
+          created_by_user_id?: string | null
           customer_email?: string | null
           customer_name: string
           customer_phone?: string | null
@@ -1204,6 +1206,7 @@ export type Database = {
           appointment_date?: string | null
           client_id?: string | null
           created_at?: string
+          created_by_user_id?: string | null
           customer_email?: string | null
           customer_name?: string
           customer_phone?: string | null
@@ -1582,24 +1585,35 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          business_id: string | null
           created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
+          business_id?: string | null
           created_at?: string
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
+          business_id?: string | null
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       walk_in_settings: {
         Row: {
@@ -1663,7 +1677,7 @@ export type Database = {
       update_staff_rating: { Args: { staff_uuid: string }; Returns: undefined }
     }
     Enums: {
-      app_role: "admin" | "staff" | "user"
+      app_role: "admin" | "staff" | "user" | "front_desk"
       business_type: "multi_staff_salon" | "solo_professional"
       commission_type: "finders_fee" | "revenue_share"
       creative_tier: "standard" | "pro"
@@ -1795,7 +1809,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "staff", "user"],
+      app_role: ["admin", "staff", "user", "front_desk"],
       business_type: ["multi_staff_salon", "solo_professional"],
       commission_type: ["finders_fee", "revenue_share"],
       creative_tier: ["standard", "pro"],

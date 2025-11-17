@@ -82,6 +82,20 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
     };
   }, [refetch]);
 
+  const handleNewAppointmentClick = async (staffId: string, time: Date) => {
+    // Get current user for audit trail
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const staff = staffMembers?.find(s => s.id === staffId);
+    setSelectedAppointment({
+      staff_id: staffId,
+      staff_name: staff?.display_name || '',
+      appointment_date: time.toISOString(),
+      created_by_user_id: user?.id, // Audit trail
+    });
+    setDialogOpen(true);
+  };
+
   const calculateGridPosition = (appointmentDate: string, durationMinutes: number) => {
     const aptDate = new Date(appointmentDate);
     const startHour = 9; // 9 AM
@@ -185,8 +199,9 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
               return (
                 <div
                   key={`slot-${staff.id}-${slotIndex}`}
-                  className={`relative ${isAvailable ? 'bg-background' : 'bg-muted/50'}`}
+                  className={`relative ${isAvailable ? 'bg-background hover:bg-accent cursor-pointer' : 'bg-muted/50'}`}
                   style={{ gridRow: slotIndex + 2 }}
+                  onClick={() => isAvailable && handleNewAppointmentClick(staff.id, slotTime)}
                 >
                   {/* Appointments will be positioned absolutely over these cells */}
                 </div>

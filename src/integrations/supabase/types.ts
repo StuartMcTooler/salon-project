@@ -1658,11 +1658,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_front_desk_role: {
+        Args: { _admin_user_id: string; _business_id: string; _user_id: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_front_desk_for_business: {
+        Args: { _business_id: string; _user_id: string }
         Returns: boolean
       }
       is_solo_professional: { Args: { _user_id: string }; Returns: boolean }

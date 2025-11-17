@@ -15,6 +15,7 @@ import { StaffHoursSettings } from "@/components/admin/StaffHoursSettings";
 import { VerticalStaffCalendar } from "@/components/admin/VerticalStaffCalendar";
 import { ScheduleToolbar } from "@/components/admin/ScheduleToolbar";
 import { ClientManagement } from "@/components/admin/ClientManagement";
+import { FrontDeskManagement } from "@/components/admin/FrontDeskManagement";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StaffPerformanceDashboard } from "@/components/admin/StaffPerformanceDashboard";
 import { ReferralDiscountSettings } from "@/components/admin/ReferralDiscountSettings";
@@ -23,47 +24,38 @@ import { FeedbackDashboard } from "@/components/admin/FeedbackDashboard";
 import { ReferralTestingTool } from "@/components/admin/ReferralTestingTool";
 import { toast } from "sonner";
 import { useBusinessConfig } from "@/hooks/useBusinessConfig";
+import { useUserRole } from "@/hooks/useUserRole";
 
 export default function Admin() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const { config, loading: configLoading } = useBusinessConfig();
   const businessId = config.businessId || "";
+  const { role, loading: roleLoading, isAdmin, isFrontDesk } = useUserRole();
 
   useEffect(() => {
     checkAdminAccess();
-  }, []);
+  }, [isAdmin, isFrontDesk, roleLoading]);
 
   const checkAdminAccess = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
+    if (roleLoading) return;
 
-      const { data, error } = await supabase
-        .rpc("has_role", { _user_id: user.id, _role: "admin" });
-
-      if (error) throw error;
-
-      if (!data) {
-        toast.error("Access denied. Admin privileges required.");
-        navigate("/salon");
-        return;
-      }
-
-      setIsAdmin(true);
-    } catch (error) {
-      console.error("Error checking admin access:", error);
-      toast.error("Error verifying permissions");
-      navigate("/salon");
-    } finally {
-      setLoading(false);
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      navigate("/auth");
+      return;
     }
+
+    // Allow both admin and front_desk roles
+    if (!isAdmin && !isFrontDesk) {
+      toast.error("Access denied. Admin or Front Desk privileges required.");
+      navigate("/salon");
+      return;
+    }
+
+    setLoading(false);
   };
 
   const handleSignOut = async () => {
@@ -71,7 +63,7 @@ export default function Admin() {
     navigate("/auth");
   };
 
-  if (loading || configLoading) {
+  if (loading || configLoading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -79,7 +71,7 @@ export default function Admin() {
     );
   }
 
-  if (!isAdmin) return null;
+  if (!isAdmin && !isFrontDesk) return null;
 
   const { features } = config;
 
@@ -105,23 +97,26 @@ export default function Admin() {
           <TabsList className="w-full flex flex-wrap justify-start h-auto gap-2">
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="clients">Clients</TabsTrigger>
-            {features.staffPerformance && <TabsTrigger value="reports">Reports</TabsTrigger>}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">Settings ▼</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => navigate('?tab=business')}>Business</DropdownMenuItem>
-                {features.staffManagement && <DropdownMenuItem onClick={() => navigate('?tab=staff')}>Staff</DropdownMenuItem>}
-                {features.staffManagement && <DropdownMenuItem onClick={() => navigate('?tab=tiers')}>Tiers</DropdownMenuItem>}
-                <DropdownMenuItem onClick={() => navigate('?tab=services')}>Services</DropdownMenuItem>
-                {features.servicePricing && <DropdownMenuItem onClick={() => navigate('?tab=pricing')}>Pricing</DropdownMenuItem>}
-                {features.businessHours && <DropdownMenuItem onClick={() => navigate('?tab=hours')}>Hours</DropdownMenuItem>}
-                {features.terminalSettings && <DropdownMenuItem onClick={() => navigate('?tab=terminal')}>Terminal</DropdownMenuItem>}
-                {features.loyaltyProgram && <DropdownMenuItem onClick={() => navigate('?tab=loyalty')}>Loyalty</DropdownMenuItem>}
-                <DropdownMenuItem onClick={() => navigate('?tab=feedback')}>Feedback</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {isAdmin && features.staffPerformance && <TabsTrigger value="reports">Reports</TabsTrigger>}
+            {isAdmin && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">Settings ▼</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => navigate('?tab=business')}>Business</DropdownMenuItem>
+                  {features.staffManagement && <DropdownMenuItem onClick={() => navigate('?tab=staff')}>Staff</DropdownMenuItem>}
+                  {features.staffManagement && <DropdownMenuItem onClick={() => navigate('?tab=tiers')}>Tiers</DropdownMenuItem>}
+                  <DropdownMenuItem onClick={() => navigate('?tab=services')}>Services</DropdownMenuItem>
+                  {features.servicePricing && <DropdownMenuItem onClick={() => navigate('?tab=pricing')}>Pricing</DropdownMenuItem>}
+                  {features.businessHours && <DropdownMenuItem onClick={() => navigate('?tab=hours')}>Hours</DropdownMenuItem>}
+                  {features.terminalSettings && <DropdownMenuItem onClick={() => navigate('?tab=terminal')}>Terminal</DropdownMenuItem>}
+                  {features.loyaltyProgram && <DropdownMenuItem onClick={() => navigate('?tab=loyalty')}>Loyalty</DropdownMenuItem>}
+                  <DropdownMenuItem onClick={() => navigate('?tab=feedback')}>Feedback</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('?tab=front-desk')}>Front Desk</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </TabsList>
 
           <TabsContent value="schedule">
@@ -133,69 +128,77 @@ export default function Admin() {
             <ClientManagement />
           </TabsContent>
 
-          {features.staffPerformance && (
+          {isAdmin && features.staffPerformance && (
             <TabsContent value="reports">
               <StaffPerformanceDashboard />
             </TabsContent>
           )}
 
-          <TabsContent value="business">
-            <BusinessManagement />
-          </TabsContent>
+          {isAdmin && (
+            <>
+              <TabsContent value="business">
+                <BusinessManagement />
+              </TabsContent>
 
-          {features.staffManagement && (
-            <TabsContent value="staff">
-              <StaffManagement />
-            </TabsContent>
+              {features.staffManagement && (
+                <TabsContent value="staff">
+                  <StaffManagement />
+                </TabsContent>
+              )}
+
+              {features.staffManagement && (
+                <TabsContent value="tiers">
+                  <TierManagement />
+                </TabsContent>
+              )}
+
+              {features.terminalSettings && (
+                <TabsContent value="terminal">
+                  <TerminalSettings businessId={businessId} />
+                </TabsContent>
+              )}
+
+              <TabsContent value="services">
+                <ServiceManagement />
+              </TabsContent>
+
+              {features.servicePricing && (
+                <TabsContent value="pricing">
+                  <ServicePricing />
+                </TabsContent>
+              )}
+
+              {features.businessHours && (
+                <TabsContent value="hours">
+                  <div className="space-y-6">
+                    <BusinessHoursSettings />
+                    {features.staffHours && <StaffHoursSettings />}
+                  </div>
+                </TabsContent>
+              )}
+
+              {features.loyaltyProgram && (
+                <TabsContent value="loyalty">
+                  <div className="space-y-6">
+                    <LoyaltyProgramSettings businessId={businessId} />
+                    <ReferralDiscountSettings businessId={businessId} />
+                  </div>
+                </TabsContent>
+              )}
+
+              <TabsContent value="feedback">
+                <FeedbackDashboard />
+              </TabsContent>
+
+              <TabsContent value="front-desk">
+                <FrontDeskManagement />
+              </TabsContent>
+
+              <TabsContent value="referral-testing">
+                <ReferralTestingTool />
+              </TabsContent>
+            </>
           )}
-
-          {features.staffManagement && (
-            <TabsContent value="tiers">
-              <TierManagement />
-            </TabsContent>
-          )}
-
-          {features.terminalSettings && (
-            <TabsContent value="terminal">
-              <TerminalSettings businessId={businessId} />
-            </TabsContent>
-          )}
-
-          <TabsContent value="services">
-            <ServiceManagement />
-          </TabsContent>
-
-          {features.servicePricing && (
-            <TabsContent value="pricing">
-              <ServicePricing />
-            </TabsContent>
-          )}
-
-          {features.businessHours && (
-            <TabsContent value="hours">
-              <div className="space-y-6">
-                <BusinessHoursSettings />
-                {features.staffHours && <StaffHoursSettings />}
-              </div>
-            </TabsContent>
-          )}
-
-          {features.loyaltyProgram && (
-            <TabsContent value="loyalty">
-              <div className="space-y-6">
-                <LoyaltyProgramSettings businessId={businessId} />
-                <ReferralDiscountSettings businessId={businessId} />
-              </div>
-            </TabsContent>
-          )}
-
-          <TabsContent value="feedback">
-            <FeedbackDashboard />
-          </TabsContent>
-
-          <TabsContent value="referral-testing">
-            <ReferralTestingTool />
-          </TabsContent>
         </Tabs>
       </main>
     </div>

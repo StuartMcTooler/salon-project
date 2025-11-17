@@ -220,12 +220,48 @@ export default function CreateContent() {
       return;
     }
     
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    // Check device orientation to properly rotate the image if needed
+    const isPortrait = window.matchMedia('(orientation: portrait)').matches;
+    const videoTrack = streamRef.current?.getVideoTracks()[0];
+    const settings = videoTrack?.getSettings();
+    
+    // Determine if we need to rotate based on device orientation and camera facing mode
+    let rotation = 0;
+    if (isPortrait && settings) {
+      // For user-facing camera in portrait mode, often needs 270° rotation
+      // For environment-facing camera in portrait mode, often needs 90° rotation
+      const isFrontCamera = settings.facingMode === 'user';
+      rotation = isFrontCamera ? 270 : 90;
+    }
     
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.drawImage(video, 0, 0);
+      // Set canvas dimensions based on rotation
+      if (rotation === 90 || rotation === 270) {
+        canvas.width = video.videoHeight;
+        canvas.height = video.videoWidth;
+      } else {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+      }
+      
+      // Apply rotation transform
+      ctx.save();
+      
+      if (rotation === 90) {
+        ctx.translate(canvas.width, 0);
+        ctx.rotate(Math.PI / 2);
+      } else if (rotation === 270) {
+        ctx.translate(0, canvas.height);
+        ctx.rotate(-Math.PI / 2);
+      } else if (rotation === 180) {
+        ctx.translate(canvas.width, canvas.height);
+        ctx.rotate(Math.PI);
+      }
+      
+      ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+      ctx.restore();
+      
       const imageData = canvas.toDataURL('image/jpeg', 0.95);
       setCapturedImage(imageData);
       setStep('preview');

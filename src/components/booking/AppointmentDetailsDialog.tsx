@@ -119,8 +119,16 @@ export const AppointmentDetailsDialog = ({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Appointment Details</DialogTitle>
-            <DialogDescription>
-              {isEditing ? "Edit appointment details" : "View and manage this appointment"}
+            <DialogDescription className="space-y-1">
+              <div>{isEditing ? "Edit appointment details" : "View and manage this appointment"}</div>
+              {appointment.created_by_user_id && (
+                <div className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                  Booked by: {appointment.created_by_user_id === appointment.staff_id 
+                    ? 'Self' 
+                    : 'Front Desk'
+                  } on {format(new Date(appointment.created_at || appointment.appointment_date), 'MMM d, h:mm a')}
+                </div>
+              )}
             </DialogDescription>
           </DialogHeader>
 

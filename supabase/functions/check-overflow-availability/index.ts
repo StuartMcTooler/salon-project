@@ -221,14 +221,22 @@ function generateAvailableSlots(
 ): { time: string; endTime: string }[] {
   const hours = staffHours || businessHours;
   if (!hours) {
-    // Default 9 AM - 6 PM
+    // Default 9 AM - 6 PM when no hours are configured
     return generateTimeSlots(9, 18, appointments, serviceDuration);
   }
 
   const startHour = parseInt(hours.start_time.split(":")[0]);
   const endHour = parseInt(hours.end_time.split(":")[0]);
-  
-  return generateTimeSlots(startHour, endHour, appointments, serviceDuration);
+
+  // Handle overnight or invalid ranges (e.g. 09:00 - 01:00)
+  if (isNaN(startHour) || isNaN(endHour)) {
+    return generateTimeSlots(9, 18, appointments, serviceDuration);
+  }
+
+  // If endHour is earlier than startHour, assume closing at midnight
+  const effectiveEndHour = endHour > startHour ? endHour : 24;
+
+  return generateTimeSlots(startHour, effectiveEndHour, appointments, serviceDuration);
 }
 
 function generateTimeSlots(

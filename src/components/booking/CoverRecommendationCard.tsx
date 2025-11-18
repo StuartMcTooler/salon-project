@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Info, Clock } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface CoverOption {
   staffId: string;
@@ -30,6 +32,8 @@ export const CoverRecommendationCard = ({
   onSelectCover,
   onCancel
 }: CoverRecommendationCardProps) => {
+  const [selectedSlot, setSelectedSlot] = useState<{ staffId: string; time: string } | null>(null);
+
   if (coverOptions.length === 0) {
     return (
       <Card className="border-2 border-muted">
@@ -89,17 +93,28 @@ export const CoverRecommendationCard = ({
                 Available Times
               </p>
               <div className="grid grid-cols-3 gap-2">
-                {option.availableSlots.slice(0, 6).map((slot) => (
-                  <Button
-                    key={slot.time}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onSelectCover(option.staffId, slot.time)}
-                    className="hover:bg-primary hover:text-primary-foreground"
-                  >
-                    {slot.time}
-                  </Button>
-                ))}
+                {option.availableSlots.slice(0, 6).map((slot) => {
+                  const isSelected =
+                    selectedSlot?.staffId === option.staffId && selectedSlot?.time === slot.time;
+
+                  return (
+                    <Button
+                      key={slot.time}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedSlot({ staffId: option.staffId, time: slot.time });
+                        onSelectCover(option.staffId, slot.time);
+                      }}
+                      className={cn(
+                        "hover:bg-primary hover:text-primary-foreground",
+                        isSelected && "bg-primary/10 text-primary border-primary"
+                      )}
+                    >
+                      {slot.time}
+                    </Button>
+                  );
+                })}
               </div>
               {option.availableSlots.length > 6 && (
                 <p className="text-xs text-muted-foreground text-center mt-1">

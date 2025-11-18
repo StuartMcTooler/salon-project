@@ -714,7 +714,6 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
                   onSelectCover={(coverStaffId, slot) => {
                     setSelectedCoverStaff(coverStaffId);
                     setTime(slot);
-                    setOverflowState(null);
                   }}
                   onCancel={() => {
                     setDate(undefined);

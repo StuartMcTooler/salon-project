@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.send-whatsapp]
 verify_jwt = false
+
+[functions.check-overflow-availability]
+verify_jwt = false

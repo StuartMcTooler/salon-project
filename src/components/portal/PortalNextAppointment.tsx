@@ -17,7 +17,7 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
         .from("salon_appointments")
         .select(`
           *,
-          staff:staff_members(display_name, full_name)
+          staff:staff_members!staff_id(display_name, full_name)
         `)
         .eq("client_id", clientId)
         .in("status", ["pending", "confirmed"])

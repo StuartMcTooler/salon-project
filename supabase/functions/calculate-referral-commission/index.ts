@@ -22,30 +22,59 @@ Deno.serve(async (req) => {
       appointmentId 
     } = await req.json();
 
-    console.log('Calculating referral commission for:', { clientEmail, receiverCreativeId, bookingAmount });
+    console.log('Calculating referral commission for:', { clientEmail, receiverCreativeId, bookingAmount, appointmentId });
 
-    // Check if this client is "owned" by any creative (Alpha)
-    const { data: ownership, error: ownershipError } = await supabase
-      .from('client_ownership')
-      .select('creative_id')
-      .eq('client_email', clientEmail)
-      .maybeSingle();
+    // NEW: Check if this is a cover booking
+    let alphaCreativeId = null;
+    let isCoverBooking = false;
 
-    if (ownershipError) {
-      console.error('Error checking ownership:', ownershipError);
-      throw ownershipError;
+    if (appointmentId) {
+      const { data: appointment } = await supabase
+        .from('salon_appointments')
+        .select('booking_type, original_requested_staff_id')
+        .eq('id', appointmentId)
+        .single();
+
+      if (appointment?.booking_type === 'cover' && appointment.original_requested_staff_id) {
+        console.log('Cover booking detected - using original requested staff as alpha');
+        alphaCreativeId = appointment.original_requested_staff_id;
+        isCoverBooking = true;
+      }
     }
 
-    // If no ownership, no commission
-    if (!ownership) {
-      console.log('No ownership found - no commission');
+    // If not a cover booking, check normal client ownership
+    if (!isCoverBooking) {
+      const { data: ownership, error: ownershipError } = await supabase
+        .from('client_ownership')
+        .select('creative_id')
+        .eq('client_email', clientEmail)
+        .maybeSingle();
+
+      if (ownershipError) {
+        console.error('Error checking ownership:', ownershipError);
+        throw ownershipError;
+      }
+
+      // If no ownership, no commission
+      if (!ownership) {
+        console.log('No ownership found - no commission');
+        return new Response(
+          JSON.stringify({ requiresCommission: false }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      alphaCreativeId = ownership.creative_id;
+    }
+
+    // At this point, alphaCreativeId should be set either from cover booking or ownership
+    if (!alphaCreativeId) {
+      console.log('No alpha creative found');
       return new Response(
         JSON.stringify({ requiresCommission: false }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const alphaCreativeId = ownership.creative_id;
 
     // Check if alpha creative is Pro tier
     const { data: alphaTier, error: alphaTierError } = await supabase

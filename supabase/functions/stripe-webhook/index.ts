@@ -137,6 +137,50 @@ serve(async (req) => {
           .eq("id", appointmentId);
 
         console.log("Updated appointment:", appointmentId, isDeposit ? "deposit paid" : "fully paid");
+
+        // NEW: Check if this was a cover booking and trigger boomerang
+        const { data: appointmentDetails } = await supabaseClient
+          .from('salon_appointments')
+          .select('booking_type, original_requested_staff_id, staff_id, customer_name, customer_phone')
+          .eq('id', appointmentId)
+          .single();
+
+        if (appointmentDetails?.booking_type === 'cover' && appointmentDetails.original_requested_staff_id) {
+          console.log('Cover booking detected - triggering boomerang automation');
+          
+          // Get original staff details (who they wanted)
+          const { data: originalStaff } = await supabaseClient
+            .from('staff_members')
+            .select('display_name, id')
+            .eq('id', appointmentDetails.original_requested_staff_id)
+            .single();
+            
+          // Get cover staff details (who served them)
+          const { data: coverStaff } = await supabaseClient
+            .from('staff_members')
+            .select('display_name')
+            .eq('id', appointmentDetails.staff_id)
+            .single();
+          
+          if (originalStaff && coverStaff && appointmentDetails.customer_phone) {
+            // Send boomerang message
+            const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://yourapp.lovable.app';
+            const bookingLink = `${frontendUrl}/salon?staff=${originalStaff.id}`;
+            
+            try {
+              await supabaseClient.functions.invoke('send-whatsapp', {
+                body: {
+                  to: appointmentDetails.customer_phone,
+                  message: `Hi ${appointmentDetails.customer_name}, hope ${coverStaff.display_name} took good care of you! 🌟\n\nSince this was a cover booking, ${originalStaff.display_name} has kept a spot for you next time.\n\nTap here to re-book with ${originalStaff.display_name}: ${bookingLink}`,
+                }
+              });
+              console.log('Boomerang message sent successfully');
+            } catch (whatsappError) {
+              console.error('Failed to send boomerang message:', whatsappError);
+              // Don't fail the webhook if WhatsApp fails
+            }
+          }
+        }
       }
     }
 

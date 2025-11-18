@@ -22,6 +22,7 @@ import { ReferralDiscountSettings } from "@/components/admin/ReferralDiscountSet
 import { TierManagement } from "@/components/admin/TierManagement";
 import { FeedbackDashboard } from "@/components/admin/FeedbackDashboard";
 import { ReferralTestingTool } from "@/components/admin/ReferralTestingTool";
+import { OverflowTestMode } from "@/components/admin/OverflowTestMode";
 import { toast } from "sonner";
 import { useBusinessConfig } from "@/hooks/useBusinessConfig";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -107,6 +108,7 @@ export default function Admin() {
                   <DropdownMenuItem onClick={() => navigate('?tab=business')}>Business</DropdownMenuItem>
                   {features.staffManagement && <DropdownMenuItem onClick={() => navigate('?tab=staff')}>Staff</DropdownMenuItem>}
                   {features.staffManagement && <DropdownMenuItem onClick={() => navigate('?tab=tiers')}>Tiers</DropdownMenuItem>}
+                  {features.staffManagement && <DropdownMenuItem onClick={() => navigate('?tab=overflow')}>Overflow Test</DropdownMenuItem>}
                   <DropdownMenuItem onClick={() => navigate('?tab=services')}>Services</DropdownMenuItem>
                   {features.servicePricing && <DropdownMenuItem onClick={() => navigate('?tab=pricing')}>Pricing</DropdownMenuItem>}
                   {features.businessHours && <DropdownMenuItem onClick={() => navigate('?tab=hours')}>Hours</DropdownMenuItem>}
@@ -149,6 +151,12 @@ export default function Admin() {
               {features.staffManagement && (
                 <TabsContent value="tiers">
                   <TierManagement />
+                </TabsContent>
+              )}
+
+              {features.staffManagement && (
+                <TabsContent value="overflow">
+                  <OverflowTestMode />
                 </TabsContent>
               )}
 

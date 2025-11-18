@@ -1158,6 +1158,7 @@ export type Database = {
       salon_appointments: {
         Row: {
           appointment_date: string | null
+          booking_type: Database["public"]["Enums"]["booking_type_enum"] | null
           client_id: string | null
           created_at: string
           created_by_user_id: string | null
@@ -1169,6 +1170,7 @@ export type Database = {
           duration_minutes: number
           id: string
           notes: string | null
+          original_requested_staff_id: string | null
           payment_method: string | null
           payment_status: string | null
           price: number
@@ -1181,6 +1183,7 @@ export type Database = {
         }
         Insert: {
           appointment_date?: string | null
+          booking_type?: Database["public"]["Enums"]["booking_type_enum"] | null
           client_id?: string | null
           created_at?: string
           created_by_user_id?: string | null
@@ -1192,6 +1195,7 @@ export type Database = {
           duration_minutes: number
           id?: string
           notes?: string | null
+          original_requested_staff_id?: string | null
           payment_method?: string | null
           payment_status?: string | null
           price: number
@@ -1204,6 +1208,7 @@ export type Database = {
         }
         Update: {
           appointment_date?: string | null
+          booking_type?: Database["public"]["Enums"]["booking_type_enum"] | null
           client_id?: string | null
           created_at?: string
           created_by_user_id?: string | null
@@ -1215,6 +1220,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           notes?: string | null
+          original_requested_staff_id?: string | null
           payment_method?: string | null
           payment_status?: string | null
           price?: number
@@ -1231,6 +1237,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salon_appointments_original_requested_staff_id_fkey"
+            columns: ["original_requested_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
             referencedColumns: ["id"]
           },
           {
@@ -1350,6 +1363,7 @@ export type Database = {
             | null
           referral_discount_value: number | null
           require_booking_deposit: boolean | null
+          simulate_fully_booked: boolean | null
           skill_level: string | null
           tier: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at: string | null
@@ -1380,6 +1394,7 @@ export type Database = {
             | null
           referral_discount_value?: number | null
           require_booking_deposit?: boolean | null
+          simulate_fully_booked?: boolean | null
           skill_level?: string | null
           tier?: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at?: string | null
@@ -1410,6 +1425,7 @@ export type Database = {
             | null
           referral_discount_value?: number | null
           require_booking_deposit?: boolean | null
+          simulate_fully_booked?: boolean | null
           skill_level?: string | null
           tier?: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at?: string | null
@@ -1686,6 +1702,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "staff" | "user" | "front_desk"
+      booking_type_enum: "direct" | "cover" | "referral_network"
       business_type: "multi_staff_salon" | "solo_professional"
       commission_type: "finders_fee" | "revenue_share"
       creative_tier: "standard" | "pro"
@@ -1818,6 +1835,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "staff", "user", "front_desk"],
+      booking_type_enum: ["direct", "cover", "referral_network"],
       business_type: ["multi_staff_salon", "solo_professional"],
       commission_type: ["finders_fee", "revenue_share"],
       creative_tier: ["standard", "pro"],

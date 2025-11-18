@@ -12,6 +12,7 @@ import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
 import { getAvailableSlots } from "@/lib/timeSlotUtils";
 import { normalizePhoneNumber } from "@/lib/utils";
 import { findOrCreateClient } from "@/lib/clientUtils";
+import { CoverRecommendationCard } from "@/components/booking/CoverRecommendationCard";
 
 interface SalonCheckoutProps {
   service: any;
@@ -41,6 +42,13 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
   const [availableCredits, setAvailableCredits] = useState<any[]>([]);
   const [applyCreditOptOut, setApplyCreditOptOut] = useState(false);
   const [creditApplied, setCreditApplied] = useState<any>(null);
+
+  // Overflow/Cover booking state
+  const [overflowState, setOverflowState] = useState<{
+    isOverflow: boolean;
+    coverOptions: any[];
+  } | null>(null);
+  const [selectedCoverStaff, setSelectedCoverStaff] = useState<string | null>(null);
 
   // Check if customer requires deposit
   const { data: customerLoyalty } = useQuery({
@@ -185,6 +193,51 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
     );
   }, [date, service, existingAppointments, businessHours, staffHours]);
 
+  // Check for overflow when date changes
+  useEffect(() => {
+    const checkOverflow = async () => {
+      if (!date || !service || overflowState?.isOverflow) return;
+
+      // Only check if no slots are available from normal calculation
+      if (availableSlots.length > 0) {
+        setOverflowState(null);
+        return;
+      }
+
+      console.log('[OVERFLOW] No slots available, checking trusted network');
+
+      try {
+        const { data, error } = await supabase.functions.invoke('check-overflow-availability', {
+          body: {
+            staffId: staff.id,
+            date: date.toISOString(),
+            serviceDuration: service.duration_minutes
+          }
+        });
+
+        if (error) throw error;
+
+        if (!data.primaryAvailable && data.alternativeCoverOptions?.length > 0) {
+          console.log('[OVERFLOW] Cover options found:', data.alternativeCoverOptions.length);
+          setOverflowState({
+            isOverflow: true,
+            coverOptions: data.alternativeCoverOptions
+          });
+        } else if (!data.primaryAvailable) {
+          console.log('[OVERFLOW] No cover options available');
+          setOverflowState({
+            isOverflow: true,
+            coverOptions: []
+          });
+        }
+      } catch (error) {
+        console.error('[OVERFLOW] Error checking overflow:', error);
+      }
+    };
+
+    checkOverflow();
+  }, [date, service, staff.id, availableSlots.length]);
+
   // Load referral discount
   useEffect(() => {
     const loadDiscount = async () => {
@@ -289,11 +342,18 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
       // Prepare appointment payload
       const appointmentId = crypto.randomUUID();
 
+      // Determine booking type based on whether cover staff was selected
+      const bookingType = selectedCoverStaff ? 'cover' : 'direct';
+      const actualStaffId = selectedCoverStaff || staff.id;
+      const originalRequestedStaffId = selectedCoverStaff ? staff.id : null;
+
       const appointmentData: any = {
         id: appointmentId,
         service_id: service.id,
         service_name: service.name,
-        staff_id: staff.id,
+        staff_id: actualStaffId,
+        booking_type: bookingType,
+        original_requested_staff_id: originalRequestedStaffId,
         customer_name: customerName,
         customer_email: customerEmail,
         customer_phone: customerPhone,
@@ -646,26 +706,44 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
           </div>
 
           {date && (
-            <div className="space-y-2">
-              <Label>Available Times</Label>
-              {availableSlots.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No available times for this date</p>
+            <>
+              {overflowState?.isOverflow ? (
+                <CoverRecommendationCard
+                  originalStaff={staff}
+                  coverOptions={overflowState.coverOptions}
+                  onSelectCover={(coverStaffId, slot) => {
+                    setSelectedCoverStaff(coverStaffId);
+                    setTime(slot);
+                    setOverflowState(null);
+                  }}
+                  onCancel={() => {
+                    setDate(undefined);
+                    setOverflowState(null);
+                  }}
+                />
               ) : (
-                <div className="grid grid-cols-3 gap-2 max-h-96 overflow-y-auto">
-                  {availableSlots.map((slot) => (
-                    <Button
-                      key={slot.time}
-                      variant={time === slot.time ? "default" : "outline"}
-                      onClick={() => setTime(slot.time)}
-                      className="w-full flex flex-col items-center py-3 h-auto"
-                    >
-                      <span className="font-semibold">{slot.time}</span>
-                      <span className="text-xs opacity-70">ends {slot.endTime}</span>
-                    </Button>
-                  ))}
+                <div className="space-y-2">
+                  <Label>Available Times</Label>
+                  {availableSlots.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Checking availability...</p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2 max-h-96 overflow-y-auto">
+                      {availableSlots.map((slot) => (
+                        <Button
+                          key={slot.time}
+                          variant={time === slot.time ? "default" : "outline"}
+                          onClick={() => setTime(slot.time)}
+                          className="w-full flex flex-col items-center py-3 h-auto"
+                        >
+                          <span className="font-semibold">{slot.time}</span>
+                          <span className="text-xs opacity-70">ends {slot.endTime}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
+            </>
           )}
 
           <div className="space-y-2">

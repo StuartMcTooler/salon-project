@@ -47,6 +47,7 @@ serve(async (req) => {
         .eq("alpha_creative_id", staffId);
 
       const coverOptions = [];
+      const dayOfWeek = new Date(date).getDay();
       
       for (const colleague of trustedColleagues || []) {
         // Check colleague availability
@@ -58,8 +59,30 @@ serve(async (req) => {
           .lte("appointment_date", new Date(new Date(date).setHours(23, 59, 59, 999)).toISOString())
           .neq("status", "cancelled");
 
-        // Simple slot calculation
-        const slots = generateAvailableSlots(colleagueAppointments || [], serviceDuration);
+        // Get colleague's business hours
+        const { data: colleagueBusinessHours } = await supabaseClient
+          .from("business_hours")
+          .select("start_time, end_time")
+          .eq("business_id", staff.business_id)
+          .eq("day_of_week", dayOfWeek)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        // Get colleague's staff hours
+        const { data: colleagueStaffHours } = await supabaseClient
+          .from("business_hours")
+          .select("start_time, end_time")
+          .eq("staff_id", colleague.colleague_creative_id)
+          .eq("day_of_week", dayOfWeek)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        const slots = generateAvailableSlots(
+          colleagueAppointments || [], 
+          serviceDuration,
+          colleagueBusinessHours,
+          colleagueStaffHours
+        );
 
         if (slots.length > 0) {
           coverOptions.push({

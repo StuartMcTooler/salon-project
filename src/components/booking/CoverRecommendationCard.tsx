@@ -53,30 +53,32 @@ export const CoverRecommendationCard = ({
   }
 
   return (
-    <Card className="border-2 border-primary/20 bg-primary/5">
+    <Card className="border-2 border-amber-400 bg-gradient-to-br from-amber-50 via-blue-50 to-amber-50 shadow-lg">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Info className="h-5 w-5 text-primary" />
-          <CardTitle>{originalStaff.display_name} is fully booked</CardTitle>
+          <Info className="h-5 w-5 text-amber-600" />
+          <CardTitle className="text-transparent bg-clip-text bg-gradient-to-r from-amber-700 to-blue-700">
+            {originalStaff.display_name} is fully booked
+          </CardTitle>
         </div>
-        <CardDescription>
+        <CardDescription className="text-slate-700 font-medium">
           Get a <strong>Cover Booking</strong> with one of {originalStaff.display_name}'s trusted colleagues. 
-          You'll stay on {originalStaff.display_name}'s priority list for next time.
+          ✨ You'll stay on {originalStaff.display_name}'s priority list for next time.
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4">
         {coverOptions.map((option) => (
-          <div key={option.staffId} className="border rounded-lg p-4 bg-background">
+          <div key={option.staffId} className="border-2 border-white/80 rounded-lg p-4 bg-white/90 shadow-md">
             <div className="flex items-center gap-3 mb-3">
-              <Avatar className="h-12 w-12">
+              <Avatar className="h-12 w-12 border-2 border-amber-400/50">
                 <AvatarImage src={option.staff.profile_image_url || undefined} />
                 <AvatarFallback>{option.staff.display_name[0]}</AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <p className="font-semibold">{option.staff.display_name}</p>
-                <p className="text-sm text-muted-foreground">
-                  Recommended by {originalStaff.display_name}
+                <p className="font-semibold text-slate-900">{option.staff.display_name}</p>
+                <p className="text-sm text-amber-700 font-medium">
+                  ⭐ Recommended by {originalStaff.display_name}
                 </p>
               </div>
             </div>

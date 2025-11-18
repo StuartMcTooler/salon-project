@@ -638,56 +638,6 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
 
       <Card>
         <CardHeader>
-          <CardTitle>Customer Information</CardTitle>
-          <CardDescription>Required for booking confirmation & portal access</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name *</Label>
-            <input
-              id="name"
-              type="text"
-              className="w-full px-3 py-2 border rounded-md"
-              placeholder="Customer name"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              required
-            />
-          </div>
-          {/* Email field commented out - not required for booking
-          <div className="space-y-2">
-            <Label htmlFor="email">Email *</Label>
-            <input
-              id="email"
-              type="email"
-              className="w-full px-3 py-2 border rounded-md"
-              placeholder="customer@email.com"
-              value={customerEmail}
-              onChange={(e) => setCustomerEmail(e.target.value)}
-              required
-            />
-          </div>
-          */}
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone Number *</Label>
-            <input
-              id="phone"
-              type="tel"
-              className="w-full px-3 py-2 border rounded-md"
-              placeholder="+353 123 456 789"
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-              required
-            />
-            <p className="text-xs text-muted-foreground">
-              Required for booking confirmation & portal access
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
           <CardTitle>Select Date & Time</CardTitle>
           <CardDescription>Choose when you'd like your appointment</CardDescription>
         </CardHeader>
@@ -756,6 +706,65 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
           </div>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Customer Information</CardTitle>
+          <CardDescription>Required for booking confirmation & portal access</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Name *</Label>
+            <input
+              id="name"
+              type="text"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="Customer name"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              required
+            />
+          </div>
+          {/* Email field commented out - not required for booking
+          <div className="space-y-2">
+            <Label htmlFor="email">Email *</Label>
+            <input
+              id="email"
+              type="email"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="customer@email.com"
+              value={customerEmail}
+              onChange={(e) => setCustomerEmail(e.target.value)}
+              required
+            />
+          </div>
+          */}
+          <div className="space-y-2">
+            <Label htmlFor="phone">Phone Number *</Label>
+            <input
+              id="phone"
+              type="tel"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="+353 123 456 789"
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value)}
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Required for booking confirmation & portal access
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="text-center space-y-2 py-4">
+        <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+          <span className="text-green-600">✓</span> Free cancellation up to 24 hours before your appointment
+        </p>
+        <p className="text-xs text-muted-foreground">
+          You'll receive a confirmation message with your booking details and portal access
+        </p>
+      </div>
 
       <Button
         onClick={() => createAppointment.mutate()}

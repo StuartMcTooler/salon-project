@@ -104,15 +104,30 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
                     {staff.display_name.split(' ').map((n: string) => n[0]).join('')}
                   </AvatarFallback>
                 </Avatar>
+                <div className="flex flex-wrap gap-2 justify-center mb-2">
+                  {staff.average_rating >= 4.8 && (
+                    <Badge variant="default" className="bg-amber-500 hover:bg-amber-600">
+                      ⭐ Top Rated
+                    </Badge>
+                  )}
+                  {staff.total_bookings > 50 && (
+                    <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">
+                      🔥 High Demand
+                    </Badge>
+                  )}
+                  {staff.skill_level && (
+                    <Badge variant="secondary">
+                      {staff.skill_level}
+                    </Badge>
+                  )}
+                </div>
                 <CardTitle>{staff.display_name}</CardTitle>
                 <CardDescription>{staff.bio}</CardDescription>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Next available: Today
+                </p>
               </CardHeader>
               <CardContent className="space-y-4">
-                {staff.skill_level && (
-                  <Badge variant="secondary" className="w-full justify-center">
-                    {staff.skill_level}
-                  </Badge>
-                )}
                 {selectedService && pricing && (
                   <div className="flex items-center justify-center text-lg font-semibold">
                     <span>€{pricing}</span>

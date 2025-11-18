@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,11 +29,14 @@ import { useUserRole } from "@/hooks/useUserRole";
 
 export default function Admin() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const { config, loading: configLoading } = useBusinessConfig();
   const businessId = config.businessId || "";
   const { role, loading: roleLoading, isAdmin, isFrontDesk } = useUserRole();
+  
+  const currentTab = searchParams.get('tab') || 'schedule';
 
   useEffect(() => {
     checkAdminAccess();
@@ -94,7 +97,7 @@ export default function Admin() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="schedule" className="space-y-6">
+        <Tabs value={currentTab} onValueChange={(value) => setSearchParams({ tab: value })} className="space-y-6">
           <TabsList className="w-full flex flex-wrap justify-start h-auto gap-2">
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="clients">Clients</TabsTrigger>

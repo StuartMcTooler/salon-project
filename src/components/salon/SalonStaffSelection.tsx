@@ -94,7 +94,7 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
 
   const getAvailabilityText = (availability: AvailabilityStatus | null): { text: string; variant: 'default' | 'secondary' | 'destructive'; isHighDemand: boolean } => {
     if (!availability || availability.time_to_first_slot_days === 999) {
-      return { text: 'Availability unavailable', variant: 'secondary', isHighDemand: false };
+      return { text: 'Fully booked', variant: 'secondary', isHighDemand: false };
     }
 
     const days = availability.time_to_first_slot_days;

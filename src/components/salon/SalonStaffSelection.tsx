@@ -5,7 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Clock } from "lucide-react";
+
+interface AvailabilityStatus {
+  first_slot_timestamp: number | null;
+  first_slot_display_time: string | null;
+  first_slot_day_name: string | null;
+  time_to_first_slot_days: number;
+}
 
 interface SalonStaffSelectionProps {
   selectedService: any | null;
@@ -51,10 +58,78 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
         return data.map(staff => ({ staff, custom_price: null }));
       }
     },
-    enabled: true, // Always enabled, business_id is optional
+    enabled: true,
   });
 
-  if (isLoading) {
+  // Fetch availability for each staff member
+  const staffWithAvailability = useQuery({
+    queryKey: ['staff-availability', staffData?.map(item => item.staff?.id)],
+    queryFn: async () => {
+      if (!staffData) return [];
+
+      const availabilityPromises = staffData.map(async (item) => {
+        if (!item.staff) return { ...item, availability: null };
+
+        try {
+          const { data, error } = await supabase.functions.invoke('get-staff-availability', {
+            body: { staff_id: item.staff.id }
+          });
+
+          if (error) {
+            console.error('Error fetching availability for', item.staff.display_name, error);
+            return { ...item, availability: null };
+          }
+
+          return { ...item, availability: data.availability_status };
+        } catch (err) {
+          console.error('Error:', err);
+          return { ...item, availability: null };
+        }
+      });
+
+      return await Promise.all(availabilityPromises);
+    },
+    enabled: !!staffData && staffData.length > 0,
+  });
+
+  const getAvailabilityText = (availability: AvailabilityStatus | null): { text: string; variant: 'default' | 'secondary' | 'destructive'; isHighDemand: boolean } => {
+    if (!availability || availability.time_to_first_slot_days === 999) {
+      return { text: 'Availability unavailable', variant: 'secondary', isHighDemand: false };
+    }
+
+    const days = availability.time_to_first_slot_days;
+
+    // Scenario A: Within 2 days
+    if (days <= 2) {
+      const timeText = availability.first_slot_day_name === 'Today' || availability.first_slot_day_name === 'Tomorrow'
+        ? `${availability.first_slot_day_name} at ${availability.first_slot_display_time}`
+        : `${availability.first_slot_day_name} at ${availability.first_slot_display_time}`;
+      
+      return { 
+        text: `Next available: ${timeText}`, 
+        variant: 'default',
+        isHighDemand: false 
+      };
+    }
+
+    // Scenario B: 2-5 days
+    if (days > 2 && days <= 5) {
+      return { 
+        text: `Next available: ${availability.first_slot_day_name}`, 
+        variant: 'default',
+        isHighDemand: false 
+      };
+    }
+
+    // Scenario C: 5+ days - High demand
+    return { 
+      text: 'High Demand. Click to find a Cover Cut now.', 
+      variant: 'destructive',
+      isHighDemand: true 
+    };
+  };
+
+  if (isLoading || staffWithAvailability.isLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-64" />
@@ -66,6 +141,8 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
       </div>
     );
   }
+
+  const displayData = staffWithAvailability.data || staffData;
 
   return (
     <div className="space-y-6">
@@ -91,9 +168,11 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {staffData?.filter(item => item.staff !== null).map((item) => {
+        {displayData?.filter(item => item.staff !== null).map((item) => {
           const staff = item.staff;
           const pricing = item.custom_price;
+          const availability = (item as any).availability;
+          const availabilityInfo = getAvailabilityText(availability);
           
           return (
             <Card key={staff.id} className="hover:shadow-lg transition-shadow">
@@ -111,33 +190,43 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
                     </Badge>
                   )}
                   {staff.total_bookings > 50 && (
-                    <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">
+                    <Badge variant="default" className="bg-purple-500 hover:bg-purple-600">
                       🔥 High Demand
                     </Badge>
                   )}
-                  {staff.skill_level && (
-                    <Badge variant="secondary">
-                      {staff.skill_level}
-                    </Badge>
-                  )}
                 </div>
-                <CardTitle>{staff.display_name}</CardTitle>
-                <CardDescription>{staff.bio}</CardDescription>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Next available: Today
-                </p>
+                <CardTitle className="text-xl">{staff.display_name}</CardTitle>
+                <CardDescription className="text-sm">{staff.skill_level || 'Professional'}</CardDescription>
+                
+                {/* Dynamic Availability Status */}
+                <div className="mt-3 flex items-center justify-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <Badge 
+                    variant={availabilityInfo.variant}
+                    className={availabilityInfo.isHighDemand ? "bg-orange-500 hover:bg-orange-600 text-white animate-pulse" : ""}
+                  >
+                    {availabilityInfo.text}
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {selectedService && pricing && (
-                  <div className="flex items-center justify-center text-lg font-semibold">
-                    <span>€{pricing}</span>
+                {staff.bio && (
+                  <p className="text-sm text-muted-foreground line-clamp-2">{staff.bio}</p>
+                )}
+                
+                {pricing !== null && (
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">Price for this service</p>
+                    <p className="text-2xl font-bold text-primary">€{pricing}</p>
                   </div>
                 )}
+
                 <Button 
-                  onClick={() => onSelect(staff, item)} 
+                  onClick={() => onSelect(staff, pricing)} 
                   className="w-full"
+                  variant={availabilityInfo.isHighDemand ? "destructive" : "default"}
                 >
-                  {selectedService ? `Book with ${staff.display_name}` : `View Services →`}
+                  {availabilityInfo.isHighDemand ? '🔥 Find Cover Now' : (selectedService ? `Book with ${staff.display_name}` : 'View Services →')}
                 </Button>
               </CardContent>
             </Card>

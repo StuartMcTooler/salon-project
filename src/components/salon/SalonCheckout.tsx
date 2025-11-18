@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +50,12 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
   } | null>(null);
   const [selectedCoverStaff, setSelectedCoverStaff] = useState<string | null>(null);
 
+  // Refs for smooth scrolling
+  const dateTimeRef = useRef<HTMLDivElement>(null);
+  const timeSlotsRef = useRef<HTMLDivElement>(null);
+  const customerInfoRef = useRef<HTMLDivElement>(null);
+  const confirmButtonRef = useRef<HTMLDivElement>(null);
+
   // Check if customer requires deposit
   const { data: customerLoyalty } = useQuery({
     queryKey: ['customer-loyalty-check', staff.id, customerEmail],
@@ -90,6 +96,33 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
       setDepositAmount(0);
     }
   }, [staff, customerLoyalty, finalPrice]);
+
+  // Auto-scroll when date is selected
+  useEffect(() => {
+    if (date && timeSlotsRef.current) {
+      setTimeout(() => {
+        timeSlotsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+  }, [date]);
+
+  // Auto-scroll when time is selected
+  useEffect(() => {
+    if (time && customerInfoRef.current) {
+      setTimeout(() => {
+        customerInfoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+  }, [time]);
+
+  // Auto-scroll when customer info is filled
+  useEffect(() => {
+    if (customerName && customerPhone && confirmButtonRef.current) {
+      setTimeout(() => {
+        confirmButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+  }, [customerName, customerPhone]);
 
   // Query existing appointments for the selected date and staff
   const { data: existingAppointments, refetch } = useQuery({
@@ -636,7 +669,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
         </CardContent>
       </Card>
 
-      <Card>
+      <Card ref={dateTimeRef}>
         <CardHeader>
           <CardTitle>Select Date & Time</CardTitle>
           <CardDescription>Choose when you'd like your appointment</CardDescription>
@@ -656,7 +689,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
           </div>
 
           {date && (
-            <>
+            <div ref={timeSlotsRef}>
               {overflowState?.isOverflow ? (
                 <CoverRecommendationCard
                   originalStaff={staff}
@@ -692,7 +725,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
                   )}
                 </div>
               )}
-            </>
+            </div>
           )}
 
           <div className="space-y-2">
@@ -707,7 +740,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
         </CardContent>
       </Card>
 
-      <Card>
+      <Card ref={customerInfoRef}>
         <CardHeader>
           <CardTitle>Customer Information</CardTitle>
           <CardDescription>Required for booking confirmation & portal access</CardDescription>
@@ -757,7 +790,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
         </CardContent>
       </Card>
 
-      <div className="text-center space-y-2 py-4">
+      <div className="text-center space-y-2 py-4" ref={confirmButtonRef}>
         <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
           <span className="text-green-600">✓</span> Free cancellation up to 24 hours before your appointment
         </p>

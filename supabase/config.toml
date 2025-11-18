@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.check-overflow-availability]
 verify_jwt = false
+
+[functions.get-staff-availability]
+verify_jwt = false

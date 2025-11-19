@@ -30,6 +30,7 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
     queryKey: selectedService 
       ? ['staff-for-service', selectedService.id] 
       : ['all-staff', businessId],
+    staleTime: 0, // Always fetch fresh data
     queryFn: async () => {
       if (selectedService) {
         // Service-first mode: Show staff who offer this service
@@ -68,6 +69,7 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
   // Fetch availability for each staff member
   const staffWithAvailability = useQuery({
     queryKey: ['staff-availability', staffData?.map(item => item.staff?.id)],
+    staleTime: 0, // Always fetch fresh data
     queryFn: async () => {
       if (!staffData) return [];
 

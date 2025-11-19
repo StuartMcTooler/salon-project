@@ -73,6 +73,7 @@ export const AvailabilityTestingTool = () => {
 
       toast.success(`Set availability to ${daysFromNow} days from now`);
       queryClient.invalidateQueries({ queryKey: ['staff-availability'] });
+      queryClient.invalidateQueries({ queryKey: ['staff-members'] });
     } catch (error) {
       console.error('Error creating test appointments:', error);
       toast.error('Failed to set availability');
@@ -94,6 +95,7 @@ export const AvailabilityTestingTool = () => {
 
       toast.success('Cleared test appointments');
       queryClient.invalidateQueries({ queryKey: ['staff-availability'] });
+      queryClient.invalidateQueries({ queryKey: ['staff-members'] });
     } catch (error) {
       console.error('Error clearing test appointments:', error);
       toast.error('Failed to clear test appointments');
@@ -114,6 +116,7 @@ export const AvailabilityTestingTool = () => {
 
       toast.success(!currentValue ? 'Set to fully booked' : 'Cleared fully booked');
       queryClient.invalidateQueries({ queryKey: ['staff-members-test'] });
+      queryClient.invalidateQueries({ queryKey: ['staff-members'] });
       queryClient.invalidateQueries({ queryKey: ['staff-availability'] });
     } catch (error) {
       console.error('Error toggling fully booked:', error);

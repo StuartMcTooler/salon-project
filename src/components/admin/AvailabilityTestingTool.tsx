@@ -55,20 +55,30 @@ export const AvailabilityTestingTool = () => {
   const clearTestAppointments = async (staffId: string) => {
     setLoading(staffId);
     try {
-      const { error } = await supabase
+      // Delete test appointments (both 'Test Customer' and 'TEST APPOINTMENT')
+      const { error: deleteError } = await supabase
+        .from('salon_appointments')
+        .delete()
+        .eq('staff_id', staffId)
+        .or('customer_name.eq.Test Customer,customer_name.eq.TEST APPOINTMENT');
+
+      if (deleteError) throw deleteError;
+
+      // Clear availability test settings
+      const { error: updateError } = await supabase
         .from('staff_members')
         .update({ availability_test_days_from_now: null, simulate_fully_booked: false })
         .eq('id', staffId);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
-      toast.success('Cleared test availability overrides');
+      toast.success('Cleared test data and availability overrides');
       queryClient.invalidateQueries({ queryKey: ['staff-availability'] });
       queryClient.invalidateQueries({ queryKey: ['staff-members-test'] });
       queryClient.invalidateQueries({ queryKey: ['staff-members'] });
     } catch (error) {
       console.error('Error clearing test availability:', error);
-      toast.error('Failed to clear test availability');
+      toast.error('Failed to clear test data');
     } finally {
       setLoading(null);
     }

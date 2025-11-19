@@ -123,7 +123,7 @@ export const AvailabilityTestingTool = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <Button
                 size="sm"
-                variant="outline"
+                variant={staff.availability_test_days_from_now === 0 ? "default" : "outline"}
                 onClick={() => setTestAvailability(staff.id, 0)}
                 disabled={loading === staff.id}
               >
@@ -133,7 +133,7 @@ export const AvailabilityTestingTool = () => {
 
               <Button
                 size="sm"
-                variant="outline"
+                variant={staff.availability_test_days_from_now === 1 ? "default" : "outline"}
                 onClick={() => setTestAvailability(staff.id, 1)}
                 disabled={loading === staff.id}
               >
@@ -143,7 +143,7 @@ export const AvailabilityTestingTool = () => {
 
               <Button
                 size="sm"
-                variant="outline"
+                variant={staff.availability_test_days_from_now === 3 ? "default" : "outline"}
                 onClick={() => setTestAvailability(staff.id, 3)}
                 disabled={loading === staff.id}
               >
@@ -153,7 +153,7 @@ export const AvailabilityTestingTool = () => {
 
               <Button
                 size="sm"
-                variant="outline"
+                variant={staff.availability_test_days_from_now === 6 ? "default" : "outline"}
                 onClick={() => setTestAvailability(staff.id, 6)}
                 disabled={loading === staff.id}
               >
@@ -163,7 +163,7 @@ export const AvailabilityTestingTool = () => {
 
               <Button
                 size="sm"
-                variant="outline"
+                variant={staff.availability_test_days_from_now === 10 ? "default" : "outline"}
                 onClick={() => setTestAvailability(staff.id, 10)}
                 disabled={loading === staff.id}
               >
@@ -182,7 +182,7 @@ export const AvailabilityTestingTool = () => {
 
               <Button
                 size="sm"
-                variant="ghost"
+                variant={!staff.simulate_fully_booked && staff.availability_test_days_from_now === null ? "default" : "outline"}
                 onClick={() => clearTestAppointments(staff.id)}
                 disabled={loading === staff.id}
                 className="col-span-2"

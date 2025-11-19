@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Clock } from "lucide-react";
+import { ArrowLeft, Clock, Users } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface AvailabilityStatus {
   first_slot_timestamp: number | null;
@@ -22,6 +24,8 @@ interface SalonStaffSelectionProps {
 }
 
 export const SalonStaffSelection = ({ selectedService, onSelect, onBack, businessId }: SalonStaffSelectionProps) => {
+  const [showingOverflowFor, setShowingOverflowFor] = useState<string | null>(null);
+  
   const { data: staffData, isLoading } = useQuery({
     queryKey: selectedService 
       ? ['staff-for-service', selectedService.id] 
@@ -92,6 +96,55 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
     enabled: !!staffData && staffData.length > 0,
   });
 
+  // Fetch trusted network for overflow staff
+  const { data: trustedNetwork } = useQuery({
+    queryKey: ['trusted-network', showingOverflowFor],
+    queryFn: async () => {
+      if (!showingOverflowFor) return null;
+
+      const { data, error } = await supabase
+        .from('trusted_network')
+        .select(`
+          colleague_creative_id,
+          colleague:staff_members!trusted_network_colleague_creative_id_fkey(*)
+        `)
+        .eq('alpha_creative_id', showingOverflowFor);
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!showingOverflowFor,
+  });
+
+  // Fetch availability for trusted network members
+  const trustedNetworkWithAvailability = useQuery({
+    queryKey: ['trusted-network-availability', trustedNetwork?.map(item => item.colleague_creative_id)],
+    queryFn: async () => {
+      if (!trustedNetwork || trustedNetwork.length === 0) return [];
+
+      const availabilityPromises = trustedNetwork.map(async (item) => {
+        try {
+          const { data, error } = await supabase.functions.invoke('get-staff-availability', {
+            body: { staff_id: item.colleague_creative_id }
+          });
+
+          if (error) {
+            console.error('Error fetching availability for trusted network member', error);
+            return { ...item, availability: null };
+          }
+
+          return { ...item, availability: data.availability_status };
+        } catch (err) {
+          console.error('Error:', err);
+          return { ...item, availability: null };
+        }
+      });
+
+      return await Promise.all(availabilityPromises);
+    },
+    enabled: !!trustedNetwork && trustedNetwork.length > 0,
+  });
+
   const getAvailabilityText = (availability: AvailabilityStatus | null): { text: string; variant: 'default' | 'secondary' | 'destructive'; isHighDemand: boolean } => {
     if (!availability || availability.time_to_first_slot_days === 999) {
       return { text: 'Fully booked', variant: 'secondary', isHighDemand: false };
@@ -129,6 +182,14 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
     };
   };
 
+  const handleFindCover = (staffId: string) => {
+    setShowingOverflowFor(staffId);
+  };
+
+  const handleBackFromOverflow = () => {
+    setShowingOverflowFor(null);
+  };
+
   if (isLoading || staffWithAvailability.isLoading) {
     return (
       <div className="space-y-4">
@@ -143,6 +204,111 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
   }
 
   const displayData = staffWithAvailability.data || staffData;
+
+  // If showing overflow, render trusted network
+  if (showingOverflowFor) {
+    const originalStaff = displayData?.find(item => item.staff?.id === showingOverflowFor);
+    
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" onClick={handleBackFromOverflow}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to All Stylists
+          </Button>
+        </div>
+
+        <div>
+          <h2 className="text-3xl font-bold mb-2">
+            <Users className="inline-block mr-2 h-8 w-8 text-primary" />
+            Trusted Network - Alternative Stylists
+          </h2>
+          <p className="text-muted-foreground mb-4">
+            {originalStaff?.staff?.display_name} is currently high demand. Here are trusted colleagues who can help:
+          </p>
+          
+          {trustedNetworkWithAvailability.isLoading && (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <Card key={i}>
+                  <CardHeader className="text-center">
+                    <Skeleton className="h-24 w-24 rounded-full mx-auto mb-4" />
+                    <Skeleton className="h-6 w-32 mx-auto mb-2" />
+                    <Skeleton className="h-4 w-24 mx-auto" />
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {!trustedNetworkWithAvailability.isLoading && trustedNetworkWithAvailability.data && trustedNetworkWithAvailability.data.length === 0 && (
+            <Alert>
+              <AlertDescription>
+                No trusted network members are currently available. Please try booking with {originalStaff?.staff?.display_name} at a later date or choose another stylist.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {trustedNetworkWithAvailability.data && trustedNetworkWithAvailability.data.length > 0 && (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {trustedNetworkWithAvailability.data.map((item) => {
+                const colleague = item.colleague;
+                const availability = item.availability;
+                const availabilityInfo = getAvailabilityText(availability);
+                
+                return (
+                  <Card key={colleague.id} className="hover:shadow-lg transition-shadow border-primary">
+                    <CardHeader className="text-center">
+                      <Badge variant="outline" className="mb-2 mx-auto w-fit">
+                        Trusted Network
+                      </Badge>
+                      <Avatar className="h-24 w-24 mx-auto mb-4">
+                        <AvatarImage src={colleague.profile_image_url} alt={colleague.display_name} />
+                        <AvatarFallback className="text-2xl">
+                          {colleague.display_name.split(' ').map((n: string) => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-wrap gap-2 justify-center mb-2">
+                        {colleague.average_rating >= 4.8 && (
+                          <Badge variant="default" className="bg-amber-500 hover:bg-amber-600">
+                            ⭐ Top Rated
+                          </Badge>
+                        )}
+                      </div>
+                      <CardTitle className="text-xl">{colleague.display_name}</CardTitle>
+                      <CardDescription className="text-sm">{colleague.skill_level || 'Professional'}</CardDescription>
+                      
+                      <div className="mt-3 flex items-center justify-center gap-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <Badge variant={availabilityInfo.variant}>
+                          {availabilityInfo.text}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {colleague.bio && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">{colleague.bio}</p>
+                      )}
+                      
+                      <Button 
+                        onClick={() => onSelect(colleague, null)} 
+                        className="w-full"
+                        disabled={availabilityInfo.variant === 'secondary'}
+                      >
+                        {availabilityInfo.variant === 'secondary' 
+                          ? 'Fully Booked' 
+                          : `Book with ${colleague.display_name}`}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -221,13 +387,25 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
                   </div>
                 )}
 
-                <Button 
-                  onClick={() => onSelect(staff, pricing)} 
-                  className="w-full"
-                  variant={availabilityInfo.isHighDemand ? "destructive" : "default"}
-                >
-                  {availabilityInfo.isHighDemand ? '🔥 Find Cover Now' : (selectedService ? `Book with ${staff.display_name}` : 'View Services →')}
-                </Button>
+                {availabilityInfo.isHighDemand ? (
+                  <Button 
+                    onClick={() => handleFindCover(staff.id)} 
+                    className="w-full"
+                    variant="destructive"
+                  >
+                    🔥 Find Cover Now
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={() => onSelect(staff, pricing)} 
+                    className="w-full"
+                    disabled={availabilityInfo.variant === 'secondary'}
+                  >
+                    {availabilityInfo.variant === 'secondary' 
+                      ? 'Fully Booked' 
+                      : (selectedService ? `Book with ${staff.display_name}` : 'View Services →')}
+                  </Button>
+                )}
               </CardContent>
             </Card>
           );

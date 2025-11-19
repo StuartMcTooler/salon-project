@@ -25,57 +25,27 @@ export const AvailabilityTestingTool = () => {
     },
   });
 
-  const createTestAppointment = async (staffId: string, daysFromNow: number) => {
+  const setTestAvailability = async (staffId: string, daysFromNow: number | null) => {
     setLoading(staffId);
     try {
-      const appointmentDate = new Date();
-      appointmentDate.setDate(appointmentDate.getDate() + daysFromNow);
-      appointmentDate.setHours(10, 0, 0, 0);
-
-      // Delete existing test appointments for this staff
-      await supabase
-        .from('salon_appointments')
-        .delete()
-        .eq('staff_id', staffId)
-        .eq('customer_name', 'TEST APPOINTMENT');
-
-      // Create appointments to fill up their schedule
-      const appointments = [];
-      for (let day = 0; day < daysFromNow; day++) {
-        const date = new Date();
-        date.setDate(date.getDate() + day);
-        
-        // Fill 9 AM to 5 PM with 30-minute appointments
-        for (let hour = 9; hour <= 16; hour++) {
-          for (let minute = 0; minute < 60; minute += 30) {
-            const aptDate = new Date(date);
-            aptDate.setHours(hour, minute, 0, 0);
-            
-            appointments.push({
-              staff_id: staffId,
-              customer_name: 'TEST APPOINTMENT',
-              customer_phone: '+353871234567',
-              service_name: 'Test Service',
-              appointment_date: aptDate.toISOString(),
-              duration_minutes: 30,
-              price: 10,
-              status: 'confirmed',
-            });
-          }
-        }
-      }
-
       const { error } = await supabase
-        .from('salon_appointments')
-        .insert(appointments);
+        .from('staff_members')
+        .update({ availability_test_days_from_now: daysFromNow, simulate_fully_booked: false })
+        .eq('id', staffId);
 
       if (error) throw error;
 
-      toast.success(`Set availability to ${daysFromNow} days from now`);
+      toast.success(
+        daysFromNow === null
+          ? 'Cleared test availability override'
+          : `Set first availability to ${daysFromNow} day(s) from now`
+      );
+
       queryClient.invalidateQueries({ queryKey: ['staff-availability'] });
+      queryClient.invalidateQueries({ queryKey: ['staff-members-test'] });
       queryClient.invalidateQueries({ queryKey: ['staff-members'] });
     } catch (error) {
-      console.error('Error creating test appointments:', error);
+      console.error('Error setting test availability:', error);
       toast.error('Failed to set availability');
     } finally {
       setLoading(null);
@@ -86,19 +56,19 @@ export const AvailabilityTestingTool = () => {
     setLoading(staffId);
     try {
       const { error } = await supabase
-        .from('salon_appointments')
-        .delete()
-        .eq('staff_id', staffId)
-        .eq('customer_name', 'TEST APPOINTMENT');
+        .from('staff_members')
+        .update({ availability_test_days_from_now: null, simulate_fully_booked: false })
+        .eq('id', staffId);
 
       if (error) throw error;
 
-      toast.success('Cleared test appointments');
+      toast.success('Cleared test availability overrides');
       queryClient.invalidateQueries({ queryKey: ['staff-availability'] });
+      queryClient.invalidateQueries({ queryKey: ['staff-members-test'] });
       queryClient.invalidateQueries({ queryKey: ['staff-members'] });
     } catch (error) {
-      console.error('Error clearing test appointments:', error);
-      toast.error('Failed to clear test appointments');
+      console.error('Error clearing test availability:', error);
+      toast.error('Failed to clear test availability');
     } finally {
       setLoading(null);
     }
@@ -154,7 +124,7 @@ export const AvailabilityTestingTool = () => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => createTestAppointment(staff.id, 0)}
+                onClick={() => setTestAvailability(staff.id, 0)}
                 disabled={loading === staff.id}
               >
                 <Clock className="mr-2 h-3 w-3" />
@@ -164,7 +134,7 @@ export const AvailabilityTestingTool = () => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => createTestAppointment(staff.id, 1)}
+                onClick={() => setTestAvailability(staff.id, 1)}
                 disabled={loading === staff.id}
               >
                 <Clock className="mr-2 h-3 w-3" />
@@ -174,7 +144,7 @@ export const AvailabilityTestingTool = () => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => createTestAppointment(staff.id, 3)}
+                onClick={() => setTestAvailability(staff.id, 3)}
                 disabled={loading === staff.id}
               >
                 <Clock className="mr-2 h-3 w-3" />
@@ -184,7 +154,7 @@ export const AvailabilityTestingTool = () => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => createTestAppointment(staff.id, 6)}
+                onClick={() => setTestAvailability(staff.id, 6)}
                 disabled={loading === staff.id}
               >
                 <Clock className="mr-2 h-3 w-3" />
@@ -194,7 +164,7 @@ export const AvailabilityTestingTool = () => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => createTestAppointment(staff.id, 10)}
+                onClick={() => setTestAvailability(staff.id, 10)}
                 disabled={loading === staff.id}
               >
                 <Clock className="mr-2 h-3 w-3" />

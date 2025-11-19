@@ -1341,6 +1341,7 @@ export type Database = {
       }
       staff_members: {
         Row: {
+          availability_test_days_from_now: number | null
           average_rating: number | null
           bio: string | null
           business_id: string | null
@@ -1372,6 +1373,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          availability_test_days_from_now?: number | null
           average_rating?: number | null
           bio?: string | null
           business_id?: string | null
@@ -1403,6 +1405,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          availability_test_days_from_now?: number | null
           average_rating?: number | null
           bio?: string | null
           business_id?: string | null

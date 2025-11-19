@@ -217,6 +217,28 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
       return [];
     }
 
+    // Check testing flags - if staff is set to simulate fully booked, return no slots
+    if (staff.simulate_fully_booked === true) {
+      return [];
+    }
+
+    // Check availability_test_days_from_now - if set, only show slots for that specific future date
+    if (staff.availability_test_days_from_now !== null && staff.availability_test_days_from_now !== undefined) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const testDate = new Date(today);
+      testDate.setDate(testDate.getDate() + staff.availability_test_days_from_now);
+      
+      const selectedDate = new Date(date);
+      selectedDate.setHours(0, 0, 0, 0);
+      
+      // If the selected date doesn't match the test date, return no slots
+      if (selectedDate.getTime() !== testDate.getTime()) {
+        return [];
+      }
+    }
+
     return getAvailableSlots(
       service.duration_minutes,
       existingAppointments,
@@ -224,7 +246,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
       businessHours,
       staffHours
     );
-  }, [date, service, existingAppointments, businessHours, staffHours]);
+  }, [date, service, existingAppointments, businessHours, staffHours, staff.simulate_fully_booked, staff.availability_test_days_from_now]);
 
   // Check for overflow when date changes
   useEffect(() => {

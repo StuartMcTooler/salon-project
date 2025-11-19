@@ -390,13 +390,22 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
                 )}
 
                 {availabilityInfo.isHighDemand ? (
-                  <Button 
-                    onClick={() => handleFindCover(staff.id)} 
-                    className="w-full"
-                    variant="destructive"
-                  >
-                    🔥 Find Cover Now
-                  </Button>
+                  <div className="flex flex-col gap-2">
+                    <Button 
+                      onClick={() => handleFindCover(staff.id)} 
+                      className="w-full"
+                      variant="destructive"
+                    >
+                      🔥 Find Cover Now
+                    </Button>
+                    <Button 
+                      onClick={() => onSelect(staff, pricing)} 
+                      className="w-full"
+                      variant="outline"
+                    >
+                      View {staff.display_name}'s Calendar
+                    </Button>
+                  </div>
                 ) : (
                   <Button 
                     onClick={() => onSelect(staff, pricing)} 

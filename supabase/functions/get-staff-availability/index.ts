@@ -56,6 +56,37 @@ Deno.serve(async (req) => {
       );
     }
 
+    // If an availability test override is set, use it to return a
+    // deterministic first-slot result for admin testing, ignoring
+    // real appointments and hours configuration.
+    if (typeof staff.availability_test_days_from_now === 'number') {
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const targetDate = new Date(startOfToday);
+      targetDate.setDate(targetDate.getDate() + staff.availability_test_days_from_now);
+
+      const daysUntil = staff.availability_test_days_from_now;
+
+      // Use a simple 9:00 AM slot for testing purposes
+      const fullSlotTime = new Date(targetDate);
+      fullSlotTime.setHours(9, 0, 0, 0);
+
+      const displayTime = formatTime('09:00');
+      const dayName = getDayName(targetDate, startOfToday);
+
+      return new Response(
+        JSON.stringify({
+          availability_status: {
+            first_slot_timestamp: Math.floor(fullSlotTime.getTime() / 1000),
+            first_slot_display_time: displayTime,
+            first_slot_day_name: dayName,
+            time_to_first_slot_days: daysUntil,
+          }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Get shortest service duration for this staff
     const { data: pricing } = await supabaseClient
       .from('staff_service_pricing')
@@ -106,21 +137,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check next 30 days for availability
+    // Check next 30 days for availability based on real hours
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    // If we have test appointments for this staff, use them exclusively
-    // so the Availability Testing Tool can reliably control scenarios
-    const { data: testAppointments } = await supabaseClient
-      .from('salon_appointments')
-      .select('id')
-      .eq('staff_id', staff_id)
-      .eq('customer_name', 'TEST APPOINTMENT')
-      .gte('appointment_date', startOfToday.toISOString())
-      .limit(1);
-
-    const hasTestData = !!testAppointments && testAppointments.length > 0;
 
     let firstAvailableSlot: { date: Date; time: string } | null = null;
 
@@ -135,21 +154,13 @@ Deno.serve(async (req) => {
 
       // Get existing appointments for this day
       const dateStr = checkDate.toISOString().split('T')[0];
-      let appointmentsQuery = supabaseClient
+      const { data: appointments } = await supabaseClient
         .from('salon_appointments')
         .select('appointment_date, duration_minutes')
         .eq('staff_id', staff_id)
         .gte('appointment_date', `${dateStr}T00:00:00`)
         .lt('appointment_date', `${dateStr}T23:59:59`)
         .neq('status', 'cancelled');
-
-      // When test data exists, only consider TEST APPOINTMENT rows so they fully
-      // control the schedule without touching real data
-      if (hasTestData) {
-        appointmentsQuery = appointmentsQuery.eq('customer_name', 'TEST APPOINTMENT');
-      }
-
-      const { data: appointments } = await appointmentsQuery;
 
       // Generate time slots
       const slots = generateTimeSlots(

@@ -398,11 +398,14 @@ export const PostCheckoutActions = ({
         className="hidden"
         onChange={handleFileChange}
       />
-      {/* Camera View */}
-      <Dialog open={isCameraActive || !!capturedPhoto} onOpenChange={() => {
-        stopCamera();
-        setCapturedPhoto(null);
-      }}>
+
+      {/* Simple preview modal once a photo is selected */}
+      <Dialog
+        open={!!capturedPhoto}
+        onOpenChange={() => {
+          setCapturedPhoto(null);
+        }}
+      >
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>📸 Capture Client Photo</DialogTitle>
@@ -410,51 +413,23 @@ export const PostCheckoutActions = ({
               Take a photo of {appointment.customer_name}'s finished look
             </DialogDescription>
           </DialogHeader>
-          
-          {isCameraActive && !capturedPhoto ? (
+
+          {capturedPhoto && (
             <div className="space-y-4">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full rounded-lg bg-black"
-                style={{ aspectRatio: "4/3" }}
-              />
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    stopCamera();
-                  }}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={capturePhoto}
-                  className="flex-1"
-                >
-                  📸 Capture Photo
-                </Button>
-              </div>
-            </div>
-          ) : capturedPhoto ? (
-            <div className="space-y-4">
-              <img 
-                src={URL.createObjectURL(capturedPhoto)} 
+              <img
+                src={URL.createObjectURL(capturedPhoto)}
                 alt="Preview"
                 className="w-full rounded-lg"
               />
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={handleRetake}
                   disabled={isProcessing}
                 >
                   Retake
                 </Button>
-                <Button 
+                <Button
                   className="flex-1"
                   onClick={handleFinalizeWithPhoto}
                   disabled={isProcessing}
@@ -465,12 +440,12 @@ export const PostCheckoutActions = ({
                       Saving...
                     </>
                   ) : (
-                    '✅ Save & Finalize'
+                    "✅ Save & Finalize"
                   )}
                 </Button>
               </div>
             </div>
-          ) : null}
+          )}
         </DialogContent>
       </Dialog>
     </>

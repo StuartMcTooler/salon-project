@@ -4,12 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Image, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useState } from "react";
 
 interface PortalVisualHistoryProps {
   clientId: string;
 }
 
 export const PortalVisualHistory = ({ clientId }: PortalVisualHistoryProps) => {
+  const [selectedImage, setSelectedImage] = useState<any>(null);
+  
   const { data: historyItems, isLoading } = useQuery({
     queryKey: ["visual-history", clientId],
     queryFn: async () => {
@@ -104,6 +108,7 @@ export const PortalVisualHistory = ({ clientId }: PortalVisualHistoryProps) => {
             <div
               key={item.id}
               className="group relative aspect-square rounded-lg overflow-hidden border bg-muted cursor-pointer hover:scale-105 transition-transform"
+              onClick={() => setSelectedImage(item)}
             >
               {item.imageUrl ? (
                 <img
@@ -130,6 +135,28 @@ export const PortalVisualHistory = ({ clientId }: PortalVisualHistoryProps) => {
           ))}
         </div>
       </CardContent>
+
+      <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+        <DialogContent className="sm:max-w-3xl">
+          {selectedImage && (
+            <div className="space-y-4">
+              <img
+                src={selectedImage.imageUrl}
+                alt="Full size view"
+                className="w-full rounded-lg"
+              />
+              <div className="text-center space-y-1">
+                {selectedImage.service && (
+                  <p className="font-medium">{selectedImage.service.name}</p>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  {format(new Date(selectedImage.added_at), "MMMM d, yyyy")}
+                </p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

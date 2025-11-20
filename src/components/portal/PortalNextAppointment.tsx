@@ -92,7 +92,7 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["next-appointment"] });
+      queryClient.invalidateQueries({ queryKey: ["next-appointment", clientId] });
       toast.success("Appointment rescheduled successfully");
       setShowReschedule(false);
       setSelectedDate(undefined);
@@ -115,7 +115,7 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["next-appointment"] });
+      queryClient.invalidateQueries({ queryKey: ["next-appointment", clientId] });
       toast.success("Appointment cancelled");
       setShowCancel(false);
     },

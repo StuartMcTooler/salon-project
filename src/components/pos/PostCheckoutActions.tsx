@@ -65,6 +65,11 @@ export const PostCheckoutActions = ({
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
+      videoRef.current
+        .play()
+        .catch((err) => {
+          console.warn("Video play() failed when stream changed", err);
+        });
     }
   }, [stream]);
 
@@ -136,21 +141,40 @@ export const PostCheckoutActions = ({
 
   const startCamera = async () => {
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.error("Camera API not available in this browser");
+        toast({
+          title: "Camera not available",
+          description:
+            "Your browser cannot access the camera here. Try the main browser app and check permissions.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+        video: { facingMode: { ideal: "environment" } },
         audio: false,
       });
       setStream(mediaStream);
       setIsCameraActive(true);
-      
+
       // Set video source when ref is available
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        videoRef.current
+          .play()
+          .catch((err) => {
+            console.warn("Video play() failed after starting camera", err);
+          });
       }
     } catch (error: any) {
+      console.error("Error starting camera", error);
       toast({
         title: "Camera Access Failed",
-        description: error.message,
+        description:
+          error.message ||
+          "We couldn't access the camera. Please check browser permissions and try again.",
         variant: "destructive",
       });
     }
@@ -464,8 +488,9 @@ export const PostCheckoutActions = ({
                 ref={videoRef}
                 autoPlay
                 playsInline
+                muted
                 className="w-full rounded-lg bg-black"
-                style={{ aspectRatio: '4/3' }}
+                style={{ aspectRatio: "4/3" }}
               />
               <div className="flex gap-2">
                 <Button 

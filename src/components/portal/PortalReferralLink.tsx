@@ -54,12 +54,13 @@ export const PortalReferralLink = ({ clientName, clientPhone }: PortalReferralLi
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Share your unique referral link with friends. When they book, you both get a discount!
-        </p>
-
-        <div className="p-3 bg-muted rounded-lg">
-          <code className="text-xs break-all">{referralLink}</code>
+        <div className="text-center py-2">
+          <p className="text-lg font-semibold text-primary mb-1">
+            Invite a friend, and you both get a €10 Credit!
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Share your link and start earning rewards today
+          </p>
         </div>
 
         <div className="flex gap-2">

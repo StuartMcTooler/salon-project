@@ -2,7 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Star, TrendingUp, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Star, TrendingUp, Loader2, Crown } from "lucide-react";
 
 interface PortalLoyaltyProps {
   clientId: string;
@@ -43,6 +44,17 @@ export const PortalLoyalty = ({ clientId, clientPhone }: PortalLoyaltyProps) => 
   const points = loyaltyData?.current_balance || 0;
   const lifetimeEarned = loyaltyData?.lifetime_earned || 0;
   const totalVisits = loyaltyData?.total_visits || 0;
+  const cashValue = (points * 0.01).toFixed(2);
+
+  // Determine VIP tier based on visits
+  const getTier = (visits: number) => {
+    if (visits >= 50) return { name: "VIP Elite", color: "bg-gradient-to-r from-yellow-500 to-amber-600" };
+    if (visits >= 25) return { name: "VIP Gold", color: "bg-gradient-to-r from-yellow-400 to-yellow-500" };
+    if (visits >= 10) return { name: "Preferred Client", color: "bg-gradient-to-r from-blue-500 to-purple-500" };
+    return { name: "Valued Client", color: "bg-gradient-to-r from-gray-500 to-gray-600" };
+  };
+
+  const tier = getTier(totalVisits);
 
   return (
     <Card>
@@ -53,9 +65,20 @@ export const PortalLoyalty = ({ clientId, clientPhone }: PortalLoyaltyProps) => 
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* VIP Status Badge */}
+        <div className={`${tier.color} text-white rounded-lg p-3 text-center`}>
+          <div className="flex items-center justify-center gap-2 font-semibold">
+            <Crown className="h-5 w-5" />
+            {tier.name}
+          </div>
+        </div>
+
+        {/* Points and Cash Value */}
         <div className="text-center py-4">
           <div className="text-5xl font-bold text-primary mb-2">{points}</div>
           <p className="text-sm text-muted-foreground">Available Points</p>
+          <div className="text-2xl font-semibold text-green-600 mt-2">€{cashValue}</div>
+          <p className="text-xs text-muted-foreground">Cash Value Available</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4 pt-4 border-t">
@@ -73,9 +96,9 @@ export const PortalLoyalty = ({ clientId, clientPhone }: PortalLoyaltyProps) => 
         </div>
 
         {points >= 100 && (
-          <Badge variant="secondary" className="w-full justify-center py-2">
-            You can redeem your points at your next visit!
-          </Badge>
+          <Button className="w-full" size="lg" onClick={() => window.location.href = "/salon"}>
+            Redeem Now at Checkout
+          </Button>
         )}
       </CardContent>
     </Card>

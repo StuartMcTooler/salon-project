@@ -14,6 +14,7 @@ import { LoyaltyBalanceCard } from "./LoyaltyBalanceCard";
 import { normalizePhoneNumber } from "@/lib/utils";
 import { findOrCreateClient } from "@/lib/clientUtils";
 import { CameraCapture } from "./CameraCapture";
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 // import { PaymentMethodSelector } from "./PaymentMethodSelector"; // Commented out - auto-launching card reader instead
 
 interface QuickCustomerFormProps {
@@ -51,6 +52,8 @@ export const QuickCustomerForm = ({
   const [loyaltyDiscount, setLoyaltyDiscount] = useState<number>(0);
   const [showCamera, setShowCamera] = useState(false);
   const [clientId, setClientId] = useState<string | null>(null);
+  const [showPhonePrompt, setShowPhonePrompt] = useState(false);
+  const [shouldOpenCameraAfterPhone, setShouldOpenCameraAfterPhone] = useState(false);
 
   // Check for available credits, loyalty balance, and auto-fill customer name when phone changes
   useEffect(() => {
@@ -128,6 +131,14 @@ export const QuickCustomerForm = ({
 
     checkCreditsAndCustomer();
   }, [customerPhone, applyCreditOptOut, service.custom_price, staffMember.id, customerName, loyaltyDiscount]);
+
+  // Auto-open camera if flag is set and phone is now filled
+  useEffect(() => {
+    if (shouldOpenCameraAfterPhone && customerPhone && customerPhone.trim() !== '') {
+      setShouldOpenCameraAfterPhone(false);
+      setShowCamera(true);
+    }
+  }, [customerPhone, shouldOpenCameraAfterPhone]);
 
   const createWalkIn = useMutation({
     mutationFn: async () => {
@@ -855,13 +866,23 @@ export const QuickCustomerForm = ({
           
           <div className="space-y-4 pt-4 border-t">
             <p className="text-sm text-muted-foreground text-center">
-              Capture {customerName || "the customer"}'s finished look for their private history before payment.
+              {!customerPhone || customerPhone.trim() === '' 
+                ? "Add a phone number to capture visual history" 
+                : `Capture ${customerName || "the customer"}'s finished look for their private history before payment.`
+              }
             </p>
             
             <Button
               size="lg"
               className="w-full h-16 text-lg"
-              onClick={() => setShowCamera(true)}
+              onClick={() => {
+                if (!customerPhone || customerPhone.trim() === '') {
+                  setShowPhonePrompt(true);
+                  setShouldOpenCameraAfterPhone(true);
+                } else {
+                  setShowCamera(true);
+                }
+              }}
               disabled={createWalkIn.isPending || processingPayment}
             >
               <Camera className="mr-2 h-6 w-6" />
@@ -996,6 +1017,46 @@ export const QuickCustomerForm = ({
           redemptionValue={loyaltyResult.redemptionValue}
         />
       )}
+
+      <AlertDialog open={showPhonePrompt} onOpenChange={setShowPhonePrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Phone Number Required</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please enter the customer's phone number to save their visual history.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Label htmlFor="modal-phone">Phone Number</Label>
+            <Input
+              id="modal-phone"
+              type="tel"
+              placeholder="087 123 4567"
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => {
+                if (customerPhone && customerPhone.trim() !== '') {
+                  setShowPhonePrompt(false);
+                  setTimeout(() => setShowCamera(true), 100);
+                } else {
+                  toast({
+                    title: "Phone Required",
+                    description: "Please enter a phone number to continue",
+                    variant: "destructive"
+                  });
+                }
+              }}
+            >
+              Continue to Camera
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

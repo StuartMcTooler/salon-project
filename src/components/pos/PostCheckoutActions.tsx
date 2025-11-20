@@ -180,7 +180,7 @@ export const PostCheckoutActions = ({
           client_name: appointment.customer_name,
           client_email: appointment.customer_email || '',
           client_phone: appointment.customer_phone || '',
-          request_type: 'pos_direct',
+          request_type: 'creative_first',
           status: 'completed',
           token: `pos_${Date.now()}`,
           token_expires_at: tokenExpiry.toISOString(),

@@ -121,15 +121,50 @@ export const PostCheckoutActions = ({
 
     setIsProcessing(true);
     try {
-      // Get or find client_id from appointment
+      // Get or create client record
+      let clientId: string;
+      
+      // First check if appointment already has client_id
       const { data: appointmentData } = await supabase
         .from('salon_appointments')
         .select('client_id')
         .eq('id', appointment.id)
         .single();
 
-      if (!appointmentData?.client_id) {
-        throw new Error('No client linked to this appointment');
+      if (appointmentData?.client_id) {
+        clientId = appointmentData.client_id;
+      } else {
+        // Find or create client by phone
+        const { data: existingClient } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('phone', appointment.customer_phone)
+          .maybeSingle();
+
+        if (existingClient) {
+          clientId = existingClient.id;
+        } else {
+          // Create new client
+          const { data: newClient, error: clientError } = await supabase
+            .from('clients')
+            .insert({
+              name: appointment.customer_name,
+              phone: appointment.customer_phone,
+              email: appointment.customer_email,
+              primary_creative_id: appointment.staff_id,
+            })
+            .select('id')
+            .single();
+
+          if (clientError) throw clientError;
+          clientId = newClient.id;
+        }
+
+        // Update appointment with client_id
+        await supabase
+          .from('salon_appointments')
+          .update({ client_id: clientId })
+          .eq('id', appointment.id);
       }
 
       // Create a content_request record first (required for foreign key)
@@ -141,7 +176,7 @@ export const PostCheckoutActions = ({
         .insert({
           appointment_id: appointment.id,
           creative_id: appointment.staff_id,
-          client_id: appointmentData.client_id,
+          client_id: clientId,
           client_name: appointment.customer_name,
           client_email: appointment.customer_email || '',
           client_phone: appointment.customer_phone || '',
@@ -156,7 +191,7 @@ export const PostCheckoutActions = ({
       if (requestError) throw requestError;
 
       // Upload photo to storage
-      const fileName = `${appointment.staff_id}/${appointmentData.client_id}/${Date.now()}.jpg`;
+      const fileName = `${appointment.staff_id}/${clientId}/${Date.now()}.jpg`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('client-content-raw')
         .upload(fileName, capturedPhoto, {
@@ -187,7 +222,7 @@ export const PostCheckoutActions = ({
         .from('creative_lookbooks')
         .insert({
           creative_id: appointment.staff_id,
-          client_id: appointmentData.client_id,
+          client_id: clientId,
           content_id: contentData.id,
           visibility_type: 'private',
           is_featured: false,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -36,11 +36,37 @@ export const PostCheckoutActions = ({
 }: PostCheckoutActionsProps) => {
   const { toast } = useToast();
   const [sentActions, setSentActions] = useState<string[]>([]);
-  const [showCameraModal, setShowCameraModal] = useState(false);
-  const [capturedPhoto, setCapturedPhoto] = useState<File | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState<Blob | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const APP_URL = window.location.origin;
   const discount = useReferralDiscount(appointment.staff_id, businessId);
+
+  // Cleanup camera stream on unmount or modal close
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      stopCamera();
+      setCapturedPhoto(null);
+      setIsCameraActive(false);
+    }
+  }, [isOpen]);
+
+  // Set video stream when stream changes
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
 
   const sendWhatsApp = useMutation({
     mutationFn: async ({ message, actionType }: { message: string; actionType: string }) => {
@@ -108,12 +134,59 @@ export const PostCheckoutActions = ({
     sendWhatsApp.mutate({ message, actionType: 'feedback' });
   };
 
-  const handleOpenCamera = () => {
-    setShowCameraModal(true);
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false,
+      });
+      setStream(mediaStream);
+      setIsCameraActive(true);
+      
+      // Set video source when ref is available
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+    } catch (error: any) {
+      toast({
+        title: "Camera Access Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handlePhotoCapture = async (file: File) => {
-    setCapturedPhoto(file);
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setIsCameraActive(false);
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx) return;
+    
+    ctx.drawImage(videoRef.current, 0, 0);
+    
+    canvas.toBlob((blob) => {
+      if (blob) {
+        setCapturedPhoto(blob);
+        stopCamera();
+      }
+    }, 'image/jpeg', 0.9);
+  };
+
+  const handleRetake = () => {
+    setCapturedPhoto(null);
+    startCamera();
   };
 
   const handleFinalizeWithPhoto = async () => {
@@ -195,7 +268,7 @@ export const PostCheckoutActions = ({
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('client-content-raw')
         .upload(fileName, capturedPhoto, {
-          contentType: capturedPhoto.type,
+          contentType: 'image/jpeg',
           upsert: false,
         });
 
@@ -238,8 +311,8 @@ export const PostCheckoutActions = ({
       });
       
       // Auto-close modal and reset
-      setShowCameraModal(false);
       setCapturedPhoto(null);
+      stopCamera();
       onClose();
     } catch (error: any) {
       console.error('Error saving photo:', error);
@@ -269,7 +342,7 @@ export const PostCheckoutActions = ({
             <Button
               variant="default"
               className="w-full h-20 text-lg font-medium bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600"
-              onClick={handleOpenCamera}
+              onClick={startCamera}
             >
               <Camera className="mr-2 h-5 w-5" />
               📸 Snap Photo & Finalize
@@ -372,9 +445,12 @@ export const PostCheckoutActions = ({
         </DialogContent>
       </Dialog>
 
-      {/* Camera Modal */}
-      <Dialog open={showCameraModal} onOpenChange={setShowCameraModal}>
-        <DialogContent>
+      {/* Camera View */}
+      <Dialog open={isCameraActive || !!capturedPhoto} onOpenChange={() => {
+        stopCamera();
+        setCapturedPhoto(null);
+      }}>
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>📸 Capture Client Photo</DialogTitle>
             <DialogDescription>
@@ -382,30 +458,34 @@ export const PostCheckoutActions = ({
             </DialogDescription>
           </DialogHeader>
           
-          {!capturedPhoto ? (
+          {isCameraActive && !capturedPhoto ? (
             <div className="space-y-4">
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={(e) => {
-                  if (e.target.files?.[0]) {
-                    handlePhotoCapture(e.target.files[0]);
-                  }
-                }}
-                className="hidden"
-                id="camera-input-finalize"
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className="w-full rounded-lg bg-black"
+                style={{ aspectRatio: '4/3' }}
               />
-              <label htmlFor="camera-input-finalize">
-                <Button className="w-full h-16 text-lg" asChild>
-                  <span>
-                    <Camera className="mr-2 h-5 w-5" />
-                    Open Camera
-                  </span>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    stopCamera();
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
                 </Button>
-              </label>
+                <Button 
+                  onClick={capturePhoto}
+                  className="flex-1"
+                >
+                  📸 Capture Photo
+                </Button>
+              </div>
             </div>
-          ) : (
+          ) : capturedPhoto ? (
             <div className="space-y-4">
               <img 
                 src={URL.createObjectURL(capturedPhoto)} 
@@ -415,7 +495,7 @@ export const PostCheckoutActions = ({
               <div className="flex gap-2">
                 <Button 
                   variant="outline" 
-                  onClick={() => setCapturedPhoto(null)}
+                  onClick={handleRetake}
                   disabled={isProcessing}
                 >
                   Retake
@@ -436,7 +516,7 @@ export const PostCheckoutActions = ({
                 </Button>
               </div>
             </div>
-          )}
+          ) : null}
         </DialogContent>
       </Dialog>
     </>

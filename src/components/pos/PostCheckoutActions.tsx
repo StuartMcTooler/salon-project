@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -36,42 +36,17 @@ export const PostCheckoutActions = ({
 }: PostCheckoutActionsProps) => {
   const { toast } = useToast();
   const [sentActions, setSentActions] = useState<string[]>([]);
-  const [isCameraActive, setIsCameraActive] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<Blob | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const APP_URL = window.location.origin;
   const discount = useReferralDiscount(appointment.staff_id, businessId);
 
-  // Cleanup camera stream on unmount or modal close
-  useEffect(() => {
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [stream]);
-
   useEffect(() => {
     if (!isOpen) {
-      stopCamera();
       setCapturedPhoto(null);
-      setIsCameraActive(false);
     }
   }, [isOpen]);
-
-  // Set video stream when stream changes
-  useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
-      videoRef.current
-        .play()
-        .catch((err) => {
-          console.warn("Video play() failed when stream changed", err);
-        });
-    }
-  }, [stream]);
 
   const sendWhatsApp = useMutation({
     mutationFn: async ({ message, actionType }: { message: string; actionType: string }) => {
@@ -139,78 +114,25 @@ export const PostCheckoutActions = ({
     sendWhatsApp.mutate({ message, actionType: 'feedback' });
   };
 
-  const startCamera = async () => {
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.error("Camera API not available in this browser");
-        toast({
-          title: "Camera not available",
-          description:
-            "Your browser cannot access the camera here. Try the main browser app and check permissions.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
-        audio: false,
-      });
-      setStream(mediaStream);
-      setIsCameraActive(true);
-
-      // Set video source when ref is available
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current
-          .play()
-          .catch((err) => {
-            console.warn("Video play() failed after starting camera", err);
-          });
-      }
-    } catch (error: any) {
-      console.error("Error starting camera", error);
-      toast({
-        title: "Camera Access Failed",
-        description:
-          error.message ||
-          "We couldn't access the camera. Please check browser permissions and try again.",
-        variant: "destructive",
-      });
-    }
+  const openNativeCamera = () => {
+    if (!fileInputRef.current) return;
+    // Reset the input so selecting the same file again still triggers change
+    fileInputRef.current.value = "";
+    fileInputRef.current.click();
   };
 
-  const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
-    setIsCameraActive(false);
-  };
-
-  const capturePhoto = () => {
-    if (!videoRef.current) return;
-    
-    const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    const ctx = canvas.getContext('2d');
-    
-    if (!ctx) return;
-    
-    ctx.drawImage(videoRef.current, 0, 0);
-    
-    canvas.toBlob((blob) => {
-      if (blob) {
-        setCapturedPhoto(blob);
-        stopCamera();
-      }
-    }, 'image/jpeg', 0.9);
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setCapturedPhoto(file);
   };
 
   const handleRetake = () => {
     setCapturedPhoto(null);
-    startCamera();
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
   };
 
   const handleFinalizeWithPhoto = async () => {
@@ -336,7 +258,6 @@ export const PostCheckoutActions = ({
       
       // Auto-close modal and reset
       setCapturedPhoto(null);
-      stopCamera();
       onClose();
     } catch (error: any) {
       console.error('Error saving photo:', error);
@@ -366,7 +287,7 @@ export const PostCheckoutActions = ({
             <Button
               variant="default"
               className="w-full h-20 text-lg font-medium bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600"
-              onClick={startCamera}
+              onClick={openNativeCamera}
             >
               <Camera className="mr-2 h-5 w-5" />
               📸 Snap Photo & Finalize
@@ -469,6 +390,14 @@ export const PostCheckoutActions = ({
         </DialogContent>
       </Dialog>
 
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileChange}
+      />
       {/* Camera View */}
       <Dialog open={isCameraActive || !!capturedPhoto} onOpenChange={() => {
         stopCamera();

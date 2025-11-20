@@ -378,6 +378,37 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
       const [hours, minutes] = time.split(':');
       appointmentDateTime.setHours(parseInt(hours), parseInt(minutes));
 
+      // Find or create client record
+      let clientId: string | null = null;
+      
+      const { data: existingClient } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('phone', customerPhone)
+        .maybeSingle();
+
+      if (existingClient) {
+        clientId = existingClient.id;
+      } else {
+        // Create new client
+        const { data: newClient, error: clientError } = await supabase
+          .from('clients')
+          .insert([{
+            name: customerName,
+            phone: customerPhone,
+            email: customerEmail || null,
+            primary_creative_id: staff.id,
+          }])
+          .select('id')
+          .single();
+
+        if (clientError) {
+          console.error('Failed to create client:', clientError);
+        } else if (newClient) {
+          clientId = newClient.id;
+        }
+      }
+
       // Prepare appointment payload
       const appointmentId = crypto.randomUUID();
 
@@ -388,6 +419,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
 
       const appointmentData: any = {
         id: appointmentId,
+        client_id: clientId,
         service_id: service.id,
         service_name: service.name,
         staff_id: actualStaffId,

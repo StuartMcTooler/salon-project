@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Gift, MessageSquare, Loader2, CheckCircle2, Camera, Sparkles } from "lucide-react";
+import { Calendar, Gift, MessageSquare, Loader2, CheckCircle2, Camera } from "lucide-react";
 import { useReferralDiscount } from "@/hooks/useReferralDiscount";
 
 interface PostCheckoutActionsProps {
@@ -36,7 +36,6 @@ export const PostCheckoutActions = ({
 }: PostCheckoutActionsProps) => {
   const { toast } = useToast();
   const [sentActions, setSentActions] = useState<string[]>([]);
-  const [showStrategyChoice, setShowStrategyChoice] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -109,79 +108,108 @@ export const PostCheckoutActions = ({
     sendWhatsApp.mutate({ message, actionType: 'feedback' });
   };
 
-  const handleRequestSocialContent = () => {
-    setShowStrategyChoice(true);
-  };
-
-  const handleCreativeFirst = () => {
-    setShowStrategyChoice(false);
+  const handleOpenCamera = () => {
     setShowCameraModal(true);
-  };
-
-  const handleClientFirst = async () => {
-    setShowStrategyChoice(false);
-    setIsProcessing(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('request-client-creation', {
-        body: {
-          appointmentId: appointment.id,
-          creativeId: appointment.staff_id,
-        }
-      });
-
-      if (error) throw error;
-
-      setSentActions([...sentActions, 'socialContent']);
-      toast({
-        title: "Link sent!",
-        description: "Customer will receive a link to create their content",
-      });
-    } catch (error: any) {
-      console.error('Error sending client creation request:', error);
-      toast({
-        title: "Failed to send",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
   };
 
   const handlePhotoCapture = async (file: File) => {
     setCapturedPhoto(file);
   };
 
-  const handleSendContentRequest = async () => {
+  const handleFinalizeWithPhoto = async () => {
     if (!capturedPhoto) return;
 
     setIsProcessing(true);
     try {
-      const formData = new FormData();
-      formData.append('file', capturedPhoto);
-      formData.append('appointmentId', appointment.id);
-      formData.append('creativeId', appointment.staff_id);
-      formData.append('mediaType', 'photo');
+      // Get or find client_id from appointment
+      const { data: appointmentData } = await supabase
+        .from('salon_appointments')
+        .select('client_id')
+        .eq('id', appointment.id)
+        .single();
 
-      const { data, error } = await supabase.functions.invoke(
-        'request-social-content',
-        { body: formData }
-      );
+      if (!appointmentData?.client_id) {
+        throw new Error('No client linked to this appointment');
+      }
 
-      if (error) throw error;
+      // Create a content_request record first (required for foreign key)
+      const tokenExpiry = new Date();
+      tokenExpiry.setHours(tokenExpiry.getHours() + 24);
+      
+      const { data: requestData, error: requestError } = await supabase
+        .from('content_requests')
+        .insert({
+          appointment_id: appointment.id,
+          creative_id: appointment.staff_id,
+          client_id: appointmentData.client_id,
+          client_name: appointment.customer_name,
+          client_email: appointment.customer_email || '',
+          client_phone: appointment.customer_phone || '',
+          request_type: 'pos_direct',
+          status: 'completed',
+          token: `pos_${Date.now()}`,
+          token_expires_at: tokenExpiry.toISOString(),
+        })
+        .select()
+        .single();
+
+      if (requestError) throw requestError;
+
+      // Upload photo to storage
+      const fileName = `${appointment.staff_id}/${appointmentData.client_id}/${Date.now()}.jpg`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('client-content-raw')
+        .upload(fileName, capturedPhoto, {
+          contentType: capturedPhoto.type,
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Create client_content record
+      const { data: contentData, error: contentError } = await supabase
+        .from('client_content')
+        .insert({
+          creative_id: appointment.staff_id,
+          raw_file_path: fileName,
+          media_type: 'image',
+          request_id: requestData.id,
+          client_approved: true,
+          points_awarded: false,
+        })
+        .select()
+        .single();
+
+      if (contentError) throw contentError;
+
+      // Create lookbook entry with visibility_type='private'
+      const { error: lookbookError } = await supabase
+        .from('creative_lookbooks')
+        .insert({
+          creative_id: appointment.staff_id,
+          client_id: appointmentData.client_id,
+          content_id: contentData.id,
+          visibility_type: 'private',
+          is_featured: false,
+          display_order: 0,
+          private_notes: `Added via POS checkout - ${new Date().toLocaleDateString()}`,
+        });
+
+      if (lookbookError) throw lookbookError;
 
       toast({
-        title: "✨ Content Request Sent!",
-        description: `Approval link sent to ${appointment.customer_phone}`,
+        title: "✨ Photo Saved!",
+        description: "Added to client's private history",
       });
       
+      // Auto-close modal and reset
       setShowCameraModal(false);
       setCapturedPhoto(null);
-      setSentActions([...sentActions, 'content']);
+      onClose();
     } catch (error: any) {
+      console.error('Error saving photo:', error);
       toast({
-        title: "Upload Failed",
+        title: "Failed to Save",
         description: error.message,
         variant: "destructive",
       });
@@ -194,170 +222,118 @@ export const PostCheckoutActions = ({
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-md">
-          {showStrategyChoice ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>Choose Content Strategy</DialogTitle>
-                <DialogDescription>
-                  How would you like to get {appointment.customer_name}'s approval?
-                </DialogDescription>
-              </DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-2xl">🎉 Payment Received!</DialogTitle>
+            <DialogDescription>
+              Capture {appointment.customer_name}'s look for their private history
+            </DialogDescription>
+          </DialogHeader>
 
-              <div className="space-y-3 py-4">
-                <Button
-                  variant="default"
-                  className="w-full justify-start h-auto py-6"
-                  onClick={handleCreativeFirst}
-                >
-                  <Camera className="mr-3 h-5 w-5" />
-                  <div className="flex flex-col items-start">
-                    <span className="font-medium text-lg">📸 Get Approval for MY Photo</span>
-                    <span className="text-sm opacity-90">
-                      You take the photo, client approves it
+          <div className="space-y-3 py-4">
+            {/* Primary CTA: Snap Photo & Finalize */}
+            <Button
+              variant="default"
+              className="w-full h-20 text-lg font-medium bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600"
+              onClick={handleOpenCamera}
+            >
+              <Camera className="mr-2 h-5 w-5" />
+              📸 Snap Photo & Finalize
+            </Button>
+
+            {appointment.customer_phone && (
+              <>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Optional Actions
                     </span>
                   </div>
-                </Button>
+                </div>
 
+                {/* Send Booking Link */}
                 <Button
                   variant="outline"
-                  className="w-full justify-start h-auto py-6"
-                  onClick={handleClientFirst}
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? (
-                    <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                  ) : (
-                    <Sparkles className="mr-3 h-5 w-5" />
-                  )}
-                  <div className="flex flex-col items-start">
-                    <span className="font-medium text-lg">✨ Ask Client to Create Theirs</span>
-                    <span className="text-sm opacity-90">
-                      Client creates content in Glow-Up Studio
-                    </span>
-                  </div>
-                </Button>
-
-                <Button
-                  variant="ghost"
                   className="w-full"
-                  onClick={() => setShowStrategyChoice(false)}
+                  onClick={handleSendBookingLink}
+                  disabled={sendWhatsApp.isPending || sentActions.includes('booking')}
                 >
-                  Back
+                  {sentActions.includes('booking') ? (
+                    <>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Booking Link Sent
+                    </>
+                  ) : sendWhatsApp.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Send Booking Link
+                    </>
+                  )}
                 </Button>
-              </div>
-            </>
-          ) : (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-primary" />
-                  Payment Received - €{Number(appointment.price).toFixed(2)}
-                </DialogTitle>
-                <DialogDescription>
-                  Thank you, {appointment.customer_name}!
-                </DialogDescription>
-              </DialogHeader>
 
-              <div className="space-y-3 py-4">
-                {appointment.customer_phone ? (
-                  <>
-                    <p className="text-sm font-medium">Send to {appointment.customer_phone}:</p>
+                {/* Send Referral Invite */}
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleSendReferral}
+                  disabled={sendWhatsApp.isPending || sentActions.includes('referral')}
+                >
+                  {sentActions.includes('referral') ? (
+                    <>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Referral Sent
+                    </>
+                  ) : sendWhatsApp.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Gift className="mr-2 h-4 w-4" />
+                      Send Referral Invite
+                    </>
+                  )}
+                </Button>
 
-                    <Button
-                      variant="default"
-                      className="w-full justify-start h-auto py-4 bg-primary"
-                      onClick={handleRequestSocialContent}
-                      disabled={sentActions.includes('content')}
-                    >
-                      {sentActions.includes('content') ? (
-                        <CheckCircle2 className="mr-2 h-4 w-4" />
-                      ) : (
-                        <Camera className="mr-2 h-4 w-4" />
-                      )}
-                      <div className="flex flex-col items-start">
-                        <span className="font-medium">📸 Request Social Media Content</span>
-                        <span className="text-xs opacity-90">
-                          Take photo & get client approval
-                        </span>
-                      </div>
-                    </Button>
+                {/* Send Feedback Request */}
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleSendFeedback}
+                  disabled={sendWhatsApp.isPending || sentActions.includes('feedback')}
+                >
+                  {sentActions.includes('feedback') ? (
+                    <>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Feedback Request Sent
+                    </>
+                  ) : sendWhatsApp.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Request Feedback
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
+          </div>
 
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start h-auto py-4"
-                      onClick={handleSendBookingLink}
-                      disabled={sendWhatsApp.isPending || sentActions.includes('booking')}
-                    >
-                      {sendWhatsApp.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : sentActions.includes('booking') ? (
-                        <CheckCircle2 className="mr-2 h-4 w-4 text-primary" />
-                      ) : (
-                        <Calendar className="mr-2 h-4 w-4" />
-                      )}
-                      <div className="flex flex-col items-start">
-                        <span className="font-medium">Send Booking Link</span>
-                        <span className="text-xs text-muted-foreground">
-                          "Book your next appointment"
-                        </span>
-                      </div>
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start h-auto py-4"
-                      onClick={handleSendReferral}
-                      disabled={sendWhatsApp.isPending || sentActions.includes('referral')}
-                    >
-                      {sendWhatsApp.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : sentActions.includes('referral') ? (
-                        <CheckCircle2 className="mr-2 h-4 w-4 text-primary" />
-                      ) : (
-                        <Gift className="mr-2 h-4 w-4" />
-                      )}
-                      <div className="flex flex-col items-start">
-                        <span className="font-medium">Send Referral Invite</span>
-                        <span className="text-xs text-muted-foreground">
-                          "Get {discount.displayText} - Refer a friend"
-                        </span>
-                      </div>
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start h-auto py-4"
-                      onClick={handleSendFeedback}
-                      disabled={sendWhatsApp.isPending || sentActions.includes('feedback')}
-                    >
-                      {sendWhatsApp.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : sentActions.includes('feedback') ? (
-                        <CheckCircle2 className="mr-2 h-4 w-4 text-primary" />
-                      ) : (
-                        <MessageSquare className="mr-2 h-4 w-4" />
-                      )}
-                      <div className="flex flex-col items-start">
-                        <span className="font-medium">Request Feedback</span>
-                        <span className="text-xs text-muted-foreground">
-                          "How was your experience?"
-                        </span>
-                      </div>
-                    </Button>
-                  </>
-                ) : (
-                  <div className="text-center py-4 text-muted-foreground">
-                    <p className="text-sm">No phone number provided for this customer.</p>
-                    <p className="text-xs mt-1">Collect phone numbers to send booking links and feedback requests.</p>
-                  </div>
-                )}
-              </div>
-
-              <Button variant="default" className="w-full" onClick={onClose}>
-                {appointment.customer_phone ? "Skip - Next Customer" : "Done - Next Customer"}
-              </Button>
-            </>
-          )}
+          <Button variant="ghost" className="w-full" onClick={onClose}>
+            Skip to Next Customer
+          </Button>
         </DialogContent>
       </Dialog>
 
@@ -365,9 +341,9 @@ export const PostCheckoutActions = ({
       <Dialog open={showCameraModal} onOpenChange={setShowCameraModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Take Client Photo</DialogTitle>
+            <DialogTitle>📸 Capture Client Photo</DialogTitle>
             <DialogDescription>
-              Capture a photo of {appointment.customer_name}'s new look
+              Take a photo of {appointment.customer_name}'s finished look
             </DialogDescription>
           </DialogHeader>
           
@@ -383,11 +359,14 @@ export const PostCheckoutActions = ({
                   }
                 }}
                 className="hidden"
-                id="camera-input"
+                id="camera-input-finalize"
               />
-              <label htmlFor="camera-input">
-                <Button className="w-full" asChild>
-                  <span>📷 Open Camera</span>
+              <label htmlFor="camera-input-finalize">
+                <Button className="w-full h-16 text-lg" asChild>
+                  <span>
+                    <Camera className="mr-2 h-5 w-5" />
+                    Open Camera
+                  </span>
                 </Button>
               </label>
             </div>
@@ -408,16 +387,16 @@ export const PostCheckoutActions = ({
                 </Button>
                 <Button 
                   className="flex-1"
-                  onClick={handleSendContentRequest}
+                  onClick={handleFinalizeWithPhoto}
                   disabled={isProcessing}
                 >
                   {isProcessing ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
+                      Saving...
                     </>
                   ) : (
-                    'Send Approval Request'
+                    '✅ Save & Finalize'
                   )}
                 </Button>
               </div>

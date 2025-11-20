@@ -207,7 +207,7 @@ export const PostCheckoutActions = ({
         .insert({
           creative_id: appointment.staff_id,
           raw_file_path: fileName,
-          media_type: 'image',
+          media_type: 'photo',
           request_id: requestData.id,
           client_approved: true,
           points_awarded: false,

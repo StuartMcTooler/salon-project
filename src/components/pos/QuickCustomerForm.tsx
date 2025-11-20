@@ -861,26 +861,11 @@ export const QuickCustomerForm = ({
             <Button
               size="lg"
               className="w-full h-16 text-lg"
-              onClick={() => {
-                createWalkIn.mutate(undefined, {
-                  onSuccess: () => {
-                    setShowCamera(true);
-                  }
-                });
-              }}
+              onClick={() => setShowCamera(true)}
               disabled={createWalkIn.isPending || processingPayment}
             >
-              {createWalkIn.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                  Creating Appointment...
-                </>
-              ) : (
-                <>
-                  <Camera className="mr-2 h-6 w-6" />
-                  📸 Take Photo & Pay
-                </>
-              )}
+              <Camera className="mr-2 h-6 w-6" />
+              📸 Take Photo & Pay
             </Button>
             
             <Button
@@ -890,7 +875,14 @@ export const QuickCustomerForm = ({
               onClick={() => createWalkIn.mutate()}
               disabled={createWalkIn.isPending || processingPayment}
             >
-              Skip Photo, Go to Payment
+              {createWalkIn.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Skip Photo, Go to Payment"
+              )}
             </Button>
           </div>
         </CardContent>
@@ -901,95 +893,94 @@ export const QuickCustomerForm = ({
         onClose={() => setShowCamera(false)}
         customerName={customerName || "Customer"}
         onCapture={async (imageBlob) => {
-          if (!clientId || !appointmentId) {
-            toast({
-              title: "Error",
-              description: "Missing client or appointment information",
-              variant: "destructive",
-            });
-            return;
-          }
+          // First create the appointment
+          createWalkIn.mutate(undefined, {
+            onSuccess: async (appointmentData) => {
+              if (!clientId) {
+                toast({
+                  title: "Error",
+                  description: "Missing client information",
+                  variant: "destructive",
+                });
+                return;
+              }
 
-          try {
-            // Upload to client-content-raw bucket
-            const filename = `${clientId}/${Date.now()}.jpg`;
-            const { data: uploadData, error: uploadError } = await supabase.storage
-              .from('client-content-raw')
-              .upload(filename, imageBlob, {
-                contentType: 'image/jpeg',
-                upsert: false
-              });
+              try {
+                // Upload to client-content-raw bucket
+                const filename = `${clientId}/${Date.now()}.jpg`;
+                const { error: uploadError } = await supabase.storage
+                  .from('client-content-raw')
+                  .upload(filename, imageBlob, {
+                    contentType: 'image/jpeg',
+                    upsert: false
+                  });
 
-            if (uploadError) throw uploadError;
+                if (uploadError) throw uploadError;
 
-            // Get public URL
-            const { data: { publicUrl } } = supabase.storage
-              .from('client-content-raw')
-              .getPublicUrl(filename);
+                // Create content request record
+                const { data: contentRequestData, error: requestError } = await supabase
+                  .from('content_requests')
+                  .insert({
+                    appointment_id: appointmentData.id,
+                    creative_id: staffMember.id,
+                    client_id: clientId,
+                    client_email: customerEmail || `${normalizePhoneNumber(customerPhone)}@phone.temp`,
+                    client_name: customerName || 'Walk-in Customer',
+                    client_phone: customerPhone ? normalizePhoneNumber(customerPhone) : null,
+                    token: crypto.randomUUID(),
+                    token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                    status: 'completed',
+                    request_type: 'walk_in_capture'
+                  })
+                  .select()
+                  .single();
 
-            // Create a simple content request record
-            const { data: contentRequestData, error: requestError } = await supabase
-              .from('content_requests')
-              .insert({
-                appointment_id: appointmentId,
-                creative_id: staffMember.id,
-                client_id: clientId,
-                client_email: customerEmail || `${normalizePhoneNumber(customerPhone)}@phone.temp`,
-                client_name: customerName || 'Walk-in Customer',
-                client_phone: customerPhone ? normalizePhoneNumber(customerPhone) : null,
-                token: crypto.randomUUID(),
-                token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                status: 'completed',
-                request_type: 'walk_in_capture'
-              })
-              .select()
-              .single();
+                if (requestError) throw requestError;
 
-            if (requestError) throw requestError;
+                // Save to client_content
+                const { data: contentData, error: contentError } = await supabase
+                  .from('client_content')
+                  .insert({
+                    request_id: contentRequestData.id,
+                    creative_id: staffMember.id,
+                    raw_file_path: filename,
+                    media_type: 'image/jpeg',
+                    client_approved: true,
+                    points_awarded: false
+                  })
+                  .select()
+                  .single();
 
-            // Save to client_content
-            const { error: contentError } = await supabase
-              .from('client_content')
-              .insert({
-                request_id: contentRequestData.id,
-                creative_id: staffMember.id,
-                raw_file_path: filename,
-                media_type: 'image/jpeg',
-                client_approved: true,
-                points_awarded: false
-              });
+                if (contentError) throw contentError;
 
-            if (contentError) throw contentError;
+                // Add to creative_lookbooks with private visibility
+                const { error: lookbookError } = await supabase
+                  .from('creative_lookbooks')
+                  .insert({
+                    creative_id: staffMember.id,
+                    content_id: contentData.id,
+                    client_id: clientId,
+                    visibility_type: 'private',
+                    is_featured: false,
+                    display_order: 0
+                  });
 
-            // Add to creative_lookbooks with private visibility
-            const { error: lookbookError } = await supabase
-              .from('creative_lookbooks')
-              .insert({
-                creative_id: staffMember.id,
-                content_id: contentRequestData.id,
-                client_id: clientId,
-                visibility_type: 'private',
-                is_featured: false,
-                display_order: 0
-              });
+                if (lookbookError) throw lookbookError;
 
-            if (lookbookError) throw lookbookError;
-
-            toast({
-              title: "Photo Saved",
-              description: "Added to customer's private history",
-            });
-
-            // Proceed to payment
-            setShowPaymentMethods(true);
-          } catch (error: any) {
-            console.error("Photo save error:", error);
-            toast({
-              title: "Save Failed",
-              description: error.message || "Failed to save photo",
-              variant: "destructive",
-            });
-          }
+                toast({
+                  title: "Photo Saved",
+                  description: "Added to customer's private history",
+                });
+              } catch (error: any) {
+                console.error("Photo save error:", error);
+                toast({
+                  title: "Save Failed",
+                  description: error.message || "Failed to save photo",
+                  variant: "destructive",
+                });
+              }
+            }
+          });
         }}
       />
 

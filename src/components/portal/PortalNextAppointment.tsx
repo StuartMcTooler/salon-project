@@ -1,15 +1,27 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock, MapPin, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { getAvailableSlots } from "@/lib/timeSlotUtils";
 
 interface PortalNextAppointmentProps {
   clientId: string;
 }
 
 export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) => {
+  const queryClient = useQueryClient();
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [showCancel, setShowCancel] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [selectedTime, setSelectedTime] = useState<string>("");
+
   const { data: appointment, isLoading } = useQuery({
     queryKey: ["next-appointment", clientId],
     queryFn: async () => {
@@ -28,6 +40,87 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
 
       if (error && error.code !== "PGRST116") throw error;
       return data;
+    },
+  });
+
+  // Fetch existing appointments for the selected date
+  const { data: existingAppointments = [] } = useQuery({
+    queryKey: ["appointments", appointment?.staff_id, selectedDate],
+    queryFn: async () => {
+      if (!appointment?.staff_id || !selectedDate) return [];
+      
+      const startOfDay = new Date(selectedDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(selectedDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const { data } = await supabase
+        .from("salon_appointments")
+        .select("appointment_date, duration_minutes")
+        .eq("staff_id", appointment.staff_id)
+        .neq("status", "cancelled")
+        .neq("id", appointment.id)
+        .gte("appointment_date", startOfDay.toISOString())
+        .lte("appointment_date", endOfDay.toISOString());
+
+      return data || [];
+    },
+    enabled: !!appointment?.staff_id && !!selectedDate,
+  });
+
+  const availableSlots = selectedDate && appointment
+    ? getAvailableSlots(
+        appointment.duration_minutes,
+        existingAppointments,
+        selectedDate
+      )
+    : [];
+
+  const rescheduleMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedDate || !selectedTime || !appointment) return;
+
+      const [hours, minutes] = selectedTime.split(':');
+      const newDateTime = new Date(selectedDate);
+      newDateTime.setHours(parseInt(hours), parseInt(minutes));
+
+      const { error } = await supabase
+        .from("salon_appointments")
+        .update({ appointment_date: newDateTime.toISOString() })
+        .eq("id", appointment.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["next-appointment"] });
+      toast.success("Appointment rescheduled successfully");
+      setShowReschedule(false);
+      setSelectedDate(undefined);
+      setSelectedTime("");
+    },
+    onError: () => {
+      toast.error("Failed to reschedule appointment");
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: async () => {
+      if (!appointment) return;
+
+      const { error } = await supabase
+        .from("salon_appointments")
+        .update({ status: "cancelled" })
+        .eq("id", appointment.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["next-appointment"] });
+      toast.success("Appointment cancelled");
+      setShowCancel(false);
+    },
+    onError: () => {
+      toast.error("Failed to cancel appointment");
     },
   });
 
@@ -109,14 +202,90 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
         </div>
 
         <div className="flex gap-2 pt-2">
-          <Button variant="outline" className="flex-1" disabled>
+          <Button variant="outline" className="flex-1" onClick={() => setShowReschedule(true)}>
             Reschedule
           </Button>
-          <Button variant="outline" className="flex-1" disabled>
+          <Button variant="outline" className="flex-1" onClick={() => setShowCancel(true)}>
             Cancel
           </Button>
         </div>
       </CardContent>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={showReschedule} onOpenChange={setShowReschedule}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Reschedule Appointment</DialogTitle>
+          </DialogHeader>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-medium mb-3">Select Date</h3>
+              <CalendarComponent
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                disabled={(date) => date < new Date()}
+                className="rounded-md border"
+              />
+            </div>
+            <div>
+              <h3 className="font-medium mb-3">Available Times</h3>
+              {!selectedDate ? (
+                <p className="text-sm text-muted-foreground">Please select a date first</p>
+              ) : availableSlots.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No available slots for this date</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
+                  {availableSlots.map((slot) => (
+                    <Button
+                      key={slot.time}
+                      variant={selectedTime === slot.time ? "default" : "outline"}
+                      onClick={() => setSelectedTime(slot.time)}
+                      className="h-auto py-2"
+                    >
+                      {slot.time}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setShowReschedule(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => rescheduleMutation.mutate()}
+              disabled={!selectedDate || !selectedTime || rescheduleMutation.isPending}
+            >
+              {rescheduleMutation.isPending ? "Rescheduling..." : "Confirm Reschedule"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Dialog */}
+      <AlertDialog open={showCancel} onOpenChange={setShowCancel}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Appointment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel your appointment on{" "}
+              {format(new Date(appointment.appointment_date!), "MMMM d, yyyy 'at' h:mm a")}?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Appointment</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => cancelMutation.mutate()}
+              disabled={cancelMutation.isPending}
+            >
+              {cancelMutation.isPending ? "Cancelling..." : "Cancel Appointment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

@@ -167,7 +167,7 @@ export const StaffHoursSettings = () => {
         <div className="space-y-4">
           {DAYS.map((day) => {
             const hours = staffHours?.find(h => h.day_of_week === day.value);
-            const isActive = hours?.is_active ?? true;
+            const isActive = hours?.is_active ?? false;
             const startTime = hours?.start_time || "09:00";
             const endTime = hours?.end_time || "18:00";
 

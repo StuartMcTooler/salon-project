@@ -8,11 +8,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, CreditCard, Smartphone, Banknote } from "lucide-react";
+import { ArrowLeft, Loader2, CreditCard, Smartphone, Banknote, Camera } from "lucide-react";
 import { LoyaltyPointsDisplay } from "./LoyaltyPointsDisplay";
 import { LoyaltyBalanceCard } from "./LoyaltyBalanceCard";
 import { normalizePhoneNumber } from "@/lib/utils";
 import { findOrCreateClient } from "@/lib/clientUtils";
+import { CameraCapture } from "./CameraCapture";
 // import { PaymentMethodSelector } from "./PaymentMethodSelector"; // Commented out - auto-launching card reader instead
 
 interface QuickCustomerFormProps {
@@ -48,6 +49,8 @@ export const QuickCustomerForm = ({
   const [loyaltySettings, setLoyaltySettings] = useState<any>(null);
   const [pointsRedeemed, setPointsRedeemed] = useState<number>(0);
   const [loyaltyDiscount, setLoyaltyDiscount] = useState<number>(0);
+  const [showCamera, setShowCamera] = useState(false);
+  const [clientId, setClientId] = useState<string | null>(null);
 
   // Check for available credits, loyalty balance, and auto-fill customer name when phone changes
   useEffect(() => {
@@ -132,7 +135,7 @@ export const QuickCustomerForm = ({
       const normalizedPhone = customerPhone ? normalizePhoneNumber(customerPhone) : null;
 
       // Find or create client record
-      let clientId: string | null = null;
+      let foundClientId: string | null = null;
       if (normalizedPhone && customerName) {
         try {
           const client = await findOrCreateClient({
@@ -141,7 +144,8 @@ export const QuickCustomerForm = ({
             name: customerName,
             creativeId: staffMember.id,
           });
-          clientId = client.id;
+          foundClientId = client.id;
+          setClientId(foundClientId);
         } catch (err) {
           console.error('Failed to find/create client:', err);
         }
@@ -158,7 +162,7 @@ export const QuickCustomerForm = ({
           customer_name: customerName || 'Walk-in Customer',
           customer_phone: normalizedPhone,
           customer_email: customerEmail || null,
-          client_id: clientId,
+          client_id: foundClientId,
           appointment_date: now.toISOString(),
           duration_minutes: service.service.duration_minutes,
           price: adjustedPrice,
@@ -849,23 +853,145 @@ export const QuickCustomerForm = ({
             />
           </div>
           
-          <Button
-            size="lg"
-            className="w-full h-16 text-lg"
-            onClick={() => createWalkIn.mutate()}
-            disabled={createWalkIn.isPending || processingPayment}
-          >
-            {createWalkIn.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                Creating Appointment...
-              </>
-            ) : (
-              "Continue to Payment"
-            )}
-          </Button>
+          <div className="space-y-4 pt-4 border-t">
+            <p className="text-sm text-muted-foreground text-center">
+              Capture {customerName || "the customer"}'s finished look for their private history before payment.
+            </p>
+            
+            <Button
+              size="lg"
+              className="w-full h-16 text-lg"
+              onClick={() => {
+                createWalkIn.mutate(undefined, {
+                  onSuccess: () => {
+                    setShowCamera(true);
+                  }
+                });
+              }}
+              disabled={createWalkIn.isPending || processingPayment}
+            >
+              {createWalkIn.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                  Creating Appointment...
+                </>
+              ) : (
+                <>
+                  <Camera className="mr-2 h-6 w-6" />
+                  📸 Take Photo & Pay
+                </>
+              )}
+            </Button>
+            
+            <Button
+              size="lg"
+              variant="outline"
+              className="w-full h-14 text-base"
+              onClick={() => createWalkIn.mutate()}
+              disabled={createWalkIn.isPending || processingPayment}
+            >
+              Skip Photo, Go to Payment
+            </Button>
+          </div>
         </CardContent>
       </Card>
+      
+      <CameraCapture
+        open={showCamera}
+        onClose={() => setShowCamera(false)}
+        customerName={customerName || "Customer"}
+        onCapture={async (imageBlob) => {
+          if (!clientId || !appointmentId) {
+            toast({
+              title: "Error",
+              description: "Missing client or appointment information",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          try {
+            // Upload to client-content-raw bucket
+            const filename = `${clientId}/${Date.now()}.jpg`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('client-content-raw')
+              .upload(filename, imageBlob, {
+                contentType: 'image/jpeg',
+                upsert: false
+              });
+
+            if (uploadError) throw uploadError;
+
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage
+              .from('client-content-raw')
+              .getPublicUrl(filename);
+
+            // Create a simple content request record
+            const { data: contentRequestData, error: requestError } = await supabase
+              .from('content_requests')
+              .insert({
+                appointment_id: appointmentId,
+                creative_id: staffMember.id,
+                client_id: clientId,
+                client_email: customerEmail || `${normalizePhoneNumber(customerPhone)}@phone.temp`,
+                client_name: customerName || 'Walk-in Customer',
+                client_phone: customerPhone ? normalizePhoneNumber(customerPhone) : null,
+                token: crypto.randomUUID(),
+                token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                status: 'completed',
+                request_type: 'walk_in_capture'
+              })
+              .select()
+              .single();
+
+            if (requestError) throw requestError;
+
+            // Save to client_content
+            const { error: contentError } = await supabase
+              .from('client_content')
+              .insert({
+                request_id: contentRequestData.id,
+                creative_id: staffMember.id,
+                raw_file_path: filename,
+                media_type: 'image/jpeg',
+                client_approved: true,
+                points_awarded: false
+              });
+
+            if (contentError) throw contentError;
+
+            // Add to creative_lookbooks with private visibility
+            const { error: lookbookError } = await supabase
+              .from('creative_lookbooks')
+              .insert({
+                creative_id: staffMember.id,
+                content_id: contentRequestData.id,
+                client_id: clientId,
+                visibility_type: 'private',
+                is_featured: false,
+                display_order: 0
+              });
+
+            if (lookbookError) throw lookbookError;
+
+            toast({
+              title: "Photo Saved",
+              description: "Added to customer's private history",
+            });
+
+            // Proceed to payment
+            setShowPaymentMethods(true);
+          } catch (error: any) {
+            console.error("Photo save error:", error);
+            toast({
+              title: "Save Failed",
+              description: error.message || "Failed to save photo",
+              variant: "destructive",
+            });
+          }
+        }}
+      />
 
       {loyaltyResult && (
         <LoyaltyPointsDisplay

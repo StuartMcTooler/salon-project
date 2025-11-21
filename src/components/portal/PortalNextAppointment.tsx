@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ interface PortalNextAppointmentProps {
 
 export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [showReschedule, setShowReschedule] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
@@ -151,7 +153,7 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
         </CardHeader>
         <CardContent className="text-center py-8">
           <p className="text-muted-foreground mb-4">No upcoming appointments</p>
-          <Button onClick={() => window.location.href = "/salon"}>
+          <Button onClick={() => navigate("/salon")}>
             Book Now
           </Button>
         </CardContent>

@@ -186,12 +186,21 @@ export const getAvailableSlots = (
   // Convert to array and sort
   const sortedSlots = Array.from(potentialSlots).sort();
   
+  // Get current time for filtering past slots on today
+  const now = new Date();
+  const isToday = selectedDate.toDateString() === now.toDateString();
+  
   // Check each potential slot for availability
   for (const slot of sortedSlots) {
     const [hours, minutes] = slot.split(':').map(Number);
     const slotStart = new Date(selectedDate);
     slotStart.setHours(hours, minutes, 0, 0);
     const slotEnd = new Date(slotStart.getTime() + serviceDuration * 60000);
+    
+    // Skip slots in the past if booking for today
+    if (isToday && slotStart < now) {
+      continue;
+    }
     
     // Make sure the service doesn't go past business hours
     if (slotEnd.getHours() > endHour || (slotEnd.getHours() === endHour && slotEnd.getMinutes() > 0)) {

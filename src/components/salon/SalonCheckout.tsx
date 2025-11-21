@@ -726,7 +726,11 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
                 mode="single"
                 selected={date}
                 onSelect={setDate}
-                disabled={(date) => date < new Date()}
+                disabled={(date) => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  return date < today;
+                }}
                 className="rounded-md border"
               />
             </div>

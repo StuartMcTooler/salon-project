@@ -918,7 +918,8 @@ export const QuickCustomerForm = ({
           return new Promise((resolve, reject) => {
             createWalkIn.mutate(undefined, {
               onSuccess: async (appointmentData) => {
-                if (!clientId) {
+                const effectiveClientId = appointmentData?.client_id || clientId;
+                if (!effectiveClientId) {
                   toast({
                     title: "Error",
                     description: "Missing client information",
@@ -930,7 +931,7 @@ export const QuickCustomerForm = ({
 
                 try {
                   // Upload to client-content-raw bucket
-                  const filename = `${clientId}/${Date.now()}.jpg`;
+                  const filename = `${effectiveClientId}/${Date.now()}.jpg`;
                   const { error: uploadError } = await supabase.storage
                     .from('client-content-raw')
                     .upload(filename, imageBlob, {
@@ -982,7 +983,7 @@ export const QuickCustomerForm = ({
                     .insert({
                       creative_id: staffMember.id,
                       content_id: contentData.id,
-                      client_id: clientId,
+                      client_id: effectiveClientId,
                       visibility_type: 'private',
                       is_featured: false,
                       display_order: 0

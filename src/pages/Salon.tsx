@@ -28,10 +28,23 @@ const Salon = () => {
 
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referralInfo, setReferralInfo] = useState<any>(null);
+  const [portalClient, setPortalClient] = useState<any>(null);
 
   useEffect(() => {
     const checkAuthAndRole = async () => {
       try {
+        // Check for portal session first
+        const portalToken = localStorage.getItem("portal_session_token");
+        if (portalToken) {
+          const { data, error } = await supabase.functions.invoke("validate-portal-session", {
+            body: { sessionToken: portalToken },
+          });
+
+          if (!error && data?.valid) {
+            setPortalClient(data.client);
+          }
+        }
+
         // Check for referral code in URL
         const urlParams = new URLSearchParams(window.location.search);
         const refCode = urlParams.get('ref');
@@ -292,6 +305,7 @@ const Salon = () => {
             staff={selectedStaff}
             pricing={selectedPricing}
             user={user}
+            portalClient={portalClient}
             onBack={handleBack}
             onComplete={handleBookingComplete}
             businessId={businessId}

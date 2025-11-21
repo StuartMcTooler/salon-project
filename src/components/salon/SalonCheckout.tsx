@@ -19,13 +19,14 @@ interface SalonCheckoutProps {
   staff: any;
   pricing: any;
   user: any;
+  portalClient?: any;
   onBack: () => void;
   onComplete: (appointmentId?: string) => void;
   businessId?: string | null;
   referralCode?: string | null;
 }
 
-export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplete, businessId, referralCode }: SalonCheckoutProps) => {
+export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onBack, onComplete, businessId, referralCode }: SalonCheckoutProps) => {
   const { toast } = useToast();
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState("");
@@ -317,14 +318,19 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
     loadDiscount();
   }, [referralCode, businessId, pricing.custom_price, discountApplied, toast]);
 
-  // Pre-fill customer info if logged in
+  // Pre-fill customer info if logged in or from portal
   useEffect(() => {
-    if (user) {
+    if (portalClient) {
+      // Portal session takes priority
+      setCustomerName(portalClient.name);
+      setCustomerEmail(portalClient.email || "");
+      setCustomerPhone(portalClient.phone);
+    } else if (user) {
       setCustomerName(user.user_metadata?.name || user.email);
       setCustomerEmail(user.email || "");
       setCustomerPhone(user.user_metadata?.phone || "");
     }
-  }, [user]);
+  }, [user, portalClient]);
 
   // Check for available credits when phone changes
   useEffect(() => {
@@ -778,55 +784,43 @@ export const SalonCheckout = ({ service, staff, pricing, user, onBack, onComplet
         </CardContent>
       </Card>
 
-      <Card ref={customerInfoRef}>
-        <CardHeader>
-          <CardTitle>Customer Information</CardTitle>
-          <CardDescription>Required for booking confirmation & portal access</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name *</Label>
-            <input
-              id="name"
-              type="text"
-              className="w-full px-3 py-2 border rounded-md"
-              placeholder="Customer name"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              required
-            />
-          </div>
-          {/* Email field commented out - not required for booking
-          <div className="space-y-2">
-            <Label htmlFor="email">Email *</Label>
-            <input
-              id="email"
-              type="email"
-              className="w-full px-3 py-2 border rounded-md"
-              placeholder="customer@email.com"
-              value={customerEmail}
-              onChange={(e) => setCustomerEmail(e.target.value)}
-              required
-            />
-          </div>
-          */}
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone Number *</Label>
-            <input
-              id="phone"
-              type="tel"
-              className="w-full px-3 py-2 border rounded-md"
-              placeholder="+353 123 456 789"
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-              required
-            />
-            <p className="text-xs text-muted-foreground">
-              Required for booking confirmation & portal access
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      {!portalClient && (
+        <Card ref={customerInfoRef}>
+          <CardHeader>
+            <CardTitle>Customer Information</CardTitle>
+            <CardDescription>Required for booking confirmation & portal access</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name *</Label>
+              <input
+                id="name"
+                type="text"
+                className="w-full px-3 py-2 border rounded-md"
+                placeholder="Customer name"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number *</Label>
+              <input
+                id="phone"
+                type="tel"
+                className="w-full px-3 py-2 border rounded-md"
+                placeholder="+353 123 456 789"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Required for booking confirmation & portal access
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="text-center space-y-2 py-4" ref={confirmButtonRef}>
         <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">

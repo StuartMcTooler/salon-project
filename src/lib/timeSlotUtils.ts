@@ -202,8 +202,12 @@ export const getAvailableSlots = (
       continue;
     }
     
-    // Make sure the service doesn't go past business hours
-    if (slotEnd.getHours() > endHour || (slotEnd.getHours() === endHour && slotEnd.getMinutes() > 0)) {
+    // Make sure the service doesn't go past business hours (use actualEndHour, not default endHour)
+    const actualEndHourInt = Math.floor(actualEndHour);
+    const actualEndMinuteInt = Math.round((actualEndHour - actualEndHourInt) * 60);
+    
+    if (slotEnd.getHours() > actualEndHourInt || 
+        (slotEnd.getHours() === actualEndHourInt && slotEnd.getMinutes() > actualEndMinuteInt)) {
       continue;
     }
     

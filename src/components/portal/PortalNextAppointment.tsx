@@ -27,21 +27,21 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
   const { data: appointment, isLoading } = useQuery({
     queryKey: ["next-appointment", clientId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("salon_appointments")
-        .select(`
-          *,
-          staff:staff_members!staff_id(display_name, full_name)
-        `)
-        .eq("client_id", clientId)
-        .in("status", ["pending", "confirmed"])
-        .gte("appointment_date", new Date().toISOString())
-        .order("appointment_date", { ascending: true })
-        .limit(1)
-        .single();
+      const sessionToken = localStorage.getItem("portal_session_token");
+      
+      if (!sessionToken) {
+        throw new Error("No session token");
+      }
 
-      if (error && error.code !== "PGRST116") throw error;
-      return data;
+      const { data, error } = await supabase.functions.invoke("get-portal-appointments", {
+        body: { sessionToken },
+      });
+
+      if (error) throw error;
+      
+      // Return the first appointment or null
+      const appointments = data?.appointments || [];
+      return appointments.length > 0 ? appointments[0] : null;
     },
   });
 

@@ -7,14 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, CreditCard, Smartphone, Banknote, Camera } from "lucide-react";
 import { LoyaltyPointsDisplay } from "./LoyaltyPointsDisplay";
 import { LoyaltyBalanceCard } from "./LoyaltyBalanceCard";
 import { normalizePhoneNumber } from "@/lib/utils";
 import { findOrCreateClient } from "@/lib/clientUtils";
-import { CameraCapture } from "./CameraCapture";
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useRef, ChangeEvent } from "react";
 // import { PaymentMethodSelector } from "./PaymentMethodSelector"; // Commented out - auto-launching card reader instead
 
 interface QuickCustomerFormProps {
@@ -54,6 +55,8 @@ export const QuickCustomerForm = ({
   const [clientId, setClientId] = useState<string | null>(null);
   const [showPhonePrompt, setShowPhonePrompt] = useState(false);
   const [shouldOpenCameraAfterPhone, setShouldOpenCameraAfterPhone] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState<Blob | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Check for available credits, loyalty balance, and auto-fill customer name when phone changes
   useEffect(() => {
@@ -136,9 +139,138 @@ export const QuickCustomerForm = ({
   useEffect(() => {
     if (shouldOpenCameraAfterPhone && customerPhone && customerPhone.trim() !== '') {
       setShouldOpenCameraAfterPhone(false);
-      setShowCamera(true);
+      openNativeCamera();
     }
   }, [customerPhone, shouldOpenCameraAfterPhone]);
+
+  const openNativeCamera = () => {
+    if (!fileInputRef.current) return;
+    fileInputRef.current.value = "";
+    fileInputRef.current.click();
+  };
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setCapturedPhoto(file);
+  };
+
+  const handlePhotoRetake = () => {
+    setCapturedPhoto(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleSavePhoto = async (): Promise<void> => {
+    if (!capturedPhoto) return;
+
+    // Create appointment first
+    return new Promise<void>((resolve, reject) => {
+      createWalkIn.mutate(undefined, {
+        onSuccess: async (appointmentData) => {
+          const effectiveClientId = appointmentData?.client_id || clientId;
+          if (!effectiveClientId) {
+            toast({
+              title: "Error",
+              description: "Missing client information",
+              variant: "destructive",
+            });
+            reject(new Error("Missing client information"));
+            return;
+          }
+
+          try {
+            // Upload to client-content-raw bucket
+            const filename = `${effectiveClientId}/${Date.now()}.jpg`;
+            const { error: uploadError } = await supabase.storage
+              .from('client-content-raw')
+              .upload(filename, capturedPhoto, {
+                contentType: 'image/jpeg',
+                upsert: false
+              });
+
+            if (uploadError) throw uploadError;
+
+            // Create content request record
+            const { data: contentRequestData, error: requestError } = await supabase
+              .from('content_requests')
+              .insert({
+                appointment_id: appointmentData.id,
+                creative_id: staffMember.id,
+                client_id: effectiveClientId,
+                client_email: customerEmail || `${normalizePhoneNumber(customerPhone)}@phone.temp`,
+                client_name: customerName || 'Walk-in Customer',
+                client_phone: customerPhone ? normalizePhoneNumber(customerPhone) : null,
+                token: crypto.randomUUID(),
+                token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                status: 'completed',
+                request_type: 'walk_in_capture'
+              })
+              .select()
+              .single();
+
+            if (requestError) throw requestError;
+
+            // Save to client_content
+            const { data: contentData, error: contentError } = await supabase
+              .from('client_content')
+              .insert({
+                request_id: contentRequestData.id,
+                creative_id: staffMember.id,
+                raw_file_path: filename,
+                media_type: 'image/jpeg',
+                client_approved: true,
+                points_awarded: false
+              })
+              .select()
+              .single();
+
+            if (contentError) throw contentError;
+
+            // Add to creative_lookbooks with private visibility
+            const { error: lookbookError } = await supabase
+              .from('creative_lookbooks')
+              .insert({
+                creative_id: staffMember.id,
+                content_id: contentData.id,
+                client_id: effectiveClientId,
+                visibility_type: 'private',
+                is_featured: false,
+                display_order: 0
+              });
+
+            if (lookbookError) throw lookbookError;
+
+            toast({
+              title: "Photo Saved",
+              description: "Added to customer's private history",
+            });
+            
+            setCapturedPhoto(null);
+            resolve();
+          } catch (error: any) {
+            console.error("Photo save error:", error);
+            toast({
+              title: "Save Failed",
+              description: error.message || "Failed to save photo",
+              variant: "destructive",
+            });
+            reject(error);
+          }
+        },
+        onError: (error: any) => {
+          toast({
+            title: "Transaction Failed",
+            description: error.message,
+            variant: "destructive",
+          });
+          reject(error);
+        }
+      });
+    });
+  };
 
   const createWalkIn = useMutation({
     mutationFn: async () => {
@@ -880,7 +1012,7 @@ export const QuickCustomerForm = ({
                   setShowPhonePrompt(true);
                   setShouldOpenCameraAfterPhone(true);
                 } else {
-                  setShowCamera(true);
+                  openNativeCamera();
                 }
               }}
               disabled={createWalkIn.isPending || processingPayment}
@@ -909,116 +1041,60 @@ export const QuickCustomerForm = ({
         </CardContent>
       </Card>
       
-      <CameraCapture
-        open={showCamera}
-        onClose={() => setShowCamera(false)}
-        customerName={customerName || "Customer"}
-        onCapture={async (imageBlob) => {
-          // Wrap mutation in a promise to ensure upload completes before camera closes
-          return new Promise((resolve, reject) => {
-            createWalkIn.mutate(undefined, {
-              onSuccess: async (appointmentData) => {
-                const effectiveClientId = appointmentData?.client_id || clientId;
-                if (!effectiveClientId) {
-                  toast({
-                    title: "Error",
-                    description: "Missing client information",
-                    variant: "destructive",
-                  });
-                  reject(new Error("Missing client information"));
-                  return;
-                }
-
-                try {
-                  // Upload to client-content-raw bucket
-                  const filename = `${effectiveClientId}/${Date.now()}.jpg`;
-                  const { error: uploadError } = await supabase.storage
-                    .from('client-content-raw')
-                    .upload(filename, imageBlob, {
-                      contentType: 'image/jpeg',
-                      upsert: false
-                    });
-
-                  if (uploadError) throw uploadError;
-
-                  // Create content request record
-                  const { data: contentRequestData, error: requestError } = await supabase
-                    .from('content_requests')
-                    .insert({
-                      appointment_id: appointmentData.id,
-                      creative_id: staffMember.id,
-                      client_id: clientId,
-                      client_email: customerEmail || `${normalizePhoneNumber(customerPhone)}@phone.temp`,
-                      client_name: customerName || 'Walk-in Customer',
-                      client_phone: customerPhone ? normalizePhoneNumber(customerPhone) : null,
-                      token: crypto.randomUUID(),
-                      token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                      status: 'completed',
-                      request_type: 'walk_in_capture'
-                    })
-                    .select()
-                    .single();
-
-                  if (requestError) throw requestError;
-
-                  // Save to client_content
-                  const { data: contentData, error: contentError } = await supabase
-                    .from('client_content')
-                    .insert({
-                      request_id: contentRequestData.id,
-                      creative_id: staffMember.id,
-                      raw_file_path: filename,
-                      media_type: 'image/jpeg',
-                      client_approved: true,
-                      points_awarded: false
-                    })
-                    .select()
-                    .single();
-
-                  if (contentError) throw contentError;
-
-                  // Add to creative_lookbooks with private visibility
-                  const { error: lookbookError } = await supabase
-                    .from('creative_lookbooks')
-                    .insert({
-                      creative_id: staffMember.id,
-                      content_id: contentData.id,
-                      client_id: effectiveClientId,
-                      visibility_type: 'private',
-                      is_featured: false,
-                      display_order: 0
-                    });
-
-                  if (lookbookError) throw lookbookError;
-
-                  toast({
-                    title: "Photo Saved",
-                    description: "Added to customer's private history",
-                  });
-                  
-                  resolve();
-                } catch (error: any) {
-                  console.error("Photo save error:", error);
-                  toast({
-                    title: "Save Failed",
-                    description: error.message || "Failed to save photo",
-                    variant: "destructive",
-                  });
-                  reject(error);
-                }
-              },
-              onError: (error: any) => {
-                toast({
-                  title: "Transaction Failed",
-                  description: error.message,
-                  variant: "destructive",
-                });
-                reject(error);
-              }
-            });
-          });
-        }}
+      
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileChange}
       />
+
+      {/* Photo preview modal */}
+      {capturedPhoto && (
+        <Dialog open={true} onOpenChange={() => setCapturedPhoto(null)}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Preview Photo</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="relative aspect-[9/16] bg-black rounded-lg overflow-hidden max-h-[70vh]">
+                <img
+                  src={URL.createObjectURL(capturedPhoto)}
+                  alt="Captured"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={handlePhotoRetake}
+                >
+                  Retake
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={async () => {
+                    await handleSavePhoto();
+                  }}
+                  disabled={createWalkIn.isPending}
+                >
+                  {createWalkIn.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Use This Photo"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {loyaltyResult && (
         <LoyaltyPointsDisplay
@@ -1057,7 +1133,7 @@ export const QuickCustomerForm = ({
               onClick={() => {
                 if (customerPhone && customerPhone.trim() !== '') {
                   setShowPhonePrompt(false);
-                  setTimeout(() => setShowCamera(true), 100);
+                  setTimeout(() => openNativeCamera(), 100);
                 } else {
                   toast({
                     title: "Phone Required",

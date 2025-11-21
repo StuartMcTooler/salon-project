@@ -28,6 +28,7 @@ export const InServicePhotoCapture = ({
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [savedSuccessfully, setSavedSuccessfully] = useState(false);
 
   useEffect(() => {
     if (open && !stream) {
@@ -120,19 +121,25 @@ export const InServicePhotoCapture = ({
 
       if (insertError) throw insertError;
 
+      // Show success state
+      setSavedSuccessfully(true);
+      
       toast({
-        title: "Photo Saved",
+        title: "✅ Photo Saved Successfully!",
         description: "In-service photo saved privately to appointment",
       });
       
-      // Close dialog and cleanup
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        setStream(null);
-      }
-      setCapturedImage(null);
-      onSuccess?.();
-      onClose();
+      // Wait 1.5 seconds to show success state, then close
+      setTimeout(() => {
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+          setStream(null);
+        }
+        setCapturedImage(null);
+        setSavedSuccessfully(false);
+        onSuccess?.();
+        onClose();
+      }, 1500);
     } catch (error: any) {
       console.error("Photo upload error:", error);
       toast({
@@ -151,6 +158,7 @@ export const InServicePhotoCapture = ({
       setStream(null);
     }
     setCapturedImage(null);
+    setSavedSuccessfully(false);
     onClose();
   };
 
@@ -202,6 +210,11 @@ export const InServicePhotoCapture = ({
                   Take Photo
                 </Button>
               </>
+            ) : savedSuccessfully ? (
+              <div className="w-full py-4 px-6 bg-green-500 text-white rounded-lg flex items-center justify-center gap-2">
+                <CheckCircle className="h-6 w-6" />
+                <span className="text-lg font-semibold">Photo Saved Successfully!</span>
+              </div>
             ) : (
               <>
                 <Button

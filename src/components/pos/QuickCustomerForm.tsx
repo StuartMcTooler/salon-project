@@ -226,7 +226,7 @@ export const QuickCustomerForm = ({
                 token: crypto.randomUUID(),
                 token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
                 status: 'completed',
-                request_type: 'walk_in_capture'
+                request_type: 'creative_first'
               })
               .select()
               .single();

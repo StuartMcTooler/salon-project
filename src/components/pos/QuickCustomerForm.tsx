@@ -55,7 +55,6 @@ export const QuickCustomerForm = ({
   const [clientId, setClientId] = useState<string | null>(null);
   const [showPhonePrompt, setShowPhonePrompt] = useState(false);
   const [shouldOpenCameraAfterPhone, setShouldOpenCameraAfterPhone] = useState(false);
-  const [capturedPhoto, setCapturedPhoto] = useState<Blob | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Check for available credits, loyalty balance, and auto-fill customer name when phone changes
@@ -149,23 +148,20 @@ export const QuickCustomerForm = ({
     fileInputRef.current.click();
   };
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    setCapturedPhoto(file);
-  };
 
-  const handlePhotoRetake = () => {
-    setCapturedPhoto(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-      fileInputRef.current.click();
+    try {
+      await handleSavePhoto(file);
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
-  const handleSavePhoto = async (): Promise<void> => {
-    if (!capturedPhoto) return;
-
+  const handleSavePhoto = async (photo: Blob): Promise<void> => {
     // Ensure we have a client before proceeding
     if (!customerPhone || !customerName) {
       toast({
@@ -182,7 +178,7 @@ export const QuickCustomerForm = ({
         onSuccess: async (appointmentData) => {
           console.log("Appointment created:", appointmentData);
           const effectiveClientId = appointmentData?.client_id || clientId;
-          
+
           if (!effectiveClientId) {
             console.error("Missing client_id after appointment creation", { appointmentData, clientId });
             toast({
@@ -198,35 +194,38 @@ export const QuickCustomerForm = ({
             // Upload to client-content-raw bucket
             const filename = `${effectiveClientId}/${Date.now()}.jpg`;
             console.log("Uploading photo to:", filename);
-            
+
             const { error: uploadError } = await supabase.storage
-              .from('client-content-raw')
-              .upload(filename, capturedPhoto, {
-                contentType: 'image/jpeg',
-                upsert: false
+              .from("client-content-raw")
+              .upload(filename, photo, {
+                contentType: "image/jpeg",
+                upsert: false,
               });
 
             if (uploadError) {
               console.error("Storage upload error:", uploadError);
               throw uploadError;
             }
-            
+
             console.log("Photo uploaded successfully");
 
-            // Create content request record
+            // Create content request record (mirror post-checkout behaviour)
+            const tokenExpiry = new Date();
+            tokenExpiry.setHours(tokenExpiry.getHours() + 24);
+
             const { data: contentRequestData, error: requestError } = await supabase
-              .from('content_requests')
+              .from("content_requests")
               .insert({
                 appointment_id: appointmentData.id,
                 creative_id: staffMember.id,
                 client_id: effectiveClientId,
                 client_email: customerEmail || `${normalizePhoneNumber(customerPhone)}@phone.temp`,
-                client_name: customerName || 'Walk-in Customer',
+                client_name: customerName || "Walk-in Customer",
                 client_phone: customerPhone ? normalizePhoneNumber(customerPhone) : null,
-                token: crypto.randomUUID(),
-                token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                status: 'completed',
-                request_type: 'creative_first'
+                request_type: "creative_first",
+                status: "approved",
+                token: `pos_${Date.now()}`,
+                token_expires_at: tokenExpiry.toISOString(),
               })
               .select()
               .single();
@@ -235,19 +234,19 @@ export const QuickCustomerForm = ({
               console.error("Content request error:", requestError);
               throw requestError;
             }
-            
+
             console.log("Content request created:", contentRequestData);
 
             // Save to client_content
             const { data: contentData, error: contentError } = await supabase
-              .from('client_content')
+              .from("client_content")
               .insert({
                 request_id: contentRequestData.id,
                 creative_id: staffMember.id,
                 raw_file_path: filename,
-                media_type: 'image/jpeg',
+                media_type: "photo",
                 client_approved: true,
-                points_awarded: false
+                points_awarded: false,
               })
               .select()
               .single();
@@ -256,34 +255,31 @@ export const QuickCustomerForm = ({
               console.error("Client content error:", contentError);
               throw contentError;
             }
-            
+
             console.log("Client content created:", contentData);
 
             // Add to creative_lookbooks with private visibility
-            const { error: lookbookError } = await supabase
-              .from('creative_lookbooks')
-              .insert({
-                creative_id: staffMember.id,
-                content_id: contentData.id,
-                client_id: effectiveClientId,
-                visibility_type: 'private',
-                is_featured: false,
-                display_order: 0
-              });
+            const { error: lookbookError } = await supabase.from("creative_lookbooks").insert({
+              creative_id: staffMember.id,
+              content_id: contentData.id,
+              client_id: effectiveClientId,
+              visibility_type: "private",
+              is_featured: false,
+              display_order: 0,
+            });
 
             if (lookbookError) {
               console.error("Lookbook error:", lookbookError);
               throw lookbookError;
             }
-            
+
             console.log("Added to lookbook successfully");
 
             toast({
               title: "Photo Saved",
               description: "Added to customer's private history",
             });
-            
-            setCapturedPhoto(null);
+
             resolve();
           } catch (error: any) {
             console.error("Photo save error:", error);
@@ -303,7 +299,7 @@ export const QuickCustomerForm = ({
             variant: "destructive",
           });
           reject(error);
-        }
+        },
       });
     });
   };
@@ -1086,51 +1082,6 @@ export const QuickCustomerForm = ({
         className="hidden"
         onChange={handleFileChange}
       />
-
-      {/* Photo preview modal */}
-      {capturedPhoto && (
-        <Dialog open={true} onOpenChange={() => setCapturedPhoto(null)}>
-          <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Preview Photo</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="relative aspect-[9/16] bg-black rounded-lg overflow-hidden max-h-[70vh]">
-                <img
-                  src={URL.createObjectURL(capturedPhoto)}
-                  alt="Captured"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={handlePhotoRetake}
-                >
-                  Retake
-                </Button>
-                <Button
-                  className="flex-1"
-                  onClick={async () => {
-                    await handleSavePhoto();
-                  }}
-                  disabled={createWalkIn.isPending}
-                >
-                  {createWalkIn.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    "Use This Photo"
-                  )}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
 
       {loyaltyResult && (
         <LoyaltyPointsDisplay

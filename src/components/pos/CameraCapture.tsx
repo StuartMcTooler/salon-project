@@ -34,7 +34,7 @@ export const CameraCapture = ({ open, onClose, onCapture, customerName }: Camera
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 1280, height: 720 },
+        video: { facingMode: "environment", width: 720, height: 1280 },
         audio: false
       });
       

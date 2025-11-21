@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Lock, Trash2, User, Calendar } from "lucide-react";
+import { Trash2, User, Calendar } from "lucide-react";
 import { format } from "date-fns";
-import { BookTheLookModal } from "./BookTheLookModal";
-import { PrivateNoteModal } from "./PrivateNoteModal";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { PhotoVisibilityControls } from "./PhotoVisibilityControls";
 
 interface InboxImageCardProps {
   item: any;
@@ -15,8 +14,6 @@ interface InboxImageCardProps {
 }
 
 export const InboxImageCard = ({ item, staffId }: InboxImageCardProps) => {
-  const [showBookModal, setShowBookModal] = useState(false);
-  const [showPrivateModal, setShowPrivateModal] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -85,25 +82,15 @@ export const InboxImageCard = ({ item, staffId }: InboxImageCardProps) => {
             </div>
           </div>
 
-          <div className="w-full space-y-2">
-            <Button
-              onClick={() => setShowBookModal(true)}
-              className="w-full"
-              size="sm"
-            >
-              <Sparkles className="h-4 w-4 mr-2" />
-              Add to Public Portfolio
-            </Button>
-            
-            <Button
-              onClick={() => setShowPrivateModal(true)}
-              variant="outline"
-              className="w-full"
-              size="sm"
-            >
-              <Lock className="h-4 w-4 mr-2" />
-              Save to Client History
-            </Button>
+          <div className="w-full space-y-3">
+            <PhotoVisibilityControls
+              contentId={item.id}
+              currentVisibility={item.visibility_scope || 'shared'}
+              staffId={staffId}
+              clientPhone={item.request?.client_phone}
+              clientEmail={item.request?.client_email}
+              clientName={item.request?.client_name}
+            />
             
             <Button
               onClick={() => deleteMutation.mutate()}
@@ -119,21 +106,6 @@ export const InboxImageCard = ({ item, staffId }: InboxImageCardProps) => {
         </CardFooter>
       </Card>
 
-      <BookTheLookModal
-        open={showBookModal}
-        onOpenChange={setShowBookModal}
-        item={item}
-        staffId={staffId}
-        imageUrl={imageUrl}
-      />
-
-      <PrivateNoteModal
-        open={showPrivateModal}
-        onOpenChange={setShowPrivateModal}
-        item={item}
-        staffId={staffId}
-        imageUrl={imageUrl}
-      />
     </>
   );
 };

@@ -19,6 +19,7 @@ export const Lookbook = ({ staffId }: LookbookProps) => {
   const { data: lookbookItems, isLoading, refetch } = useQuery({
     queryKey: ['lookbook', staffId],
     queryFn: async () => {
+      // Only show public lookbook items
       const { data, error } = await supabase
         .from('creative_lookbooks' as any)
         .select(`
@@ -32,6 +33,7 @@ export const Lookbook = ({ staffId }: LookbookProps) => {
           )
         `)
         .eq('creative_id', staffId)
+        .eq('visibility_scope', 'public')
         .order('display_order', { ascending: true });
 
       if (error) throw error;

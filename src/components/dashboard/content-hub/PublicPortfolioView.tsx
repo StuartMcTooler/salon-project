@@ -21,7 +21,7 @@ export const PublicPortfolioView = ({ staffId }: PublicPortfolioViewProps) => {
           service:services(name)
         `)
         .eq("creative_id", staffId)
-        .eq("visibility_type", "public")
+        .eq("visibility_scope", "public")
         .order("display_order", { ascending: true });
 
       if (error) throw error;

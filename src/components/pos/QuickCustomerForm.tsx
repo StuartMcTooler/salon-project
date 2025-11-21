@@ -237,7 +237,7 @@ export const QuickCustomerForm = ({
 
             console.log("Content request created:", contentRequestData);
 
-            // Save to client_content
+            // Save to client_content with 'shared' visibility (default)
             const { data: contentData, error: contentError } = await supabase
               .from("client_content")
               .insert({
@@ -247,6 +247,7 @@ export const QuickCustomerForm = ({
                 media_type: "photo",
                 client_approved: true,
                 points_awarded: false,
+                visibility_scope: 'shared', // Default to shared (visible to creative & client)
               })
               .select()
               .single();
@@ -258,12 +259,12 @@ export const QuickCustomerForm = ({
 
             console.log("Client content created:", contentData);
 
-            // Add to creative_lookbooks with private visibility
+            // Add to creative_lookbooks with shared visibility (default)
             const { error: lookbookError } = await supabase.from("creative_lookbooks").insert({
               creative_id: staffMember.id,
               content_id: contentData.id,
               client_id: effectiveClientId,
-              visibility_type: "private",
+              visibility_scope: 'shared', // Default to shared (visible to creative & client)
               is_featured: false,
               display_order: 0,
             });

@@ -235,6 +235,7 @@ export type Database = {
           points_awarded: boolean
           raw_file_path: string
           request_id: string
+          visibility_scope: string | null
         }
         Insert: {
           ai_metadata?: Json | null
@@ -249,6 +250,7 @@ export type Database = {
           points_awarded?: boolean
           raw_file_path: string
           request_id: string
+          visibility_scope?: string | null
         }
         Update: {
           ai_metadata?: Json | null
@@ -263,6 +265,7 @@ export type Database = {
           points_awarded?: boolean
           raw_file_path?: string
           request_id?: string
+          visibility_scope?: string | null
         }
         Relationships: [
           {
@@ -504,6 +507,7 @@ export type Database = {
           service_id: string | null
           service_price: number | null
           tags: string[] | null
+          visibility_scope: string | null
           visibility_type: string | null
         }
         Insert: {
@@ -519,6 +523,7 @@ export type Database = {
           service_id?: string | null
           service_price?: number | null
           tags?: string[] | null
+          visibility_scope?: string | null
           visibility_type?: string | null
         }
         Update: {
@@ -534,6 +539,7 @@ export type Database = {
           service_id?: string | null
           service_price?: number | null
           tags?: string[] | null
+          visibility_scope?: string | null
           visibility_type?: string | null
         }
         Relationships: [
@@ -1024,6 +1030,66 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "business_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portfolio_approval_requests: {
+        Row: {
+          client_email: string
+          client_id: string | null
+          client_name: string
+          client_phone: string | null
+          content_ids: string[]
+          created_at: string | null
+          creative_id: string
+          id: string
+          responded_at: string | null
+          status: string | null
+          token: string
+          token_expires_at: string
+        }
+        Insert: {
+          client_email: string
+          client_id?: string | null
+          client_name: string
+          client_phone?: string | null
+          content_ids: string[]
+          created_at?: string | null
+          creative_id: string
+          id?: string
+          responded_at?: string | null
+          status?: string | null
+          token: string
+          token_expires_at: string
+        }
+        Update: {
+          client_email?: string
+          client_id?: string | null
+          client_name?: string
+          client_phone?: string | null
+          content_ids?: string[]
+          created_at?: string | null
+          creative_id?: string
+          id?: string
+          responded_at?: string | null
+          status?: string | null
+          token?: string
+          token_expires_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_approval_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portfolio_approval_requests_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
             referencedColumns: ["id"]
           },
         ]

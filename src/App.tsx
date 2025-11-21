@@ -15,6 +15,7 @@ import AccountUpgrade from "./pages/AccountUpgrade";
 import NotFound from "./pages/NotFound";
 import POS from "./pages/POS";
 import ApproveContent from "./pages/ApproveContent";
+import ApprovePortfolio from "./pages/ApprovePortfolio";
 import CreateContent from "./pages/CreateContent";
 import Portal from "./pages/Portal";
 import PortalVerify from "./pages/PortalVerify";
@@ -41,6 +42,7 @@ const App = () => (
           <Route path="/referrals" element={<ReferralHub />} />
           <Route path="/pos" element={<POS />} />
           <Route path="/approve/:token" element={<ApproveContent />} />
+          <Route path="/approve-portfolio/:token" element={<ApprovePortfolio />} />
           <Route path="/create/:token" element={<CreateContent />} />
           <Route path="/portal" element={<Portal />} />
           <Route path="/portal/verify" element={<PortalVerify />} />

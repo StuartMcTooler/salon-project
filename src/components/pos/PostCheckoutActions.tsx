@@ -99,6 +99,12 @@ export const PostCheckoutActions = ({
     sendWhatsApp.mutate({ message, actionType: 'referral' });
   };
 
+  const handleSendFeedback = () => {
+    const feedbackUrl = `${APP_URL}/feedback?staff=${appointment.staff_id}&order=${appointment.id}`;
+    const message = `Hi ${appointment.customer_name}! ✨\n\nThank you for visiting us today! We'd love to hear about your experience.\n\nShare your feedback here:\n${feedbackUrl}\n\nYour input helps us serve you better!`;
+    sendWhatsApp.mutate({ message, actionType: 'feedback' });
+  };
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -182,6 +188,31 @@ export const PostCheckoutActions = ({
                   <>
                     <Gift className="mr-2 h-4 w-4" />
                     Send Referral Invite
+                  </>
+                )}
+              </Button>
+
+              {/* Send Feedback Request */}
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleSendFeedback}
+                disabled={sendWhatsApp.isPending || sentActions.includes('feedback')}
+              >
+                {sentActions.includes('feedback') ? (
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Feedback Sent
+                  </>
+                ) : sendWhatsApp.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Send Feedback Request
                   </>
                 )}
               </Button>

@@ -36,7 +36,7 @@ export const ContentHub = ({ staffId }: ContentHubProps) => {
     },
   });
 
-  // Fetch public portfolio count
+  // Fetch public portfolio count (public visibility)
   const { data: portfolioCount = 0 } = useQuery({
     queryKey: ["portfolio-count", staffId],
     queryFn: async () => {
@@ -44,13 +44,13 @@ export const ContentHub = ({ staffId }: ContentHubProps) => {
         .from("creative_lookbooks")
         .select("*", { count: "exact", head: true })
         .eq("creative_id", staffId)
-        .eq("visibility_type", "public");
+        .eq("visibility_scope", "public");
 
       return count || 0;
     },
   });
 
-  // Fetch client history count
+  // Fetch client history count (shared visibility)
   const { data: historyCount = 0 } = useQuery({
     queryKey: ["history-count", staffId],
     queryFn: async () => {
@@ -58,7 +58,7 @@ export const ContentHub = ({ staffId }: ContentHubProps) => {
         .from("creative_lookbooks")
         .select("*", { count: "exact", head: true })
         .eq("creative_id", staffId)
-        .eq("visibility_type", "private");
+        .eq("visibility_scope", "shared");
 
       return count || 0;
     },

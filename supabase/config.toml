@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.get-staff-availability]
 verify_jwt = false
+
+[functions.request-portfolio-approval]
+verify_jwt = false

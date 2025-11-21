@@ -22,7 +22,7 @@ export const ClientHistoryView = ({ staffId }: ClientHistoryViewProps) => {
           client:clients(*)
         `)
         .eq("creative_id", staffId)
-        .eq("visibility_type", "private")
+        .eq("visibility_scope", "shared")
         .order("added_at", { ascending: false });
 
       if (error) throw error;

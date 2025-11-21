@@ -17,7 +17,7 @@ export const PortalVisualHistory = ({ clientId }: PortalVisualHistoryProps) => {
   const { data: historyItems, isLoading } = useQuery({
     queryKey: ["visual-history", clientId],
     queryFn: async () => {
-      // Get lookbook items for this client
+      // Get lookbook items for this client (shared or public visibility)
       const { data: lookbooks, error } = await supabase
         .from("creative_lookbooks")
         .select(`
@@ -26,7 +26,7 @@ export const PortalVisualHistory = ({ clientId }: PortalVisualHistoryProps) => {
           service:services(name)
         `)
         .eq("client_id", clientId)
-        .eq("visibility_type", "private")
+        .in("visibility_scope", ["shared", "public"])
         .order("added_at", { ascending: false });
 
       if (error) throw error;

@@ -224,6 +224,7 @@ export type Database = {
       client_content: {
         Row: {
           ai_metadata: Json | null
+          appointment_id: string | null
           approved_at: string | null
           client_approved: boolean
           created_at: string
@@ -234,11 +235,12 @@ export type Database = {
           media_type: string
           points_awarded: boolean
           raw_file_path: string
-          request_id: string
+          request_id: string | null
           visibility_scope: string | null
         }
         Insert: {
           ai_metadata?: Json | null
+          appointment_id?: string | null
           approved_at?: string | null
           client_approved?: boolean
           created_at?: string
@@ -249,11 +251,12 @@ export type Database = {
           media_type: string
           points_awarded?: boolean
           raw_file_path: string
-          request_id: string
+          request_id?: string | null
           visibility_scope?: string | null
         }
         Update: {
           ai_metadata?: Json | null
+          appointment_id?: string | null
           approved_at?: string | null
           client_approved?: boolean
           created_at?: string
@@ -264,10 +267,17 @@ export type Database = {
           media_type?: string
           points_awarded?: boolean
           raw_file_path?: string
-          request_id?: string
+          request_id?: string | null
           visibility_scope?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "client_content_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "client_content_creative_id_fkey"
             columns: ["creative_id"]

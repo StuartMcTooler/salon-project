@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { format, isAfter, isBefore, addMinutes } from "date-fns";
-import { UserCheck, Scissors, CreditCard, Edit2, Loader2 } from "lucide-react";
+import { UserCheck, Scissors, CreditCard, Edit2, Loader2, Camera } from "lucide-react";
 import { AppointmentDetailsDialog } from "@/components/booking/AppointmentDetailsDialog";
 
 interface TimelineAppointmentsProps {
@@ -47,7 +47,20 @@ export const TimelineAppointments = ({ staffId, onAppointmentSelect }: TimelineA
         .order('appointment_date', { ascending: true });
 
       if (error) throw error;
-      return data;
+
+      // Fetch media count for each appointment
+      const appointmentsWithMedia = await Promise.all(
+        (data || []).map(async (apt) => {
+          const { count } = await supabase
+            .from('client_content')
+            .select('*', { count: 'exact', head: true })
+            .eq('appointment_id', apt.id);
+          
+          return { ...apt, mediaCount: count || 0 };
+        })
+      );
+
+      return appointmentsWithMedia;
     },
     refetchInterval: 30000,
   });
@@ -270,6 +283,12 @@ export const TimelineAppointments = ({ staffId, onAppointmentSelect }: TimelineA
                       {tag.label}
                     </Badge>
                   ))}
+                  {appointment.mediaCount > 0 && (
+                    <Badge variant="outline" className="gap-1 border-blue-500 text-blue-600 ml-auto">
+                      <Camera className="h-3 w-3" />
+                      {appointment.mediaCount}
+                    </Badge>
+                  )}
                 </div>
 
                 <div className="text-sm text-muted-foreground">

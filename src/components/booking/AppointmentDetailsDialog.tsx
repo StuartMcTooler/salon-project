@@ -9,12 +9,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Calendar, Clock, DollarSign, Mail, Phone, User, Edit2, Trash2 } from "lucide-react";
+import { Calendar, Clock, DollarSign, Mail, Phone, User, Edit2, Trash2, Camera } from "lucide-react";
 import { AppointmentEditForm } from "./AppointmentEditForm";
 import { AppointmentChangeNotification } from "./AppointmentChangeNotification";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { InServicePhotoCapture } from "./InServicePhotoCapture";
+import { PhotoVisibilityControls } from "../dashboard/content-hub/PhotoVisibilityControls";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +43,25 @@ export const AppointmentDetailsDialog = ({
   const [isEditing, setIsEditing] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
+  const [showInServiceCamera, setShowInServiceCamera] = useState(false);
+
+  // Query to fetch media attached to this appointment
+  const { data: appointmentMedia, refetch: refetchMedia } = useQuery({
+    queryKey: ['appointment-media', appointment?.id],
+    queryFn: async () => {
+      if (!appointment?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('client_content')
+        .select('*')
+        .eq('appointment_id', appointment.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!appointment?.id && open,
+  });
   const [originalAppointment, setOriginalAppointment] = useState<any>(null);
   const [updatedAppointment, setUpdatedAppointment] = useState<any>(null);
   const { toast } = useToast();
@@ -62,27 +84,50 @@ export const AppointmentDetailsDialog = ({
   const cancelMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
-        .from("salon_appointments")
-        .update({ status: "cancelled" })
-        .eq("id", appointment.id);
+        .from('salon_appointments')
+        .update({ status: 'cancelled' })
+        .eq('id', appointment.id);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["staff-appointments"] });
-      queryClient.invalidateQueries({ queryKey: ["visual-calendar"] });
-      queryClient.invalidateQueries({ queryKey: ["todays-appointments"] });
+      queryClient.invalidateQueries({ queryKey: ['timeline-appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
       toast({
         title: "Appointment Cancelled",
-        description: "The appointment has been successfully cancelled.",
+        description: "The appointment has been cancelled successfully.",
       });
-      setShowCancelDialog(false);
       onOpenChange(false);
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to cancel appointment",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deletePhotoMutation = useMutation({
+    mutationFn: async (photoId: string) => {
+      const { error } = await supabase
+        .from('client_content')
+        .delete()
+        .eq('id', photoId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refetchMedia();
+      toast({
+        title: "Photo Deleted",
+        description: "The photo has been removed.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete photo",
         variant: "destructive",
       });
     },
@@ -115,12 +160,29 @@ export const AppointmentDetailsDialog = ({
 
   return (
     <>
+      <InServicePhotoCapture
+        open={showInServiceCamera}
+        onClose={() => setShowInServiceCamera(false)}
+        appointmentId={appointment.id}
+        staffId={appointment.staff_id}
+        customerName={appointment.customer_name}
+        onSuccess={() => refetchMedia()}
+      />
+
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Appointment Details</DialogTitle>
             <DialogDescription className="space-y-1">
-              <div>{isEditing ? "Edit appointment details" : "View and manage this appointment"}</div>
+              <div className="flex items-center gap-2">
+                <span>{isEditing ? "Edit appointment details" : "View and manage this appointment"}</span>
+                {appointmentMedia && appointmentMedia.length > 0 && (
+                  <Badge variant="outline" className="gap-1 border-blue-500 text-blue-600">
+                    <Camera className="h-3 w-3" />
+                    {appointmentMedia.length}
+                  </Badge>
+                )}
+              </div>
               {appointment.created_by_user_id && (
                 <div className="text-xs text-muted-foreground mt-2 pt-2 border-t">
                   Booked by: {appointment.created_by_user_id === appointment.staff_id 
@@ -139,87 +201,149 @@ export const AppointmentDetailsDialog = ({
               onCancel={() => setIsEditing(false)}
             />
           ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Badge variant={getStatusColor(appointment.status)}>
-                  {appointment.status}
-                </Badge>
-                <div className="text-2xl font-bold text-primary">
-                  €{Number(appointment.price).toFixed(2)}
-                </div>
-              </div>
+            <Tabs defaultValue="details" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="media">
+                  Media {appointmentMedia && appointmentMedia.length > 0 && `(${appointmentMedia.length})`}
+                </TabsTrigger>
+              </TabsList>
 
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <User className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="font-medium">{appointment.customer_name}</p>
-                    {appointment.customer_email && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Mail className="h-3 w-3" />
-                        {appointment.customer_email}
-                      </div>
-                    )}
-                    {appointment.customer_phone && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Phone className="h-3 w-3" />
-                        {appointment.customer_phone}
-                      </div>
-                    )}
+              <TabsContent value="details" className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Badge variant={getStatusColor(appointment.status)}>
+                    {appointment.status}
+                  </Badge>
+                  <div className="text-2xl font-bold text-primary">
+                    €{Number(appointment.price).toFixed(2)}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-5 w-5 text-muted-foreground" />
-                  <p className="text-sm">
-                    {format(new Date(appointment.appointment_date), "EEEE, MMMM dd, yyyy")}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Clock className="h-5 w-5 text-muted-foreground" />
-                  <p className="text-sm">
-                    {format(new Date(appointment.appointment_date), "h:mm a")} •{" "}
-                    {appointment.duration_minutes} minutes
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <DollarSign className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">{appointment.service_name}</p>
-                    <p className="text-xs text-muted-foreground">Service</p>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <User className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="font-medium">{appointment.customer_name}</p>
+                      {appointment.customer_email && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Mail className="h-3 w-3" />
+                          {appointment.customer_email}
+                        </div>
+                      )}
+                      {appointment.customer_phone && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Phone className="h-3 w-3" />
+                          {appointment.customer_phone}
+                        </div>
+                      )}
+                    </div>
                   </div>
+
+                  <div className="flex items-center gap-3">
+                    <Calendar className="h-5 w-5 text-muted-foreground" />
+                    <p className="text-sm">
+                      {format(new Date(appointment.appointment_date), "EEEE, MMMM dd, yyyy")}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <Clock className="h-5 w-5 text-muted-foreground" />
+                    <p className="text-sm">
+                      {format(new Date(appointment.appointment_date), "h:mm a")} •{" "}
+                      {appointment.duration_minutes} minutes
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <DollarSign className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">{appointment.service_name}</p>
+                      <p className="text-xs text-muted-foreground">Service</p>
+                    </div>
+                  </div>
+
+                  {appointment.notes && (
+                    <div className="pt-2 border-t">
+                      <p className="text-sm text-muted-foreground">{appointment.notes}</p>
+                    </div>
+                  )}
                 </div>
 
-                {appointment.notes && (
-                  <div className="pt-2 border-t">
-                    <p className="text-sm text-muted-foreground">{appointment.notes}</p>
+                {appointment.status !== "cancelled" && appointment.status !== "completed" && (
+                  <div className="flex gap-2 pt-4">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setIsEditing(true)}
+                    >
+                      <Edit2 className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      className="flex-1"
+                      onClick={() => setShowCancelDialog(true)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
                   </div>
                 )}
-              </div>
+              </TabsContent>
 
-              {appointment.status !== "cancelled" && appointment.status !== "completed" && (
-                <div className="flex gap-2 pt-4">
+              <TabsContent value="media" className="space-y-4">
+                <div className="space-y-4">
                   <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => setIsEditing(true)}
+                    onClick={() => setShowInServiceCamera(true)}
+                    className="w-full"
+                    size="lg"
                   >
-                    <Edit2 className="h-4 w-4 mr-2" />
-                    Edit
+                    <Camera className="h-5 w-5 mr-2" />
+                    Add Photo to Appointment
                   </Button>
-                  <Button
-                    variant="destructive"
-                    className="flex-1"
-                    onClick={() => setShowCancelDialog(true)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Cancel
-                  </Button>
+
+                  {appointmentMedia && appointmentMedia.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      {appointmentMedia.map((media) => (
+                        <div key={media.id} className="relative group border rounded-lg overflow-hidden">
+                          <img
+                            src={`${supabase.storage.from('client-content-raw').getPublicUrl(media.raw_file_path).data.publicUrl}`}
+                            alt="Appointment media"
+                            className="w-full aspect-square object-cover"
+                          />
+                          <div className="absolute top-2 right-2 flex gap-1">
+                            <Button
+                              size="icon"
+                              variant="destructive"
+                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => deletePhotoMutation.mutate(media.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
+                            <PhotoVisibilityControls
+                              contentId={media.id}
+                              currentVisibility={media.visibility_scope || 'private'}
+                              staffId={appointment.staff_id}
+                            />
+                            <p className="text-xs text-white mt-1">
+                              {format(new Date(media.created_at), 'PPp')}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Camera className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                      <p className="text-sm">No photos attached yet</p>
+                      <p className="text-xs">Click the button above to add photos</p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </TabsContent>
+            </Tabs>
           )}
         </DialogContent>
       </Dialog>

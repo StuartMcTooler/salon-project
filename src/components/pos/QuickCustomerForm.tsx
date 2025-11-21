@@ -166,12 +166,25 @@ export const QuickCustomerForm = ({
   const handleSavePhoto = async (): Promise<void> => {
     if (!capturedPhoto) return;
 
+    // Ensure we have a client before proceeding
+    if (!customerPhone || !customerName) {
+      toast({
+        title: "Missing Information",
+        description: "Customer phone and name are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Create appointment first
     return new Promise<void>((resolve, reject) => {
       createWalkIn.mutate(undefined, {
         onSuccess: async (appointmentData) => {
+          console.log("Appointment created:", appointmentData);
           const effectiveClientId = appointmentData?.client_id || clientId;
+          
           if (!effectiveClientId) {
+            console.error("Missing client_id after appointment creation", { appointmentData, clientId });
             toast({
               title: "Error",
               description: "Missing client information",
@@ -184,6 +197,8 @@ export const QuickCustomerForm = ({
           try {
             // Upload to client-content-raw bucket
             const filename = `${effectiveClientId}/${Date.now()}.jpg`;
+            console.log("Uploading photo to:", filename);
+            
             const { error: uploadError } = await supabase.storage
               .from('client-content-raw')
               .upload(filename, capturedPhoto, {
@@ -191,7 +206,12 @@ export const QuickCustomerForm = ({
                 upsert: false
               });
 
-            if (uploadError) throw uploadError;
+            if (uploadError) {
+              console.error("Storage upload error:", uploadError);
+              throw uploadError;
+            }
+            
+            console.log("Photo uploaded successfully");
 
             // Create content request record
             const { data: contentRequestData, error: requestError } = await supabase
@@ -211,7 +231,12 @@ export const QuickCustomerForm = ({
               .select()
               .single();
 
-            if (requestError) throw requestError;
+            if (requestError) {
+              console.error("Content request error:", requestError);
+              throw requestError;
+            }
+            
+            console.log("Content request created:", contentRequestData);
 
             // Save to client_content
             const { data: contentData, error: contentError } = await supabase
@@ -227,7 +252,12 @@ export const QuickCustomerForm = ({
               .select()
               .single();
 
-            if (contentError) throw contentError;
+            if (contentError) {
+              console.error("Client content error:", contentError);
+              throw contentError;
+            }
+            
+            console.log("Client content created:", contentData);
 
             // Add to creative_lookbooks with private visibility
             const { error: lookbookError } = await supabase
@@ -241,7 +271,12 @@ export const QuickCustomerForm = ({
                 display_order: 0
               });
 
-            if (lookbookError) throw lookbookError;
+            if (lookbookError) {
+              console.error("Lookbook error:", lookbookError);
+              throw lookbookError;
+            }
+            
+            console.log("Added to lookbook successfully");
 
             toast({
               title: "Photo Saved",
@@ -261,6 +296,7 @@ export const QuickCustomerForm = ({
           }
         },
         onError: (error: any) => {
+          console.error("Transaction creation failed:", error);
           toast({
             title: "Transaction Failed",
             description: error.message,

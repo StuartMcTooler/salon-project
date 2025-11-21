@@ -13,17 +13,23 @@ export const InboxView = ({ staffId }: InboxViewProps) => {
   const { data: inboxItems, isLoading } = useQuery({
     queryKey: ["inbox-items", staffId],
     queryFn: async () => {
-      // Get all content for this creative
+      // Fetch all content for this creative
       const { data: allContent, error: contentError } = await supabase
         .from("client_content")
         .select(`
           *,
-          request:content_requests(
-            id,
+          content_requests (
             client_name,
             client_email,
-            client_phone,
-            client_id
+            client_phone
+          ),
+          salon_appointments (
+            id,
+            service_name,
+            appointment_date,
+            customer_name,
+            customer_phone,
+            customer_email
           )
         `)
         .eq("creative_id", staffId)
@@ -31,18 +37,24 @@ export const InboxView = ({ staffId }: InboxViewProps) => {
 
       if (contentError) throw contentError;
 
-      // Get all content IDs already in lookbooks
-      const { data: inLookbook, error: lookbookError } = await supabase
+      // Get all content IDs that are already in lookbooks
+      const { data: lookbookContent, error: lookbookError } = await supabase
         .from("creative_lookbooks")
         .select("content_id")
         .eq("creative_id", staffId);
 
       if (lookbookError) throw lookbookError;
 
-      const inLookbookIds = new Set(inLookbook?.map((l) => l.content_id) || []);
-      
-      // Filter out content already in lookbooks
-      return allContent?.filter((c) => !inLookbookIds.has(c.id)) || [];
+      const lookbookContentIds = new Set(
+        lookbookContent?.map((item) => item.content_id) || []
+      );
+
+      // Filter out content that's already in lookbooks
+      const filteredInboxItems = (allContent || []).filter(
+        (item) => !lookbookContentIds.has(item.id)
+      );
+
+      return filteredInboxItems;
     },
   });
 

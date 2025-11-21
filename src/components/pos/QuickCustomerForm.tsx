@@ -243,6 +243,7 @@ export const QuickCustomerForm = ({
               .insert({
                 request_id: contentRequestData.id,
                 creative_id: staffMember.id,
+                appointment_id: appointmentData.id, // Link to appointment
                 raw_file_path: filename,
                 media_type: "photo",
                 client_approved: true,

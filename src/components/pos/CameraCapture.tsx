@@ -121,7 +121,7 @@ export const CameraCapture = ({ open, onClose, onCapture, customerName }: Camera
         </DialogHeader>
         
         <div className="space-y-4">
-          <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
+          <div className="relative aspect-[9/16] bg-black rounded-lg overflow-hidden">
             {!capturedImage ? (
               <>
                 <video

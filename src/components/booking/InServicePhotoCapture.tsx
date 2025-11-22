@@ -229,10 +229,13 @@ export const InServicePhotoCapture = ({
                   size="lg"
                   onClick={confirmCapture}
                   disabled={isProcessing}
-                  className="flex-1"
+                  className="flex-1 relative"
                 >
                   {isProcessing ? (
-                    "Saving..."
+                    <span className="flex items-center gap-2">
+                      <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Saving Photo...
+                    </span>
                   ) : (
                     <>
                       <CheckCircle className="mr-2 h-5 w-5" />

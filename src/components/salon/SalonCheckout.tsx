@@ -189,6 +189,22 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
     enabled: !!date && !!staff.id,
   });
 
+  // Fetch all staff hours for calendar validation
+  const { data: allStaffHours } = useQuery({
+    queryKey: ['all-staff-hours', staff.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('business_hours')
+        .select('*')
+        .eq('staff_id', staff.id)
+        .eq('is_active', true);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!staff.id,
+  });
+
   // Realtime subscription
   useEffect(() => {
     const channel = supabase
@@ -332,9 +348,9 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
     }
   }, [user, portalClient]);
 
-  // Check for available credits when phone changes
+  // Check for available credits and auto-fill name when phone changes
   useEffect(() => {
-    const checkCredits = async () => {
+    const checkCreditsAndCustomer = async () => {
       if (!customerPhone) {
         setAvailableCredits([]);
         return;
@@ -342,6 +358,19 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
 
       const normalizedPhone = normalizePhoneNumber(customerPhone);
       
+      // Look up existing customer
+      const { data: existingClient } = await supabase
+        .from('clients')
+        .select('name')
+        .eq('phone', normalizedPhone)
+        .maybeSingle();
+      
+      // Auto-fill name if customer exists
+      if (existingClient && !customerName) {
+        setCustomerName(existingClient.name);
+      }
+      
+      // Check for credits
       const { data } = await supabase
         .from('user_credits')
         .select('*')
@@ -367,7 +396,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       }
     };
 
-    checkCredits();
+    checkCreditsAndCustomer();
   }, [customerPhone, applyCreditOptOut, pricing.custom_price]);
 
   const createAppointment = useMutation({
@@ -729,7 +758,20 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
                 disabled={(date) => {
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
-                  return date < today;
+                  if (date < today) return true;
+                  
+                  // Check if staff is working this day
+                  const dayOfWeek = date.getDay();
+                  const staffWorkingThisDay = allStaffHours?.some(
+                    h => h.day_of_week === dayOfWeek && h.is_active
+                  );
+                  
+                  // Disable if staff has no hours for this day
+                  if (allStaffHours && !staffWorkingThisDay) {
+                    return true;
+                  }
+                  
+                  return false;
                 }}
                 className="rounded-md border"
               />
@@ -796,18 +838,6 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
-              <input
-                id="name"
-                type="text"
-                className="w-full px-3 py-2 border rounded-md"
-                placeholder="Customer name"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="phone">Phone Number *</Label>
               <input
                 id="phone"
@@ -821,6 +851,18 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
               <p className="text-xs text-muted-foreground">
                 Required for booking confirmation & portal access
               </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="name">Name *</Label>
+              <input
+                id="name"
+                type="text"
+                className="w-full px-3 py-2 border rounded-md"
+                placeholder="Customer name"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                required
+              />
             </div>
           </CardContent>
         </Card>

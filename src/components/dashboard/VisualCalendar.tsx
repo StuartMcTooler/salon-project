@@ -5,6 +5,7 @@ import { format, startOfWeek, addDays, isSameDay } from "date-fns";
 import { useState, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppointmentDetailsDialog } from "@/components/booking/AppointmentDetailsDialog";
+import { WeekNavigationToolbar } from "@/components/admin/WeekNavigationToolbar";
 
 interface VisualCalendarProps {
   staffId: string;
@@ -89,6 +90,10 @@ export const VisualCalendar = ({ staffId }: VisualCalendarProps) => {
   return (
     <Card className="p-4">
       <h3 className="text-lg font-semibold mb-4">Week View</h3>
+      <WeekNavigationToolbar 
+        selectedWeek={selectedWeek}
+        onWeekChange={setSelectedWeek}
+      />
       <div className="grid grid-cols-8 gap-2">
         {/* Header */}
         <div className="font-medium text-sm">Time</div>

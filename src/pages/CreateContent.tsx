@@ -379,6 +379,60 @@ export default function CreateContent() {
     window.open(window.location.href, '_blank');
   };
 
+  const generateClientReferralLink = () => {
+    const refCode = request?.client_phone?.replace(/\D/g, "").slice(-8) || "";
+    return `${window.location.origin}/salon?ref=${refCode}`;
+  };
+
+  const generateCaption = () => {
+    const creativeName = request?.staff_members?.display_name || "your stylist";
+    const refLink = generateClientReferralLink();
+    return `Fresh cut by @${creativeName}! 🚀\n\nBook yours here: ${refLink}`;
+  };
+
+  const shareToSocial = async () => {
+    if (!enhancedUrl) return;
+    
+    const caption = generateCaption();
+    
+    // Copy caption to clipboard first
+    try {
+      await navigator.clipboard.writeText(caption);
+      toast.success("✨ Caption & link copied! Just paste it in your post");
+    } catch (err) {
+      console.warn("Clipboard write failed:", err);
+    }
+    
+    // Check if Web Share API is available
+    if (navigator.share && navigator.canShare) {
+      try {
+        // Fetch the image as a blob
+        const response = await fetch(enhancedUrl);
+        const blob = await response.blob();
+        
+        // Extract MIME type from data URL dynamically
+        const mimeType = enhancedUrl.match(/data:([^;]+);/)?.[1] || 'image/png';
+        const extension = mimeType.split('/')[1] || 'png';
+        const file = new File([blob], `my-glow-up.${extension}`, { type: mimeType });
+        
+        // Check if we can share files
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: "My Fresh Look!",
+            text: caption,
+          });
+          return;
+        }
+      } catch (err) {
+        console.warn("Web Share failed:", err);
+      }
+    }
+    
+    // Fallback: Download the image
+    downloadPhoto();
+  };
+
   useEffect(() => {
     return () => {
       stopCamera();
@@ -549,19 +603,26 @@ export default function CreateContent() {
               )}
 
               <div className="space-y-3">
-                <Button onClick={downloadPhoto} size="lg" className="w-full">
-                  <Download className="mr-2" />
-                  Download to My Phone
+                <Button onClick={shareToSocial} size="lg" className="w-full h-16">
+                  <Share2 className="mr-2 h-5 w-5" />
+                  <div className="text-left">
+                    <div className="font-semibold">Share to Social Media</div>
+                    <div className="text-xs opacity-90">Image + caption ready to post!</div>
+                  </div>
                 </Button>
-                <Button onClick={copyShareUrl} size="lg" variant="secondary" className="w-full">
-                  <Share2 className="mr-2" />
-                  Copy My "Share & Earn" Link
+                
+                <Button onClick={downloadPhoto} size="lg" variant="outline" className="w-full">
+                  <Download className="mr-2 h-4 w-4" />
+                  Save to Camera Roll
                 </Button>
               </div>
 
-              <p className="text-sm text-center text-muted-foreground">
-                Share your link with friends! When they book through your link, you'll earn rewards! 💰
-              </p>
+              <div className="bg-muted/50 p-4 rounded-lg border">
+                <p className="text-xs font-medium mb-2">📋 Caption Preview:</p>
+                <p className="text-sm text-muted-foreground font-mono break-all whitespace-pre-wrap">
+                  {generateCaption()}
+                </p>
+              </div>
             </div>
           )}
 

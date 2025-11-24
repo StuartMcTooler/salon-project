@@ -125,25 +125,39 @@ export const getAvailableSlots = (
   startHour: number = 9,
   endHour: number = 18
 ): Array<{ time: string; endTime: string }> => {
+  const dayOfWeek = selectedDate.getDay();
+  
+  console.log('getAvailableSlots called:', {
+    selectedDate: selectedDate.toISOString(),
+    dayOfWeek,
+    businessHours,
+    staffHours,
+    serviceDuration
+  });
+  
   // Determine actual working hours based on business and staff hours
   let actualStartHour = startHour;
   let actualEndHour = endHour;
+  let hoursFound = false;
   
-  // Check if business or staff is not working this day
-  const dayOfWeek = selectedDate.getDay();
-  
+  // Check business hours first
   if (businessHours && businessHours.day_of_week === dayOfWeek) {
     if (!businessHours.is_active) {
+      console.log('Business closed on this day');
       return []; // Business closed this day
     }
     const [bStartHour, bStartMin] = businessHours.start_time.split(':').map(Number);
     const [bEndHour, bEndMin] = businessHours.end_time.split(':').map(Number);
     actualStartHour = bStartHour + (bStartMin / 60);
     actualEndHour = bEndHour + (bEndMin / 60);
+    hoursFound = true;
+    console.log('Using business hours:', { actualStartHour, actualEndHour });
   }
   
+  // Check staff hours - these override/restrict business hours
   if (staffHours && staffHours.day_of_week === dayOfWeek) {
     if (!staffHours.is_active) {
+      console.log('Staff not working on this day');
       return []; // Staff not working this day
     }
     const [sStartHour, sStartMin] = staffHours.start_time.split(':').map(Number);
@@ -154,13 +168,22 @@ export const getAvailableSlots = (
     // Use the most restrictive hours (latest start, earliest end)
     actualStartHour = Math.max(actualStartHour, staffStart);
     actualEndHour = Math.min(actualEndHour, staffEnd);
+    hoursFound = true;
+    console.log('Using staff hours:', { actualStartHour, actualEndHour });
   }
   
-  // Convert back to decimal hours for slot generation
+  // If no specific hours found for this day, return empty
+  // (The calendar should prevent selecting these days, but just in case)
+  if (!hoursFound) {
+    console.log('No working hours found for this day');
+    return [];
+  }
+  
   const availableSlots: Array<{ time: string; endTime: string }> = [];
   
   // Generate standard slots from opening time (every 30 minutes)
   const standardSlots = generateTimeSlots(actualStartHour, actualEndHour);
+  console.log('Generated standard slots:', standardSlots);
   const potentialSlots = new Set<string>(standardSlots);
   
   // For each appointment, add offset slots if it ends off-cycle
@@ -185,10 +208,12 @@ export const getAvailableSlots = (
   
   // Convert to array and sort
   const sortedSlots = Array.from(potentialSlots).sort();
+  console.log('Sorted potential slots:', sortedSlots);
   
   // Get current time for filtering past slots on today
   const now = new Date();
   const isToday = selectedDate.toDateString() === now.toDateString();
+  console.log('Is today?', isToday, 'Current time:', now.toISOString());
   
   // Check each potential slot for availability
   for (const slot of sortedSlots) {
@@ -224,5 +249,6 @@ export const getAvailableSlots = (
     }
   }
   
+  console.log('Final available slots:', availableSlots);
   return availableSlots;
 };

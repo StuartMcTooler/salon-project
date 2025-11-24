@@ -150,6 +150,12 @@ export const getAvailableSlots = (
     const [bEndHour, bEndMin] = businessHours.end_time.split(':').map(Number);
     actualStartHour = bStartHour + (bStartMin / 60);
     actualEndHour = bEndHour + (bEndMin / 60);
+    
+    // Handle overnight hours (e.g., 9 AM to 1 AM next day)
+    if (actualEndHour < actualStartHour) {
+      actualEndHour += 24;
+    }
+    
     hoursFound = true;
     console.log('Using business hours:', { actualStartHour, actualEndHour });
   }
@@ -162,8 +168,13 @@ export const getAvailableSlots = (
     }
     const [sStartHour, sStartMin] = staffHours.start_time.split(':').map(Number);
     const [sEndHour, sEndMin] = staffHours.end_time.split(':').map(Number);
-    const staffStart = sStartHour + (sStartMin / 60);
-    const staffEnd = sEndHour + (sEndMin / 60);
+    let staffStart = sStartHour + (sStartMin / 60);
+    let staffEnd = sEndHour + (sEndMin / 60);
+    
+    // Handle overnight staff hours
+    if (staffEnd < staffStart) {
+      staffEnd += 24;
+    }
     
     // Use the most restrictive hours (latest start, earliest end)
     actualStartHour = Math.max(actualStartHour, staffStart);

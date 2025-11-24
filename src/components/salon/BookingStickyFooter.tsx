@@ -38,7 +38,7 @@ export const BookingStickyFooter = ({
           onClick={onConfirm}
           disabled={disabled || isLoading}
           size="lg"
-          className="min-w-[140px]"
+          className="min-w-[140px] min-h-[44px]"
         >
           {isLoading ? (
             <>

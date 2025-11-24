@@ -33,8 +33,14 @@ export const CameraCapture = ({ open, onClose, onCapture, customerName }: Camera
 
   const startCamera = async () => {
     try {
+      console.log('[CameraCapture] Starting camera...');
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: 720, height: 1280 },
+        video: { 
+          facingMode: "environment",
+          aspectRatio: { ideal: 9/16 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
         audio: false
       });
       
@@ -79,11 +85,15 @@ export const CameraCapture = ({ open, onClose, onCapture, customerName }: Camera
 
     setIsProcessing(true);
     try {
+      console.log('[CameraCapture] Converting image to blob...');
       // Convert data URL to Blob
       const response = await fetch(capturedImage);
       const blob = await response.blob();
+      console.log('[CameraCapture] Blob created:', blob.size, 'bytes');
       
+      console.log('[CameraCapture] Calling onCapture callback...');
       await onCapture(blob);
+      console.log('[CameraCapture] Photo saved successfully!');
       
       // Close dialog and cleanup
       if (stream) {

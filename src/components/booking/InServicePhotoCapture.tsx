@@ -44,8 +44,14 @@ export const InServicePhotoCapture = ({
 
   const startCamera = async () => {
     try {
+      console.log('[InServicePhotoCapture] Starting camera...');
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: 720, height: 1280 },
+        video: { 
+          facingMode: "environment",
+          aspectRatio: { ideal: 9/16 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
         audio: false
       });
       
@@ -90,12 +96,16 @@ export const InServicePhotoCapture = ({
 
     setIsProcessing(true);
     try {
+      console.log('[InServicePhotoCapture] Converting image to blob...');
       // Convert data URL to Blob
       const response = await fetch(capturedImage);
       const blob = await response.blob();
+      console.log('[InServicePhotoCapture] Blob created:', blob.size, 'bytes');
       
       // Upload to storage bucket
       const fileName = `in-service-${appointmentId}-${Date.now()}.jpg`;
+      console.log('[InServicePhotoCapture] Uploading to storage:', fileName);
+      
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('client-content-raw')
         .upload(fileName, blob, {
@@ -103,9 +113,15 @@ export const InServicePhotoCapture = ({
           upsert: false,
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('[InServicePhotoCapture] Storage upload error:', uploadError);
+        throw uploadError;
+      }
+      
+      console.log('[InServicePhotoCapture] Upload successful:', uploadData);
 
       // Insert into client_content with PRIVATE default
+      console.log('[InServicePhotoCapture] Inserting into client_content table...');
       const { error: insertError } = await supabase
         .from('client_content')
         .insert({
@@ -119,7 +135,12 @@ export const InServicePhotoCapture = ({
           points_awarded: false,
         });
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('[InServicePhotoCapture] Database insert error:', insertError);
+        throw insertError;
+      }
+      
+      console.log('[InServicePhotoCapture] Photo saved to database successfully!');
 
       // Show success state
       setSavedSuccessfully(true);

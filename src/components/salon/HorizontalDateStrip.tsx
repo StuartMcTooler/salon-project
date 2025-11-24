@@ -66,13 +66,15 @@ export const HorizontalDateStrip = ({
     <div className={cn("relative", className)}>
       {/* Scroll Navigation */}
       <div className="flex items-center gap-2">
+        {/* Left Arrow - Hidden on mobile (< 640px), visible on tablets+ */}
         <Button
           variant="ghost"
           size="icon"
-          className="shrink-0 h-8 w-8"
+          className="hidden sm:flex shrink-0 min-h-[44px] min-w-[44px]"
           onClick={() => scroll("left")}
+          aria-label="Scroll left"
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-5 w-5" />
         </Button>
 
         {/* Scrollable Date Container */}
@@ -92,7 +94,7 @@ export const HorizontalDateStrip = ({
                 onClick={() => !isDisabled && !isPast && onDateSelect(date)}
                 disabled={isDisabled || isPast}
                 className={cn(
-                  "flex-shrink-0 snap-center flex flex-col items-center justify-center rounded-lg border-2 transition-all min-w-[64px] h-[72px]",
+                  "flex-shrink-0 snap-center flex flex-col items-center justify-center rounded-lg border-2 transition-all min-w-[72px] min-h-[76px]",
                   isSelected
                     ? "border-primary bg-primary text-primary-foreground shadow-md"
                     : "border-border bg-background hover:border-primary/50",
@@ -113,21 +115,24 @@ export const HorizontalDateStrip = ({
           })}
         </div>
 
+        {/* Right Arrow - Hidden on mobile (< 640px), visible on tablets+ */}
         <Button
           variant="ghost"
           size="icon"
-          className="shrink-0 h-8 w-8"
+          className="hidden sm:flex shrink-0 min-h-[44px] min-w-[44px]"
           onClick={() => scroll("right")}
+          aria-label="Scroll right"
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-5 w-5" />
         </Button>
 
-        {/* Calendar Picker Button */}
+        {/* Calendar Picker Button - Always visible */}
         <Button
           variant="outline"
           size="icon"
-          className="shrink-0 h-10 w-10"
+          className="shrink-0 min-h-[44px] min-w-[44px]"
           onClick={() => setShowFullCalendar(true)}
+          aria-label="Open full calendar"
         >
           <CalendarIcon className="h-5 w-5" />
         </Button>

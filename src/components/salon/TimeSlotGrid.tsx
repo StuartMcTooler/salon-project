@@ -63,7 +63,7 @@ export const TimeSlotGrid = ({
             size="sm"
             onClick={() => onTimeSelect(slot.time)}
             className={cn(
-              "h-9 text-sm font-medium transition-all",
+              "min-h-[44px] min-w-[72px] text-sm font-medium transition-all",
               isSelected && "shadow-md"
             )}
           >

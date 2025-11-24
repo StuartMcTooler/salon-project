@@ -630,188 +630,223 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   });
 
   return (
-    <div className="space-y-4 max-w-2xl mx-auto pb-32 md:pb-6">
-      {/* Header */}
-      <div className="flex items-center gap-4 sticky top-0 z-40 bg-background/95 backdrop-blur py-3 -mx-4 px-4 border-b md:static md:bg-transparent md:border-0">
-        <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
-        <div className="flex-1 min-w-0">
-          <h2 className="text-lg md:text-2xl font-bold truncate">Book Appointment</h2>
+    <div className="min-h-screen flex flex-col lg:flex-row lg:gap-6 max-w-7xl mx-auto">
+      {/* Left Column: Date/Time Selection */}
+      <div className="flex-1 lg:max-w-2xl space-y-4 pb-32 lg:pb-6 p-4 lg:p-6">
+        {/* Header */}
+        <div className="flex items-center gap-4 sticky top-0 z-40 bg-background/95 backdrop-blur py-3 -mx-4 px-4 border-b lg:static lg:bg-transparent lg:border-0">
+          <Button variant="ghost" size="sm" onClick={onBack} className="min-h-[44px]">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg md:text-2xl font-bold truncate">Book Appointment</h2>
+          </div>
         </div>
-      </div>
 
-      {/* Credit Display Banner */}
-      {availableCredits.length > 0 && (
-        <Card className="border-green-500/50 bg-green-50">
-          <CardContent className="pt-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-2">
-                <p className="font-semibold text-green-700">
-                  🎉 You have {availableCredits.length} referral reward{availableCredits.length > 1 ? 's' : ''} available!
+        {/* Credit Display Banner */}
+        {availableCredits.length > 0 && (
+          <Card className="border-green-500/50 bg-green-50">
+            <CardContent className="pt-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <p className="font-semibold text-green-700">
+                    🎉 You have {availableCredits.length} referral reward{availableCredits.length > 1 ? 's' : ''} available!
+                  </p>
+                  {!applyCreditOptOut && creditApplied && (
+                    <>
+                      <p className="text-sm text-green-600">
+                        Applying {creditApplied.discount_percentage}% off (€{((pricing.custom_price * creditApplied.discount_percentage) / 100).toFixed(2)} savings)
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Expires: {new Date(creditApplied.expires_at).toLocaleDateString()}
+                      </p>
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="apply-credit"
+                    checked={!applyCreditOptOut}
+                    onCheckedChange={(checked) => {
+                      setApplyCreditOptOut(!checked);
+                      if (!checked) {
+                        setFinalPrice(discountApplied ? finalPrice : pricing.custom_price);
+                        setCreditApplied(null);
+                      }
+                    }}
+                  />
+                  <Label htmlFor="apply-credit" className="text-sm cursor-pointer">
+                    Apply
+                  </Label>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Deposit Warning */}
+        {requiresDeposit && (
+          <div className="p-4 bg-warning/10 border border-warning/50 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-semibold text-warning text-sm">Deposit Required</p>
+                <p className="text-xs text-muted-foreground">
+                  €{depositAmount.toFixed(2)} deposit required to secure booking
                 </p>
-                {!applyCreditOptOut && creditApplied && (
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Horizontal Date Strip */}
+        <Card ref={dateTimeRef}>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Select Date</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <HorizontalDateStrip
+              selectedDate={date}
+              onDateSelect={setDate}
+              disabledDates={
+                allStaffHours
+                  ? Array.from({ length: 90 }, (_, i) => {
+                      const checkDate = new Date();
+                      checkDate.setDate(checkDate.getDate() + i);
+                      const dayOfWeek = checkDate.getDay();
+                      const staffWorkingThisDay = allStaffHours.some(
+                        h => h.day_of_week === dayOfWeek && h.is_active
+                      );
+                      return !staffWorkingThisDay ? checkDate : null;
+                    }).filter(Boolean) as Date[]
+                  : []
+              }
+            />
+
+            {/* Time Slots */}
+            {date && (
+              <div ref={timeSlotsRef} className="space-y-3">
+                {overflowState?.isOverflow ? (
+                  <CoverRecommendationCard
+                    originalStaff={staff}
+                    coverOptions={overflowState.coverOptions}
+                    onSelectCover={(coverStaffId, slot) => {
+                      setSelectedCoverStaff(coverStaffId);
+                      setTime(slot);
+                    }}
+                    onCancel={() => {
+                      setDate(undefined);
+                      setOverflowState(null);
+                    }}
+                  />
+                ) : (
                   <>
-                    <p className="text-sm text-green-600">
-                      Applying {creditApplied.discount_percentage}% off (€{((pricing.custom_price * creditApplied.discount_percentage) / 100).toFixed(2)} savings)
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Expires: {new Date(creditApplied.expires_at).toLocaleDateString()}
-                    </p>
+                    <h3 className="text-sm font-medium">Select Time</h3>
+                    <TimeSlotGrid
+                      slots={availableSlots}
+                      selectedTime={time}
+                      onTimeSelect={setTime}
+                      isLoading={!existingAppointments}
+                    />
                   </>
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="apply-credit"
-                  checked={!applyCreditOptOut}
-                  onCheckedChange={(checked) => {
-                    setApplyCreditOptOut(!checked);
-                    if (!checked) {
-                      setFinalPrice(discountApplied ? finalPrice : pricing.custom_price);
-                      setCreditApplied(null);
-                    }
-                  }}
-                />
-                <Label htmlFor="apply-credit" className="text-sm cursor-pointer">
-                  Apply
-                </Label>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
-      )}
-
-      {/* Deposit Warning */}
-      {requiresDeposit && (
-        <div className="p-4 bg-warning/10 border border-warning/50 rounded-lg">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <p className="font-semibold text-warning text-sm">Deposit Required</p>
-              <p className="text-xs text-muted-foreground">
-                €{depositAmount.toFixed(2)} deposit required to secure booking
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Horizontal Date Strip */}
-      <Card ref={dateTimeRef}>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Select Date</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <HorizontalDateStrip
-            selectedDate={date}
-            onDateSelect={setDate}
-            disabledDates={
-              allStaffHours
-                ? Array.from({ length: 90 }, (_, i) => {
-                    const checkDate = new Date();
-                    checkDate.setDate(checkDate.getDate() + i);
-                    const dayOfWeek = checkDate.getDay();
-                    const staffWorkingThisDay = allStaffHours.some(
-                      h => h.day_of_week === dayOfWeek && h.is_active
-                    );
-                    return !staffWorkingThisDay ? checkDate : null;
-                  }).filter(Boolean) as Date[]
-                : []
-            }
-          />
-
-          {/* Time Slots */}
-          {date && (
-            <div ref={timeSlotsRef} className="space-y-3">
-              {overflowState?.isOverflow ? (
-                <CoverRecommendationCard
-                  originalStaff={staff}
-                  coverOptions={overflowState.coverOptions}
-                  onSelectCover={(coverStaffId, slot) => {
-                    setSelectedCoverStaff(coverStaffId);
-                    setTime(slot);
-                  }}
-                  onCancel={() => {
-                    setDate(undefined);
-                    setOverflowState(null);
-                  }}
-                />
-              ) : (
-                <>
-                  <h3 className="text-sm font-medium">Select Time</h3>
-                  <TimeSlotGrid
-                    slots={availableSlots}
-                    selectedTime={time}
-                    onTimeSelect={setTime}
-                    isLoading={!existingAppointments}
-                  />
-                </>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Customer Information */}
-      {!portalClient && time && (
-        <Card ref={customerInfoRef}>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Your Details</CardTitle>
-            <CardDescription className="text-xs">Required for confirmation</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CompactCustomerForm
-              name={customerName}
-              email={customerEmail}
-              phone={customerPhone}
-              onNameChange={setCustomerName}
-              onEmailChange={setCustomerEmail}
-              onPhoneChange={setCustomerPhone}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Expandable Notes */}
-      {time && (
-        <ExpandableNotesField
-          value={notes}
-          onChange={setNotes}
-        />
-      )}
-
-      {/* Mobile-only: Sticky Footer - Desktop: Hidden */}
-      <div className="md:hidden">
-        <BookingStickyFooter
-          serviceName={service.name}
-          staffName={staff.display_name}
-          duration={service.duration_minutes}
-          price={finalPrice}
-          depositAmount={depositAmount}
-          onConfirm={() => createAppointment.mutate()}
-          isLoading={createAppointment.isPending}
-          disabled={!date || !time || !customerName || !customerPhone}
-        />
       </div>
 
-      {/* Desktop-only: Standard Button */}
-      <div className="hidden md:block space-y-4" ref={confirmButtonRef}>
-        <div className="text-center space-y-2 py-4">
-          <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
-            <span className="text-green-600">✓</span> Free cancellation up to 24 hours before
-          </p>
-        </div>
+      {/* Right Column: Customer Form + Summary (Desktop) / Sticky Footer (Mobile) */}
+      <div className="flex-1 lg:max-w-xl lg:border-l lg:p-6 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto">
+        {/* Customer Information */}
+        {!portalClient && time && (
+          <Card ref={customerInfoRef} className="lg:border-0 lg:shadow-none m-4 lg:m-0">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Your Details</CardTitle>
+              <CardDescription className="text-xs">Required for confirmation</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CompactCustomerForm
+                name={customerName}
+                email={customerEmail}
+                phone={customerPhone}
+                onNameChange={setCustomerName}
+                onEmailChange={setCustomerEmail}
+                onPhoneChange={setCustomerPhone}
+              />
+            </CardContent>
+          </Card>
+        )}
 
-        <Button
-          onClick={() => createAppointment.mutate()}
-          disabled={!date || !time || !customerName || !customerPhone || createAppointment.isPending}
-          className="w-full"
-          size="lg"
-        >
-          {requiresDeposit ? `Confirm & Pay €${depositAmount.toFixed(2)} Deposit` : `Confirm €${finalPrice.toFixed(2)}`}
-        </Button>
+        {/* Expandable Notes */}
+        {time && (
+          <div className="m-4 lg:m-0 lg:mt-4">
+            <ExpandableNotesField
+              value={notes}
+              onChange={setNotes}
+            />
+          </div>
+        )}
+
+        {/* Desktop Summary Card (replaces sticky footer on desktop) */}
+        {time && (
+          <div className="hidden lg:block mt-6 p-6 border rounded-lg bg-muted/30">
+            <h3 className="font-semibold text-lg mb-4">Booking Summary</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="font-medium">{service.name}</p>
+                  <p className="text-sm text-muted-foreground">{service.duration_minutes} minutes</p>
+                </div>
+                <p className="font-semibold">€{finalPrice.toFixed(2)}</p>
+              </div>
+              
+              <div className="border-t pt-3">
+                <p className="text-sm text-muted-foreground">Staff</p>
+                <p className="font-medium">{staff.display_name}</p>
+              </div>
+
+              {date && (
+                <div className="border-t pt-3">
+                  <p className="text-sm text-muted-foreground">Date & Time</p>
+                  <p className="font-medium">
+                    {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                    {time && ` at ${time}`}
+                  </p>
+                </div>
+              )}
+
+              <div className="border-t pt-4 mt-4">
+                <p className="text-xs text-muted-foreground text-center mb-4 flex items-center justify-center gap-2">
+                  <span className="text-green-600">✓</span> Free cancellation up to 24 hours before
+                </p>
+                <Button
+                  onClick={() => createAppointment.mutate()}
+                  disabled={!date || !time || !customerName || !customerPhone || createAppointment.isPending}
+                  className="w-full min-h-[44px]"
+                  size="lg"
+                >
+                  {requiresDeposit ? `Confirm & Pay €${depositAmount.toFixed(2)} Deposit` : `Confirm €${finalPrice.toFixed(2)}`}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile-only: Sticky Footer */}
+        <div className="lg:hidden">
+          <BookingStickyFooter
+            serviceName={service.name}
+            staffName={staff.display_name}
+            duration={service.duration_minutes}
+            price={finalPrice}
+            depositAmount={depositAmount}
+            onConfirm={() => createAppointment.mutate()}
+            isLoading={createAppointment.isPending}
+            disabled={!date || !time || !customerName || !customerPhone}
+          />
+        </div>
       </div>
     </div>
   );

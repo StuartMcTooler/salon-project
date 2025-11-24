@@ -129,3 +129,32 @@ All colors MUST be HSL.
     padding-top: env(safe-area-inset-top);
   }
 }
+
+/* Scroll Snap Utilities */
+.snap-x { 
+  scroll-snap-type: x mandatory; 
+}
+
+.snap-center { 
+  scroll-snap-align: center; 
+}
+
+.scroll-smooth { 
+  scroll-behavior: smooth; 
+}
+
+/* Touch-Friendly Utilities */
+.touch-target { 
+  min-width: 44px; 
+  min-height: 44px; 
+}
+
+/* Disable hover effects on pure touch devices (optional polish) */
+@media (hover: none) {
+  .hover\:bg-muted:hover { 
+    background-color: transparent; 
+  }
+  .hover\:border-primary\/50:hover {
+    border-color: hsl(var(--border));
+  }
+}

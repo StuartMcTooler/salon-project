@@ -4,11 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar } from "@/components/ui/calendar";
-import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, AlertCircle } from "lucide-react";
+import { HorizontalDateStrip } from "./HorizontalDateStrip";
+import { TimeSlotGrid } from "./TimeSlotGrid";
+import { CompactCustomerForm } from "./CompactCustomerForm";
+import { ExpandableNotesField } from "./ExpandableNotesField";
+import { BookingStickyFooter } from "./BookingStickyFooter";
 import { getAvailableSlots } from "@/lib/timeSlotUtils";
 import { normalizePhoneNumber } from "@/lib/utils";
 import { findOrCreateClient } from "@/lib/clientUtils";
@@ -627,17 +630,16 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   });
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={onBack}>
+    <div className="space-y-4 max-w-2xl mx-auto pb-32 md:pb-6">
+      {/* Header */}
+      <div className="flex items-center gap-4 sticky top-0 z-40 bg-background/95 backdrop-blur py-3 -mx-4 px-4 border-b md:static md:bg-transparent md:border-0">
+        <Button variant="ghost" size="sm" onClick={onBack}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
-      </div>
-
-      <div>
-        <h2 className="text-3xl font-bold mb-2">Complete Your Booking</h2>
-        <p className="text-muted-foreground">Review and confirm your appointment details</p>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-lg md:text-2xl font-bold truncate">Book Appointment</h2>
+        </div>
       </div>
 
       {/* Credit Display Banner */}
@@ -657,11 +659,6 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
                     <p className="text-xs text-muted-foreground">
                       Expires: {new Date(creditApplied.expires_at).toLocaleDateString()}
                     </p>
-                    {availableCredits.length > 1 && (
-                      <p className="text-xs text-muted-foreground">
-                        You have {availableCredits.length - 1} more credit{availableCredits.length > 2 ? 's' : ''} for future bookings
-                      </p>
-                    )}
                   </>
                 )}
               </div>
@@ -672,14 +669,13 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
                   onCheckedChange={(checked) => {
                     setApplyCreditOptOut(!checked);
                     if (!checked) {
-                      // Opted out - restore original or discounted price
                       setFinalPrice(discountApplied ? finalPrice : pricing.custom_price);
                       setCreditApplied(null);
                     }
                   }}
                 />
                 <Label htmlFor="apply-credit" className="text-sm cursor-pointer">
-                  Apply reward
+                  Apply
                 </Label>
               </div>
             </div>
@@ -687,106 +683,48 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Appointment Summary</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {requiresDeposit && (
-            <div className="p-4 bg-warning/10 border border-warning/50 rounded-lg">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="font-semibold text-warning">Booking Deposit Required</p>
-                  <p className="text-sm text-muted-foreground">
-                    A €{depositAmount.toFixed(2)} deposit is required to secure this booking.
-                    {requiresDeposit && depositAmount < finalPrice && (
-                      <span> Remaining balance: €{(finalPrice - depositAmount).toFixed(2)}</span>
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-muted-foreground">Service</p>
-              <p className="font-semibold">{service.name}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Duration</p>
-              <p className="font-semibold">{service.duration_minutes} minutes</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Stylist</p>
-              <p className="font-semibold">{staff.display_name}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Price</p>
-              <p className="font-semibold">
-                {(discountApplied || creditApplied) && (
-                  <span className="line-through text-muted-foreground mr-2">
-                    €{pricing.custom_price}
-                  </span>
-                )}
-                €{finalPrice.toFixed(2)}
+      {/* Deposit Warning */}
+      {requiresDeposit && (
+        <div className="p-4 bg-warning/10 border border-warning/50 rounded-lg">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-semibold text-warning text-sm">Deposit Required</p>
+              <p className="text-xs text-muted-foreground">
+                €{depositAmount.toFixed(2)} deposit required to secure booking
               </p>
             </div>
-            {requiresDeposit && (
-              <>
-                <div>
-                  <p className="text-muted-foreground">Deposit Required</p>
-                  <p className="font-semibold text-warning">€{depositAmount.toFixed(2)}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Pay on Visit</p>
-                  <p className="font-semibold">€{(finalPrice - depositAmount).toFixed(2)}</p>
-                </div>
-              </>
-            )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
+      {/* Horizontal Date Strip */}
       <Card ref={dateTimeRef}>
-        <CardHeader>
-          <CardTitle>Select Date & Time</CardTitle>
-          <CardDescription>Choose when you'd like your appointment</CardDescription>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Select Date</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label>Date</Label>
-            <div className="flex justify-center">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={setDate}
-                disabled={(date) => {
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  if (date < today) return true;
-                  
-                  // Check if staff is working this day
-                  const dayOfWeek = date.getDay();
-                  const staffWorkingThisDay = allStaffHours?.some(
-                    h => h.day_of_week === dayOfWeek && h.is_active
-                  );
-                  
-                  // Disable if staff has no hours for this day
-                  if (allStaffHours && !staffWorkingThisDay) {
-                    return true;
-                  }
-                  
-                  return false;
-                }}
-                className="rounded-md border"
-              />
-            </div>
-          </div>
+        <CardContent className="space-y-4">
+          <HorizontalDateStrip
+            selectedDate={date}
+            onDateSelect={setDate}
+            disabledDates={
+              allStaffHours
+                ? Array.from({ length: 90 }, (_, i) => {
+                    const checkDate = new Date();
+                    checkDate.setDate(checkDate.getDate() + i);
+                    const dayOfWeek = checkDate.getDay();
+                    const staffWorkingThisDay = allStaffHours.some(
+                      h => h.day_of_week === dayOfWeek && h.is_active
+                    );
+                    return !staffWorkingThisDay ? checkDate : null;
+                  }).filter(Boolean) as Date[]
+                : []
+            }
+          />
 
+          {/* Time Slots */}
           {date && (
-            <div ref={timeSlotsRef}>
+            <div ref={timeSlotsRef} className="space-y-3">
               {overflowState?.isOverflow ? (
                 <CoverRecommendationCard
                   originalStaff={staff}
@@ -801,98 +739,80 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
                   }}
                 />
               ) : (
-                <div className="space-y-2">
-                  <Label>Available Times</Label>
-                  {availableSlots.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Checking availability...</p>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-2 max-h-96 overflow-y-auto">
-                      {availableSlots.map((slot) => (
-                        <Button
-                          key={slot.time}
-                          variant={time === slot.time ? "default" : "outline"}
-                          onClick={() => setTime(slot.time)}
-                          className="w-full flex flex-col items-center py-3 h-auto"
-                        >
-                          <span className="font-semibold">{slot.time}</span>
-                          <span className="text-xs opacity-70">ends {slot.endTime}</span>
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <>
+                  <h3 className="text-sm font-medium">Select Time</h3>
+                  <TimeSlotGrid
+                    slots={availableSlots}
+                    selectedTime={time}
+                    onTimeSelect={setTime}
+                    isLoading={!existingAppointments}
+                  />
+                </>
               )}
             </div>
           )}
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Additional Notes (Optional)</Label>
-            <Textarea
-              id="notes"
-              placeholder="Any special requests or preferences?"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
         </CardContent>
       </Card>
 
-      {!portalClient && (
+      {/* Customer Information */}
+      {!portalClient && time && (
         <Card ref={customerInfoRef}>
-          <CardHeader>
-            <CardTitle>Customer Information</CardTitle>
-            <CardDescription>Required for booking confirmation & portal access</CardDescription>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Your Details</CardTitle>
+            <CardDescription className="text-xs">Required for confirmation</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number *</Label>
-              <input
-                id="phone"
-                type="tel"
-                className="w-full px-3 py-2 border rounded-md"
-                placeholder="+353 123 456 789"
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                Required for booking confirmation & portal access
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
-              <input
-                id="name"
-                type="text"
-                className="w-full px-3 py-2 border rounded-md"
-                placeholder="Customer name"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                required
-              />
-            </div>
+          <CardContent>
+            <CompactCustomerForm
+              name={customerName}
+              email={customerEmail}
+              phone={customerPhone}
+              onNameChange={setCustomerName}
+              onEmailChange={setCustomerEmail}
+              onPhoneChange={setCustomerPhone}
+            />
           </CardContent>
         </Card>
       )}
 
-      <div className="text-center space-y-2 py-4" ref={confirmButtonRef}>
-        <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
-          <span className="text-green-600">✓</span> Free cancellation up to 24 hours before your appointment
-        </p>
-        <p className="text-xs text-muted-foreground">
-          You'll receive a confirmation message with your booking details and portal access
-        </p>
+      {/* Expandable Notes */}
+      {time && (
+        <ExpandableNotesField
+          value={notes}
+          onChange={setNotes}
+        />
+      )}
+
+      {/* Mobile-only: Sticky Footer - Desktop: Hidden */}
+      <div className="md:hidden">
+        <BookingStickyFooter
+          serviceName={service.name}
+          staffName={staff.display_name}
+          duration={service.duration_minutes}
+          price={finalPrice}
+          depositAmount={depositAmount}
+          onConfirm={() => createAppointment.mutate()}
+          isLoading={createAppointment.isPending}
+          disabled={!date || !time || !customerName || !customerPhone}
+        />
       </div>
 
-      <Button
-        onClick={() => createAppointment.mutate()}
-        disabled={createAppointment.isPending}
-        className="w-full"
-        size="lg"
-      >
-        {createAppointment.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {requiresDeposit ? `Confirm & Pay €${depositAmount.toFixed(2)} Deposit` : "Confirm Booking"}
-      </Button>
+      {/* Desktop-only: Standard Button */}
+      <div className="hidden md:block space-y-4" ref={confirmButtonRef}>
+        <div className="text-center space-y-2 py-4">
+          <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+            <span className="text-green-600">✓</span> Free cancellation up to 24 hours before
+          </p>
+        </div>
+
+        <Button
+          onClick={() => createAppointment.mutate()}
+          disabled={!date || !time || !customerName || !customerPhone || createAppointment.isPending}
+          className="w-full"
+          size="lg"
+        >
+          {requiresDeposit ? `Confirm & Pay €${depositAmount.toFixed(2)} Deposit` : `Confirm €${finalPrice.toFixed(2)}`}
+        </Button>
+      </div>
     </div>
   );
 };

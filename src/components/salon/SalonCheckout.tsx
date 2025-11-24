@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ interface SalonCheckoutProps {
 
 export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onBack, onComplete, businessId, referralCode }: SalonCheckoutProps) => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState("");
   const [notes, setNotes] = useState("");
@@ -597,6 +598,12 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       return { id: appointmentId };
     },
     onSuccess: (data) => {
+      // Invalidate all staff availability and booking queries
+      queryClient.invalidateQueries({ queryKey: ['staff-availability'] });
+      queryClient.invalidateQueries({ queryKey: ['all-staff'] });
+      queryClient.invalidateQueries({ queryKey: ['staff-for-service'] });
+      queryClient.invalidateQueries({ queryKey: ['salon-appointments'] });
+      
       if (depositAmount > 0) {
         toast({
           title: "Booking created!",

@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Scissors, LogOut, Home, Users, Calendar, UserCog, MoreHorizontal } from "lucide-react";
+import { Scissors, LogOut, Home, Users, Calendar, UserCog, MoreHorizontal, ArrowLeft } from "lucide-react";
 import { ServiceGrid } from "@/components/pos/ServiceGrid";
 import { QuickCustomerForm } from "@/components/pos/QuickCustomerForm";
 import { PostCheckoutActions } from "@/components/pos/PostCheckoutActions";
@@ -29,6 +29,7 @@ const POS = () => {
   const [showPostCheckout, setShowPostCheckout] = useState(false);
   const [showPaymentSelector, setShowPaymentSelector] = useState(false);
   const [lastAppointment, setLastAppointment] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("walkin");
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -244,10 +245,19 @@ const POS = () => {
                 variant="ghost" 
                 size="sm"
                 className="md:size-default"
-                onClick={() => navigate('/pos')}
+                onClick={() => setActiveTab(activeTab === "more" ? "walkin" : "more")}
               >
-                <Home className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Home</span>
+                {activeTab === "more" ? (
+                  <>
+                    <ArrowLeft className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">Back</span>
+                  </>
+                ) : (
+                  <>
+                    <MoreHorizontal className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">More</span>
+                  </>
+                )}
               </Button>
               {isAdmin && (
                 <>
@@ -287,7 +297,7 @@ const POS = () => {
 
       <div className="max-w-6xl mx-auto p-3 md:p-6">
         <StripeModeIndicator />
-        <Tabs defaultValue="walkin" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-5 mb-4 md:mb-6 h-8 md:h-9">
             <TabsTrigger value="walkin" className="text-xs md:text-sm px-2 md:px-3 py-1">
               <span className="hidden sm:inline">Walk-In Customer</span>

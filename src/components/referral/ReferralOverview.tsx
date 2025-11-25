@@ -137,29 +137,31 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
         <UpgradeToProCard staffMemberId={staffMemberId} />
 
         {/* Locked: Client Network & Pro Invites */}
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card className="border-green-200 dark:border-green-900 relative opacity-60">
-            <div className="absolute inset-0 bg-background/60 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
-              <Lock className="h-12 w-12 text-muted-foreground" />
-            </div>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <HandCoins className="h-8 w-8 text-green-600 dark:text-green-400" />
-                <span className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  €0
-                </span>
+        <div className={`grid gap-6 ${isSoloProfessional ? 'md:grid-cols-2' : 'md:grid-cols-1'}`}>
+          {isSoloProfessional && (
+            <Card className="border-green-200 dark:border-green-900 relative opacity-60">
+              <div className="absolute inset-0 bg-background/60 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
+                <Lock className="h-12 w-12 text-muted-foreground" />
               </div>
-              <CardTitle className="text-green-600 dark:text-green-400">Client Network</CardTitle>
-              <CardDescription>
-                Refer overflow clients to trusted colleagues
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Tag your clients and refer overflow to your network. Earn commission when they book.
-              </p>
-            </CardContent>
-          </Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <HandCoins className="h-8 w-8 text-green-600 dark:text-green-400" />
+                  <span className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    €0
+                  </span>
+                </div>
+                <CardTitle className="text-green-600 dark:text-green-400">Client Network</CardTitle>
+                <CardDescription>
+                  Refer overflow clients to trusted colleagues
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Tag your clients and refer overflow to your network. Earn commission when they book.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="border-purple-200 dark:border-purple-900 relative opacity-60">
             <div className="absolute inset-0 bg-background/60 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
@@ -201,7 +203,7 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className={`grid gap-6 ${isSoloProfessional ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
         {/* Customer Referrals */}
         {isSoloProfessional && (
           <Card className="border-blue-200 dark:border-blue-900">
@@ -238,37 +240,39 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
         )}
 
         {/* Client Network */}
-        <Card className="border-green-200 dark:border-green-900">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <HandCoins className="h-8 w-8 text-green-600 dark:text-green-400" />
-              <span className="text-2xl font-bold text-green-600 dark:text-green-400">
-                €{stats.clientNetworkEarnings.toFixed(0)}
-              </span>
-            </div>
-            <CardTitle className="text-green-600 dark:text-green-400">Client Network</CardTitle>
-            <CardDescription>
-              Refer overflow clients to trusted colleagues
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Tag your clients and refer overflow to your network. Earn commission when they book.
-            </p>
-            <ul className="text-xs space-y-1 text-muted-foreground">
-              <li>• Monetize overflow appointments</li>
-              <li>• Build a trusted colleague network</li>
-              <li>• Passive income from your client base</li>
-            </ul>
-            <Button 
-              variant="outline" 
-              className="w-full border-green-600 text-green-600 hover:bg-green-50 dark:border-green-400 dark:text-green-400"
-              onClick={() => onNavigate('client-network')}
-            >
-              View Network <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
+        {isSoloProfessional && (
+          <Card className="border-green-200 dark:border-green-900">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <HandCoins className="h-8 w-8 text-green-600 dark:text-green-400" />
+                <span className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  €{stats.clientNetworkEarnings.toFixed(0)}
+                </span>
+              </div>
+              <CardTitle className="text-green-600 dark:text-green-400">Client Network</CardTitle>
+              <CardDescription>
+                Refer overflow clients to trusted colleagues
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Tag your clients and refer overflow to your network. Earn commission when they book.
+              </p>
+              <ul className="text-xs space-y-1 text-muted-foreground">
+                <li>• Monetize overflow appointments</li>
+                <li>• Build a trusted colleague network</li>
+                <li>• Passive income from your client base</li>
+              </ul>
+              <Button 
+                variant="outline" 
+                className="w-full border-green-600 text-green-600 hover:bg-green-50 dark:border-green-400 dark:text-green-400"
+                onClick={() => onNavigate('client-network')}
+              >
+                View Network <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Pro Invites */}
         <Card className="border-purple-200 dark:border-purple-900">

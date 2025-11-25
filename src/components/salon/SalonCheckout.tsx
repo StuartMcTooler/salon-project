@@ -629,7 +629,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   return (
     <div className="min-h-screen flex flex-col lg:flex-row lg:gap-6 max-w-7xl mx-auto">
       {/* Left Column: Date/Time Selection */}
-      <div className="flex-1 lg:max-w-2xl space-y-2 pb-32 lg:pb-6 p-4 lg:p-6">
+      <div className="flex-1 lg:max-w-2xl space-y-2 pb-6 lg:pb-6 p-4 lg:p-6">
         {/* Header */}
         <div className="flex items-center gap-4 sticky top-0 z-40 bg-background/95 backdrop-blur py-3 -mx-4 px-4 border-b lg:static lg:bg-transparent lg:border-0">
           <Button variant="ghost" size="sm" onClick={onBack} className="min-h-[44px]">
@@ -752,13 +752,41 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
             )}
           </CardContent>
         </Card>
+
+        {/* Customer Information - Mobile inline */}
+        {!portalClient && time && (
+          <Card ref={customerInfoRef} className="lg:hidden mt-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Your Details</CardTitle>
+              <CardDescription className="text-xs">Required for confirmation</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CompactCustomerForm
+                name={customerName}
+                phone={customerPhone}
+                onNameChange={setCustomerName}
+                onPhoneChange={setCustomerPhone}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Expandable Notes - Mobile inline */}
+        {time && (
+          <div className="lg:hidden mt-2">
+            <ExpandableNotesField
+              value={notes}
+              onChange={setNotes}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Right Column: Customer Form + Summary (Desktop) / Sticky Footer (Mobile) */}
-      <div className="flex-1 lg:max-w-xl lg:border-l lg:p-6 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto">
+      {/* Right Column: Customer Form + Summary (Desktop only) */}
+      <div className="hidden lg:flex flex-1 lg:max-w-xl lg:border-l lg:p-6 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto flex-col">
         {/* Customer Information */}
         {!portalClient && time && (
-          <Card ref={customerInfoRef} className="lg:border-0 lg:shadow-none mx-4 mt-2 lg:m-0">
+          <Card ref={customerInfoRef} className="lg:border-0 lg:shadow-none">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Your Details</CardTitle>
               <CardDescription className="text-xs">Required for confirmation</CardDescription>
@@ -776,7 +804,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
 
         {/* Expandable Notes */}
         {time && (
-          <div className="m-4 lg:m-0 lg:mt-4">
+          <div className="mt-4">
             <ExpandableNotesField
               value={notes}
               onChange={setNotes}
@@ -829,8 +857,11 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
           </div>
         )}
 
-        {/* Mobile-only: Sticky Footer */}
-        <div className="lg:hidden">
+      </div>
+
+      {/* Mobile-only: Sticky Footer - Fixed at bottom */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50">
+        {time && (
           <BookingStickyFooter
             serviceName={service.name}
             staffName={staff.display_name}
@@ -841,7 +872,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
             isLoading={createAppointment.isPending}
             disabled={!date || !time || !customerName || !customerPhone}
           />
-        </div>
+        )}
       </div>
     </div>
   );

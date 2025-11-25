@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Scissors, LogOut, Home, Users, Calendar, UserCog } from "lucide-react";
+import { Scissors, LogOut, Home, Users, Calendar, UserCog, MoreHorizontal } from "lucide-react";
 import { ServiceGrid } from "@/components/pos/ServiceGrid";
 import { QuickCustomerForm } from "@/components/pos/QuickCustomerForm";
 import { PostCheckoutActions } from "@/components/pos/PostCheckoutActions";
@@ -249,17 +249,6 @@ const POS = () => {
                 <Home className="h-4 w-4 md:mr-2" />
                 <span className="hidden md:inline">Home</span>
               </Button>
-              {staffMember && (
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="md:size-default"
-                  onClick={() => navigate('/referrals')}
-                >
-                  <Users className="h-4 w-4 md:mr-2" />
-                  <span className="hidden md:inline">Referrals</span>
-                </Button>
-              )}
               {isAdmin && (
                 <>
                   <Button 
@@ -317,10 +306,10 @@ const POS = () => {
               <span className="hidden sm:inline">All Bookings</span>
               <span className="sm:hidden">All</span>
             </TabsTrigger>
-            <TabsTrigger value="customers" className="text-xs md:text-sm px-2 md:px-3 py-1">
-              <UserCog className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
-              <span className="hidden sm:inline">Customers</span>
-              <span className="sm:hidden">Clients</span>
+            <TabsTrigger value="more" className="text-xs md:text-sm px-2 md:px-3 py-1">
+              <MoreHorizontal className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">More</span>
+              <span className="sm:hidden">More</span>
             </TabsTrigger>
           </TabsList>
 
@@ -358,8 +347,32 @@ const POS = () => {
             <VisualCalendar staffId={staffMember?.id} />
           </TabsContent>
 
-          <TabsContent value="customers">
-            <CustomerDepositManager creativeId={staffMember?.id} />
+          <TabsContent value="more">
+            <Tabs defaultValue="customers" className="w-full">
+              <TabsList className="mb-4 w-full max-w-md mx-auto">
+                <TabsTrigger value="customers" className="flex-1">
+                  <UserCog className="h-4 w-4 mr-2" />
+                  Customers
+                </TabsTrigger>
+                <TabsTrigger value="referrals" className="flex-1">
+                  <Users className="h-4 w-4 mr-2" />
+                  Referrals
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="customers">
+                <CustomerDepositManager creativeId={staffMember?.id} />
+              </TabsContent>
+              
+              <TabsContent value="referrals">
+                <div className="text-center py-8">
+                  <Button onClick={() => navigate('/referrals')}>
+                    <Users className="h-4 w-4 mr-2" />
+                    Open Referrals Hub
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
       </div>

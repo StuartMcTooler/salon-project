@@ -50,11 +50,30 @@ export const useBusinessConfig = () => {
           return;
         }
 
-        const { data: business } = await supabase
+        // First try to find as business owner
+        const { data: ownedBusiness } = await supabase
           .from('business_accounts')
           .select('id, business_type')
           .eq('owner_user_id', user.id)
-          .single();
+          .maybeSingle();
+
+        let business = ownedBusiness;
+
+        // If not an owner, check if they're a staff member
+        if (!business) {
+          const { data: staffMember } = await supabase
+            .from('staff_members')
+            .select('business_id, business_accounts!inner(id, business_type)')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (staffMember?.business_accounts) {
+            business = {
+              id: staffMember.business_accounts.id,
+              business_type: staffMember.business_accounts.business_type
+            };
+          }
+        }
 
         if (!business) {
           setLoading(false);

@@ -10,9 +10,10 @@ import { TierBadge } from "./TierBadge";
 interface ReferralOverviewProps {
   staffMemberId: string;
   onNavigate: (tab: string) => void;
+  isSoloProfessional: boolean;
 }
 
-export const ReferralOverview = ({ staffMemberId, onNavigate }: ReferralOverviewProps) => {
+export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional }: ReferralOverviewProps) => {
   const { isPro, tier } = useCreativeTier(staffMemberId);
   const [stats, setStats] = useState({
     customerReferrals: 0,
@@ -98,37 +99,39 @@ export const ReferralOverview = ({ staffMemberId, onNavigate }: ReferralOverview
         </div>
 
         {/* Active: Customer Referrals */}
-        <Card className="border-blue-200 dark:border-blue-900">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <Users className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-              <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {stats.customerReferrals}
-              </span>
-            </div>
-            <CardTitle className="text-blue-600 dark:text-blue-400">Customer Referrals</CardTitle>
-            <CardDescription>
-              Your customers refer friends and get discounts
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Generate referral codes for happy customers. When their friends book, they both get discounts.
-            </p>
-            <ul className="text-xs space-y-1 text-muted-foreground">
-              <li>• Builds loyalty with existing customers</li>
-              <li>• Attracts new customers through word-of-mouth</li>
-              <li>• Automated discount tracking</li>
-            </ul>
-            <Button 
-              variant="outline" 
-              className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400"
-              onClick={() => onNavigate('customer-codes')}
-            >
-              Manage Codes <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
+        {isSoloProfessional && (
+          <Card className="border-blue-200 dark:border-blue-900">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <Users className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {stats.customerReferrals}
+                </span>
+              </div>
+              <CardTitle className="text-blue-600 dark:text-blue-400">Customer Referrals</CardTitle>
+              <CardDescription>
+                Your customers refer friends and get discounts
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Generate referral codes for happy customers. When their friends book, they both get discounts.
+              </p>
+              <ul className="text-xs space-y-1 text-muted-foreground">
+                <li>• Builds loyalty with existing customers</li>
+                <li>• Attracts new customers through word-of-mouth</li>
+                <li>• Automated discount tracking</li>
+              </ul>
+              <Button 
+                variant="outline" 
+                className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400"
+                onClick={() => onNavigate('customer-codes')}
+              >
+                Manage Codes <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Upgrade Card */}
         <UpgradeToProCard staffMemberId={staffMemberId} />
@@ -200,37 +203,39 @@ export const ReferralOverview = ({ staffMemberId, onNavigate }: ReferralOverview
 
       <div className="grid gap-6 md:grid-cols-3">
         {/* Customer Referrals */}
-        <Card className="border-blue-200 dark:border-blue-900">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <Users className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-              <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {stats.customerReferrals}
-              </span>
-            </div>
-            <CardTitle className="text-blue-600 dark:text-blue-400">Customer Referrals</CardTitle>
-            <CardDescription>
-              Your customers refer friends and get discounts
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Generate referral codes for happy customers. When their friends book, they both get discounts.
-            </p>
-            <ul className="text-xs space-y-1 text-muted-foreground">
-              <li>• Builds loyalty with existing customers</li>
-              <li>• Attracts new customers through word-of-mouth</li>
-              <li>• Automated discount tracking</li>
-            </ul>
-            <Button 
-              variant="outline" 
-              className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400"
-              onClick={() => onNavigate('customer-codes')}
-            >
-              Manage Codes <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
+        {isSoloProfessional && (
+          <Card className="border-blue-200 dark:border-blue-900">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <Users className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {stats.customerReferrals}
+                </span>
+              </div>
+              <CardTitle className="text-blue-600 dark:text-blue-400">Customer Referrals</CardTitle>
+              <CardDescription>
+                Your customers refer friends and get discounts
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Generate referral codes for happy customers. When their friends book, they both get discounts.
+              </p>
+              <ul className="text-xs space-y-1 text-muted-foreground">
+                <li>• Builds loyalty with existing customers</li>
+                <li>• Attracts new customers through word-of-mouth</li>
+                <li>• Automated discount tracking</li>
+              </ul>
+              <Button 
+                variant="outline" 
+                className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400"
+                onClick={() => onNavigate('customer-codes')}
+              >
+                Manage Codes <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Client Network */}
         <Card className="border-green-200 dark:border-green-900">

@@ -23,9 +23,10 @@ export default function ReferralHub() {
     checkAuth();
   }, []);
 
-  // Redirect multi-staff members away from customer-codes tab
+  // Redirect multi-staff members away from customer-codes and client-network tabs
   useEffect(() => {
-    if (!configLoading && config.businessType !== 'solo_professional' && activeTab === 'customer-codes') {
+    if (!configLoading && config.businessType !== 'solo_professional' && 
+        (activeTab === 'customer-codes' || activeTab === 'client-network')) {
       setActiveTab('overview');
     }
   }, [config.businessType, activeTab, configLoading]);
@@ -102,7 +103,9 @@ export default function ReferralHub() {
             {isSoloProfessional && (
               <TabsTrigger value="customer-codes">Customer Codes</TabsTrigger>
             )}
-            <TabsTrigger value="client-network">Client Network</TabsTrigger>
+            {isSoloProfessional && (
+              <TabsTrigger value="client-network">Client Network</TabsTrigger>
+            )}
             <TabsTrigger value="pro-invites">Pro Invites</TabsTrigger>
             <TabsTrigger value="earnings">Earnings</TabsTrigger>
           </TabsList>

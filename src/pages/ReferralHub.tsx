@@ -108,7 +108,7 @@ export default function ReferralHub() {
           </TabsList>
 
           <TabsContent value="overview">
-            <ReferralOverview staffMemberId={staffMemberId} onNavigate={setActiveTab} />
+            <ReferralOverview staffMemberId={staffMemberId} onNavigate={setActiveTab} isSoloProfessional={isSoloProfessional} />
           </TabsContent>
 
           <TabsContent value="customer-codes">

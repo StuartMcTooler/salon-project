@@ -9,13 +9,14 @@ import { ServiceGrid } from "@/components/pos/ServiceGrid";
 import { QuickCustomerForm } from "@/components/pos/QuickCustomerForm";
 import { PostCheckoutActions } from "@/components/pos/PostCheckoutActions";
 import { TodaysAppointments } from "@/components/pos/TodaysAppointments";
-import { StaffBookingInterface } from "@/components/pos/StaffBookingInterface";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StripeModeIndicator } from "@/components/pos/StripeModeIndicator";
 import { VisualCalendar } from "@/components/dashboard/VisualCalendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PaymentMethodSelector } from "@/components/pos/PaymentMethodSelector";
 import { CustomerDepositManager } from "@/components/pos/CustomerDepositManager";
+import { SalonServiceSelection } from "@/components/salon/SalonServiceSelection";
+import { SalonCheckout } from "@/components/salon/SalonCheckout";
 
 const POS = () => {
   const navigate = useNavigate();
@@ -30,6 +31,11 @@ const POS = () => {
   const [showPaymentSelector, setShowPaymentSelector] = useState(false);
   const [lastAppointment, setLastAppointment] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("walkin");
+  
+  // Booking flow state
+  const [bookingStep, setBookingStep] = useState<'service' | 'checkout'>('service');
+  const [bookingService, setBookingService] = useState<any>(null);
+  const [bookingPricing, setBookingPricing] = useState<any>(null);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -143,6 +149,28 @@ const POS = () => {
     setShowPostCheckout(false);
     setSelectedService(null);
     setLastAppointment(null);
+  };
+
+  const handleBookingServiceSelect = (service: any, pricing?: any) => {
+    setBookingService(service);
+    setBookingPricing(pricing);
+    setBookingStep('checkout');
+  };
+
+  const handleBookingBack = () => {
+    setBookingStep('service');
+    setBookingService(null);
+    setBookingPricing(null);
+  };
+
+  const handleBookingComplete = () => {
+    toast({
+      title: "Booking successful!",
+      description: "The appointment has been confirmed.",
+    });
+    setBookingStep('service');
+    setBookingService(null);
+    setBookingPricing(null);
   };
   
   const handleAppointmentSelect = (appointment: any) => {
@@ -337,8 +365,29 @@ const POS = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="book">
-            <StaffBookingInterface staffId={staffMember?.id} />
+          <TabsContent value="book" className="space-y-6">
+            {bookingStep === 'service' ? (
+              <SalonServiceSelection 
+                selectedStaff={staffMember}
+                onSelect={handleBookingServiceSelect}
+                businessId={businessId}
+                businessType={null}
+              />
+            ) : (
+              bookingService && bookingPricing && (
+                <SalonCheckout
+                  service={bookingService}
+                  staff={staffMember}
+                  pricing={bookingPricing}
+                  user={null}
+                  portalClient={null}
+                  onBack={handleBookingBack}
+                  onComplete={handleBookingComplete}
+                  businessId={businessId}
+                  referralCode={null}
+                />
+              )
+            )}
           </TabsContent>
 
           <TabsContent value="today">

@@ -629,7 +629,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   return (
     <div className="min-h-screen flex flex-col lg:flex-row lg:gap-6 max-w-7xl mx-auto">
       {/* Left Column: Date/Time Selection */}
-      <div className="flex-1 lg:max-w-2xl space-y-4 pb-32 lg:pb-6 p-4 lg:p-6">
+      <div className="flex-1 lg:max-w-2xl space-y-2 pb-32 lg:pb-6 p-4 lg:p-6">
         {/* Header */}
         <div className="flex items-center gap-4 sticky top-0 z-40 bg-background/95 backdrop-blur py-3 -mx-4 px-4 border-b lg:static lg:bg-transparent lg:border-0">
           <Button variant="ghost" size="sm" onClick={onBack} className="min-h-[44px]">
@@ -723,7 +723,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
 
             {/* Time Slots */}
             {date && (
-              <div ref={timeSlotsRef} className="space-y-3">
+              <div ref={timeSlotsRef} className="space-y-2">
                 {overflowState?.isOverflow ? (
                   <CoverRecommendationCard
                     originalStaff={staff}
@@ -758,7 +758,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       <div className="flex-1 lg:max-w-xl lg:border-l lg:p-6 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto">
         {/* Customer Information */}
         {!portalClient && time && (
-          <Card ref={customerInfoRef} className="lg:border-0 lg:shadow-none m-4 lg:m-0">
+          <Card ref={customerInfoRef} className="lg:border-0 lg:shadow-none mx-4 mt-2 lg:m-0">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Your Details</CardTitle>
               <CardDescription className="text-xs">Required for confirmation</CardDescription>

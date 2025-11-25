@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Clock, User, Loader2, CheckCircle2, Edit2, CreditCard } from "lucide-react";
+import { Clock, User, Loader2, CheckCircle2, Edit2, CreditCard, Camera } from "lucide-react";
 import { AppointmentDetailsDialog } from "@/components/booking/AppointmentDetailsDialog";
+import { InServicePhotoCapture } from "@/components/booking/InServicePhotoCapture";
 
 interface TodaysAppointmentsProps {
   staffId: string;
@@ -19,6 +20,8 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
   const queryClient = useQueryClient();
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [photoAppointment, setPhotoAppointment] = useState<any>(null);
+  const [photoCaptureOpen, setPhotoCaptureOpen] = useState(false);
 
   const { data: appointments, isLoading } = useQuery({
     queryKey: ['todays-appointments', staffId],
@@ -89,6 +92,54 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
     },
   });
 
+  const handlePhotoCapture = async (imageBlob: Blob) => {
+    if (!photoAppointment) return;
+
+    try {
+      console.log('[TodaysAppointments] Uploading photo to storage...');
+      const fileName = `${photoAppointment.id}-${Date.now()}.jpg`;
+      const filePath = `${staffId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('client-content-raw')
+        .upload(filePath, imageBlob, {
+          contentType: 'image/jpeg',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      console.log('[TodaysAppointments] Saving to database...');
+      const { error: insertError } = await supabase
+        .from('client_content')
+        .insert({
+          appointment_id: photoAppointment.id,
+          creative_id: staffId,
+          raw_file_path: filePath,
+          media_type: 'image',
+          visibility_scope: 'private',
+          client_approved: false,
+        });
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: "Photo Saved",
+        description: "Photo has been added to the appointment",
+      });
+
+      setPhotoCaptureOpen(false);
+      setPhotoAppointment(null);
+    } catch (error) {
+      console.error('[TodaysAppointments] Error saving photo:', error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to save photo. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -157,6 +208,16 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
                         variant="outline"
                         size="sm"
                         onClick={() => {
+                          setPhotoAppointment(appointment);
+                          setPhotoCaptureOpen(true);
+                        }}
+                      >
+                        <Camera className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
                           setSelectedAppointment(appointment);
                           setDialogOpen(true);
                         }}
@@ -203,6 +264,16 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
                         €{Number(appointment.price).toFixed(2)}
                       </div>
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setPhotoAppointment(appointment);
+                        setPhotoCaptureOpen(true);
+                      }}
+                    >
+                      <Camera className="h-4 w-4" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -216,6 +287,18 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
           appointment={selectedAppointment}
           open={dialogOpen}
           onOpenChange={setDialogOpen}
+        />
+      )}
+
+      {photoAppointment && (
+        <InServicePhotoCapture
+          open={photoCaptureOpen}
+          onClose={() => {
+            setPhotoCaptureOpen(false);
+            setPhotoAppointment(null);
+          }}
+          onCapture={handlePhotoCapture}
+          customerName={photoAppointment.customer_name}
         />
       )}
     </div>

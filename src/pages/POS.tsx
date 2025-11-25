@@ -241,6 +241,24 @@ const POS = () => {
               </div>
             </div>
             <div className="flex flex-wrap gap-1 md:gap-2 w-full md:w-auto">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="md:size-default"
+                onClick={() => setActiveTab(activeTab === "more" ? "walkin" : "more")}
+              >
+                {activeTab === "more" ? (
+                  <>
+                    <ArrowLeft className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">Back</span>
+                  </>
+                ) : (
+                  <>
+                    <MoreHorizontal className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">More</span>
+                  </>
+                )}
+              </Button>
               {isAdmin && (
                 <>
                   <Button 
@@ -280,7 +298,7 @@ const POS = () => {
       <div className="max-w-6xl mx-auto p-3 md:p-6">
         <StripeModeIndicator />
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-5 mb-4 md:mb-6 h-8 md:h-9">
+          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4 mb-4 md:mb-6 h-8 md:h-9">
             <TabsTrigger value="walkin" className="text-xs md:text-sm px-2 md:px-3 py-1">
               <span className="hidden sm:inline">Walk-In Customer</span>
               <span className="sm:hidden">Walk-In</span>
@@ -297,11 +315,6 @@ const POS = () => {
             <TabsTrigger value="all" className="text-xs md:text-sm px-2 md:px-3 py-1">
               <span className="hidden sm:inline">All Bookings</span>
               <span className="sm:hidden">All</span>
-            </TabsTrigger>
-            <TabsTrigger value="more" className="text-xs md:text-sm px-2 md:px-3 py-1">
-              <MoreHorizontal className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
-              <span className="hidden sm:inline">More</span>
-              <span className="sm:hidden">More</span>
             </TabsTrigger>
           </TabsList>
 

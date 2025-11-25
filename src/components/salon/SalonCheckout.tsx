@@ -36,7 +36,6 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   const [time, setTime] = useState("");
   const [notes, setNotes] = useState("");
   const [customerName, setCustomerName] = useState("");
-  const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [discountApplied, setDiscountApplied] = useState(false);
   const [finalPrice, setFinalPrice] = useState(pricing.custom_price);
@@ -63,21 +62,21 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
 
   // Check if customer requires deposit
   const { data: customerLoyalty } = useQuery({
-    queryKey: ['customer-loyalty-check', staff.id, customerEmail],
+    queryKey: ['customer-loyalty-check', staff.id, customerPhone],
     queryFn: async () => {
-      if (!customerEmail) return null;
+      if (!customerPhone) return null;
       
       const { data, error } = await supabase
         .from('customer_loyalty_points')
         .select('require_booking_deposit')
         .eq('creative_id', staff.id)
-        .eq('customer_email', customerEmail)
+        .eq('customer_phone', customerPhone)
         .maybeSingle();
 
       if (error) throw error;
       return data;
     },
-    enabled: !!customerEmail && !!staff.id,
+    enabled: !!customerPhone && !!staff.id,
   });
 
   // Calculate if deposit is required and amount (after credit applied)
@@ -343,11 +342,9 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
     if (portalClient) {
       // Portal session takes priority
       setCustomerName(portalClient.name);
-      setCustomerEmail(portalClient.email || "");
       setCustomerPhone(portalClient.phone);
     } else if (user) {
       setCustomerName(user.user_metadata?.name || user.email);
-      setCustomerEmail(user.email || "");
       setCustomerPhone(user.user_metadata?.phone || "");
     }
   }, [user, portalClient]);
@@ -435,7 +432,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
           .insert([{
             name: customerName,
             phone: customerPhone,
-            email: customerEmail || null,
+            email: null,
             primary_creative_id: staff.id,
           }])
           .select('id')
@@ -465,7 +462,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
         booking_type: bookingType,
         original_requested_staff_id: originalRequestedStaffId,
         customer_name: customerName,
-        customer_email: customerEmail,
+        customer_email: null,
         customer_phone: customerPhone,
         appointment_date: appointmentDateTime.toISOString(),
         duration_minutes: service.duration_minutes,
@@ -529,7 +526,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
               serviceId: service.id,
               serviceName: service.name,
               amount: depositAmount,
-              customerEmail: customerEmail,
+              customerEmail: null,
               customerName: customerName,
               isDeposit: true,
               fullAmount: finalPrice,
@@ -546,13 +543,13 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       }
 
       // Track client ownership if booking via referral
-      if (referralCode && customerEmail) {
+      if (referralCode) {
         await supabase
           .from('client_ownership')
           .insert([
             {
               creative_id: staff.id,
-              client_email: customerEmail,
+              client_email: customerPhone, // Using phone as identifier since no email
               client_name: customerName,
               client_phone: customerPhone,
               source: `referral:${referralCode}`,
@@ -769,10 +766,8 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
             <CardContent>
               <CompactCustomerForm
                 name={customerName}
-                email={customerEmail}
                 phone={customerPhone}
                 onNameChange={setCustomerName}
-                onEmailChange={setCustomerEmail}
                 onPhoneChange={setCustomerPhone}
               />
             </CardContent>

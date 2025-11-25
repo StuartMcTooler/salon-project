@@ -158,15 +158,62 @@ export const AppointmentDetailsDialog = ({
     onOpenChange(false);
   };
 
+  const handleInServicePhotoCapture = async (imageBlob: Blob) => {
+    try {
+      console.log('[AppointmentDetailsDialog] Uploading photo...');
+      
+      // Upload to storage bucket
+      const fileName = `in-service-${appointment.id}-${Date.now()}.jpg`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('client-content-raw')
+        .upload(fileName, imageBlob, {
+          contentType: 'image/jpeg',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Insert into client_content with PRIVATE default
+      const { error: insertError } = await supabase
+        .from('client_content')
+        .insert({
+          creative_id: appointment.staff_id,
+          appointment_id: appointment.id,
+          request_id: null,
+          raw_file_path: uploadData.path,
+          media_type: 'image/jpeg',
+          visibility_scope: 'private',
+          client_approved: false,
+          points_awarded: false,
+        });
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: "✅ Photo Saved Successfully!",
+        description: "In-service photo saved privately to appointment",
+      });
+      
+      refetchMedia();
+    } catch (error: any) {
+      console.error("Photo upload error:", error);
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to save photo. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   return (
     <>
       <InServicePhotoCapture
         open={showInServiceCamera}
         onClose={() => setShowInServiceCamera(false)}
-        appointmentId={appointment.id}
-        staffId={appointment.staff_id}
+        onCapture={handleInServicePhotoCapture}
         customerName={appointment.customer_name}
-        onSuccess={() => refetchMedia()}
       />
 
       <Dialog open={open} onOpenChange={onOpenChange}>

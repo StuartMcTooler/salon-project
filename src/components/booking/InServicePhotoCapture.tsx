@@ -3,24 +3,19 @@ import { Camera, X, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 
 interface InServicePhotoCaptureProps {
   open: boolean;
   onClose: () => void;
-  appointmentId: string;
-  staffId: string;
+  onCapture: (imageBlob: Blob) => Promise<void>;
   customerName: string;
-  onSuccess?: () => void;
 }
 
 export const InServicePhotoCapture = ({ 
   open, 
   onClose, 
-  appointmentId,
-  staffId,
-  customerName,
-  onSuccess
+  onCapture,
+  customerName
 }: InServicePhotoCaptureProps) => {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -28,7 +23,6 @@ export const InServicePhotoCapture = ({
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [savedSuccessfully, setSavedSuccessfully] = useState(false);
 
   useEffect(() => {
     if (open && !stream) {
@@ -102,70 +96,22 @@ export const InServicePhotoCapture = ({
       const blob = await response.blob();
       console.log('[InServicePhotoCapture] Blob created:', blob.size, 'bytes');
       
-      // Upload to storage bucket
-      const fileName = `in-service-${appointmentId}-${Date.now()}.jpg`;
-      console.log('[InServicePhotoCapture] Uploading to storage:', fileName);
+      console.log('[InServicePhotoCapture] Calling onCapture callback...');
+      await onCapture(blob);
+      console.log('[InServicePhotoCapture] Photo saved successfully!');
       
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('client-content-raw')
-        .upload(fileName, blob, {
-          contentType: 'image/jpeg',
-          upsert: false,
-        });
-
-      if (uploadError) {
-        console.error('[InServicePhotoCapture] Storage upload error:', uploadError);
-        throw uploadError;
+      // Close dialog and cleanup
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        setStream(null);
       }
-      
-      console.log('[InServicePhotoCapture] Upload successful:', uploadData);
-
-      // Insert into client_content with PRIVATE default
-      console.log('[InServicePhotoCapture] Inserting into client_content table...');
-      const { error: insertError } = await supabase
-        .from('client_content')
-        .insert({
-          creative_id: staffId,
-          appointment_id: appointmentId,
-          request_id: null, // No content request for in-service photos
-          raw_file_path: uploadData.path,
-          media_type: 'image/jpeg',
-          visibility_scope: 'private', // CRITICAL: Default to private
-          client_approved: false,
-          points_awarded: false,
-        });
-
-      if (insertError) {
-        console.error('[InServicePhotoCapture] Database insert error:', insertError);
-        throw insertError;
-      }
-      
-      console.log('[InServicePhotoCapture] Photo saved to database successfully!');
-
-      // Show success state
-      setSavedSuccessfully(true);
-      
-      toast({
-        title: "✅ Photo Saved Successfully!",
-        description: "In-service photo saved privately to appointment",
-      });
-      
-      // Wait 1.5 seconds to show success state, then close
-      setTimeout(() => {
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-          setStream(null);
-        }
-        setCapturedImage(null);
-        setSavedSuccessfully(false);
-        onSuccess?.();
-        onClose();
-      }, 1500);
-    } catch (error: any) {
+      setCapturedImage(null);
+      onClose();
+    } catch (error) {
       console.error("Photo upload error:", error);
       toast({
         title: "Upload Failed",
-        description: error.message || "Failed to save photo. Please try again.",
+        description: "Failed to save photo. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -179,7 +125,6 @@ export const InServicePhotoCapture = ({
       setStream(null);
     }
     setCapturedImage(null);
-    setSavedSuccessfully(false);
     onClose();
   };
 
@@ -187,7 +132,7 @@ export const InServicePhotoCapture = ({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Capture In-Service Photo for {customerName}</DialogTitle>
+          <DialogTitle>Capture {customerName}'s Finished Look</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">
@@ -231,11 +176,6 @@ export const InServicePhotoCapture = ({
                   Take Photo
                 </Button>
               </>
-            ) : savedSuccessfully ? (
-              <div className="w-full py-4 px-6 bg-green-500 text-white rounded-lg flex items-center justify-center gap-2">
-                <CheckCircle className="h-6 w-6" />
-                <span className="text-lg font-semibold">Photo Saved Successfully!</span>
-              </div>
             ) : (
               <>
                 <Button
@@ -250,17 +190,14 @@ export const InServicePhotoCapture = ({
                   size="lg"
                   onClick={confirmCapture}
                   disabled={isProcessing}
-                  className="flex-1 relative"
+                  className="flex-1"
                 >
                   {isProcessing ? (
-                    <span className="flex items-center gap-2">
-                      <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Saving Photo...
-                    </span>
+                    "Saving..."
                   ) : (
                     <>
                       <CheckCircle className="mr-2 h-5 w-5" />
-                      Save Photo (Private)
+                      Use This Photo
                     </>
                   )}
                 </Button>

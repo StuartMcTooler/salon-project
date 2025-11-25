@@ -241,24 +241,6 @@ const POS = () => {
               </div>
             </div>
             <div className="flex flex-wrap gap-1 md:gap-2 w-full md:w-auto">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="md:size-default"
-                onClick={() => setActiveTab(activeTab === "more" ? "walkin" : "more")}
-              >
-                {activeTab === "more" ? (
-                  <>
-                    <ArrowLeft className="h-4 w-4 md:mr-2" />
-                    <span className="hidden md:inline">Back</span>
-                  </>
-                ) : (
-                  <>
-                    <MoreHorizontal className="h-4 w-4 md:mr-2" />
-                    <span className="hidden md:inline">More</span>
-                  </>
-                )}
-              </Button>
               {isAdmin && (
                 <>
                   <Button 

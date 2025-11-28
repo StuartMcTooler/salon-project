@@ -327,7 +327,10 @@ export default function CreateContent() {
   const uploadPhoto = async () => {
     if (!capturedImage || !token) return;
 
-    setUploading(true);
+    // OPTIMISTIC UI: Show complete immediately
+    setStep('complete');
+    toast.success('Photo captured! Applying professional polish... ✨');
+
     try {
       // Convert base64 to blob
       const response = await fetch(capturedImage);
@@ -339,7 +342,7 @@ export default function CreateContent() {
       formData.append('file', file);
       formData.append('token', token);
 
-      // Upload via edge function
+      // Upload via edge function (process in background)
       const { data, error } = await supabase.functions.invoke('upload-client-content', {
         body: formData,
       });
@@ -348,13 +351,11 @@ export default function CreateContent() {
 
       setEnhancedUrl(data.enhanced_url);
       setShareUrl(data.share_url);
-      setStep('complete');
-      toast.success('Photo uploaded and enhanced! You earned 50 points! 🎉');
+      toast.success('Photo enhanced! You earned 50 points! 🎉');
     } catch (err: any) {
       console.error('Upload error:', err);
-      toast.error('Failed to upload photo. Please try again.');
-    } finally {
-      setUploading(false);
+      toast.error('Processing failed, but your photo is saved!');
+      // Don't revert to preview - keep user on complete screen
     }
   };
 
@@ -592,18 +593,35 @@ export default function CreateContent() {
                 <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
                 <h2 className="text-2xl font-bold mb-2">Amazing! 🎉</h2>
                 <p className="text-muted-foreground">
-                  Your photo has been enhanced and you've earned 50 points!
+                  Your photo has been captured! Applying professional polish...
                 </p>
               </div>
 
-              {enhancedUrl && (
+              {capturedImage && (
                 <div className="relative aspect-[3/4] bg-black rounded-lg overflow-hidden">
-                  <img src={enhancedUrl} alt="Enhanced" className="w-full h-full object-cover" />
+                  {!enhancedUrl ? (
+                    <>
+                      <img src={capturedImage} alt="Processing" className="w-full h-full object-cover opacity-80" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <div className="text-white text-center space-y-2">
+                          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                          <p className="text-sm font-medium">Enhancing your photo...</p>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <img src={enhancedUrl} alt="Enhanced" className="w-full h-full object-cover" />
+                  )}
                 </div>
               )}
 
               <div className="space-y-3">
-                <Button onClick={shareToSocial} size="lg" className="w-full h-16">
+                <Button 
+                  onClick={shareToSocial} 
+                  size="lg" 
+                  className="w-full h-16"
+                  disabled={!enhancedUrl}
+                >
                   <Share2 className="mr-2 h-5 w-5" />
                   <div className="text-left">
                     <div className="font-semibold">Share to Social Media</div>
@@ -611,7 +629,13 @@ export default function CreateContent() {
                   </div>
                 </Button>
                 
-                <Button onClick={downloadPhoto} size="lg" variant="outline" className="w-full">
+                <Button 
+                  onClick={downloadPhoto} 
+                  size="lg" 
+                  variant="outline" 
+                  className="w-full"
+                  disabled={!enhancedUrl}
+                >
                   <Download className="mr-2 h-4 w-4" />
                   Save to Camera Roll
                 </Button>

@@ -96,22 +96,34 @@ export const InServicePhotoCapture = ({
       const blob = await response.blob();
       console.log('[InServicePhotoCapture] Blob created:', blob.size, 'bytes');
       
-      console.log('[InServicePhotoCapture] Calling onCapture callback...');
-      await onCapture(blob);
-      console.log('[InServicePhotoCapture] Photo saved successfully!');
-      
-      // Close dialog and cleanup
+      // OPTIMISTIC UI: Close immediately and show success
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
         setStream(null);
       }
       setCapturedImage(null);
       onClose();
-    } catch (error) {
-      console.error("Photo upload error:", error);
+      
       toast({
-        title: "Upload Failed",
-        description: "Failed to save photo. Please try again.",
+        title: "Photo Captured!",
+        description: "Processing your photo in the background...",
+      });
+
+      // Process in background (don't await)
+      console.log('[InServicePhotoCapture] Starting background upload...');
+      onCapture(blob).catch((error) => {
+        console.error("Background upload error:", error);
+        toast({
+          title: "Upload Failed",
+          description: "Failed to save photo. Please try again.",
+          variant: "destructive",
+        });
+      });
+    } catch (error) {
+      console.error("Photo capture error:", error);
+      toast({
+        title: "Capture Failed",
+        description: "Failed to process photo. Please try again.",
         variant: "destructive",
       });
     } finally {

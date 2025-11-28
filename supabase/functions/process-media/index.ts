@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { Image } from "https://deno.land/x/imagescript@1.3.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,12 +15,15 @@ serve(async (req) => {
   try {
     const { contentId, rawFilePath, mediaType, creativeId } = await req.json();
 
+    console.log(`[process-media] Processing contentId: ${contentId}`);
+
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     // Download raw file from storage
+    console.log(`[process-media] Downloading from: ${rawFilePath}`);
     const { data: fileData, error: downloadError } = await supabaseAdmin.storage
       .from('client-content-raw')
       .download(rawFilePath);
@@ -28,76 +32,50 @@ serve(async (req) => {
       throw new Error(`Download failed: ${downloadError.message}`);
     }
 
-    // Convert file to base64 for AI processing
+    console.log(`[process-media] File downloaded, size: ${fileData.size} bytes`);
+
+    // Convert blob to buffer
     const arrayBuffer = await fileData.arrayBuffer();
-    const base64Image = btoa(
-      new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-    );
-    const dataUrl = `data:${fileData.type};base64,${base64Image}`;
+    const buffer = new Uint8Array(arrayBuffer);
 
-    // Use Lovable AI to fix orientation and enhance
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image-preview",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Fix the image orientation if needed (correct any rotation from camera EXIF data). Return the properly oriented image."
-              },
-              {
-                type: "image_url",
-                image_url: { url: dataUrl }
-              }
-            ]
-          }
-        ],
-        modalities: ["image", "text"]
-      })
-    });
+    console.log('[process-media] Starting image processing...');
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      throw new Error(`AI processing failed: ${errorText}`);
+    // Decode the image
+    let image = await Image.decode(buffer);
+    console.log(`[process-media] Image decoded: ${image.width}x${image.height}`);
+
+    // Resize to max 1200px width (maintains aspect ratio)
+    if (image.width > 1200) {
+      const ratio = 1200 / image.width;
+      const newHeight = Math.round(image.height * ratio);
+      image = image.resize(1200, newHeight);
+      console.log(`[process-media] Resized to: ${image.width}x${image.height}`);
     }
 
-    const aiData = await aiResponse.json();
-    const enhancedImageUrl = aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    // Apply professional enhancements
+    // Lightness +5% (brightness equivalent)
+    image.lightness(5);
     
-    if (!enhancedImageUrl) {
-      throw new Error('AI did not return an image');
-    }
+    // Saturation +10%
+    image.saturation(10);
+    
+    // Note: imagescript doesn't have direct contrast, but lightness and saturation achieve similar "pop"
 
-    // Convert base64 to blob
-    const base64Data = enhancedImageUrl.split('base64,')[1];
-    const binaryString = atob(base64Data);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    const enhancedBlob = new Blob([bytes], { type: 'image/jpeg' });
+    console.log('[process-media] Enhancements applied');
 
-    // Get creative name for watermark
-    const { data: creative } = await supabaseAdmin
-      .from('staff_members')
-      .select('display_name')
-      .eq('id', creativeId)
-      .single();
+    // Encode as JPEG with high quality (imagescript doesn't support WebP encoding)
+    const processedBuffer = await image.encodeJPEG(90);
+    
+    console.log(`[process-media] Processing complete, output size: ${processedBuffer.length} bytes`);
 
     // Upload enhanced file
-    const enhancedFileName = `enhanced-${Date.now()}-${rawFilePath.split('/').pop()}`;
+    const enhancedFileName = `enhanced-${Date.now()}.jpg`;
     const enhancedPath = `${creativeId}/${enhancedFileName}`;
 
+    console.log(`[process-media] Uploading to: ${enhancedPath}`);
     const { error: enhancedUploadError } = await supabaseAdmin.storage
       .from('client-content-enhanced')
-      .upload(enhancedPath, enhancedBlob, {
+      .upload(enhancedPath, processedBuffer, {
         contentType: 'image/jpeg',
         upsert: false,
       });
@@ -111,6 +89,7 @@ serve(async (req) => {
       .from('client-content-enhanced')
       .getPublicUrl(enhancedPath);
 
+    console.log('[process-media] Updating database record...');
     // Update client_content record
     const { error: updateError } = await supabaseAdmin
       .from('client_content')
@@ -118,8 +97,14 @@ serve(async (req) => {
         enhanced_file_path: enhancedPath,
         ai_metadata: {
           processed_at: new Date().toISOString(),
-          model: 'google/gemini-2.5-flash-image-preview',
-          watermark: `@${creative?.display_name || 'creative'}`,
+          processor: 'imagescript-deno',
+          enhancements: {
+            lightness: '+5%',
+            saturation: '+10%',
+            format: 'jpeg',
+            quality: 90,
+            max_width: 1200
+          }
         },
       })
       .eq('id', contentId);
@@ -128,6 +113,7 @@ serve(async (req) => {
       throw new Error(`Update failed: ${updateError.message}`);
     }
 
+    console.log('[process-media] Processing successful!');
     return new Response(
       JSON.stringify({
         success: true,
@@ -139,7 +125,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Error processing media:', error);
+    console.error('[process-media] Error:', error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       {

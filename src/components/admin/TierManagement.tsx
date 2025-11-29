@@ -13,7 +13,7 @@ import { Crown, TrendingUp, Users } from "lucide-react";
 interface StaffMember {
   id: string;
   display_name: string;
-  tier: 'standard' | 'pro';
+  tier: 'founder' | 'pro' | 'standard';
   total_bookings: number;
   average_rating: number;
   tier_upgraded_at: string | null;
@@ -62,6 +62,7 @@ export const TierManagement = () => {
     return Math.min(bookingProgress, ratingProgress);
   };
 
+  const founderStaff = staff.filter(s => s.tier === 'founder');
   const proStaff = staff.filter(s => s.tier === 'pro');
   const standardStaff = staff.filter(s => s.tier === 'standard');
   const closeToUpgrade = standardStaff.filter(s => s.total_bookings >= 45 || s.average_rating >= 4.6);
@@ -77,7 +78,17 @@ export const TierManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Founders</CardTitle>
+            <Crown className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{founderStaff.length}</div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pro Creatives</CardTitle>
@@ -111,6 +122,34 @@ export const TierManagement = () => {
       </div>
 
       <div className="space-y-4">
+        {founderStaff.length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Founder Creatives</h3>
+            <div className="grid gap-4">
+              {founderStaff.map((member) => (
+                <Card key={member.id}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <CardTitle className="text-base">{member.display_name}</CardTitle>
+                        <TierBadge tier="founder" />
+                      </div>
+                      {member.tier_upgraded_at && (
+                        <Badge variant="secondary">
+                          Upgraded {new Date(member.tier_upgraded_at).toLocaleDateString()}
+                        </Badge>
+                      )}
+                    </div>
+                    <CardDescription>
+                      {member.total_bookings} bookings • {member.average_rating.toFixed(1)}★ rating
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div>
           <h3 className="text-lg font-semibold mb-4">Pro Creatives</h3>
           {proStaff.length === 0 ? (

@@ -1417,10 +1417,12 @@ export type Database = {
       }
       staff_members: {
         Row: {
+          area: string | null
           availability_test_days_from_now: number | null
           average_rating: number | null
           bio: string | null
           business_id: string | null
+          city: string | null
           commission_rate: number | null
           created_at: string
           deposit_fixed_amount: number | null
@@ -1442,6 +1444,7 @@ export type Database = {
           require_booking_deposit: boolean | null
           simulate_fully_booked: boolean | null
           skill_level: string | null
+          specialties: string[] | null
           tier: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at: string | null
           total_bookings: number | null
@@ -1449,10 +1452,12 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          area?: string | null
           availability_test_days_from_now?: number | null
           average_rating?: number | null
           bio?: string | null
           business_id?: string | null
+          city?: string | null
           commission_rate?: number | null
           created_at?: string
           deposit_fixed_amount?: number | null
@@ -1474,6 +1479,7 @@ export type Database = {
           require_booking_deposit?: boolean | null
           simulate_fully_booked?: boolean | null
           skill_level?: string | null
+          specialties?: string[] | null
           tier?: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at?: string | null
           total_bookings?: number | null
@@ -1481,10 +1487,12 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          area?: string | null
           availability_test_days_from_now?: number | null
           average_rating?: number | null
           bio?: string | null
           business_id?: string | null
+          city?: string | null
           commission_rate?: number | null
           created_at?: string
           deposit_fixed_amount?: number | null
@@ -1506,6 +1514,7 @@ export type Database = {
           require_booking_deposit?: boolean | null
           simulate_fully_booked?: boolean | null
           skill_level?: string | null
+          specialties?: string[] | null
           tier?: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at?: string | null
           total_bookings?: number | null
@@ -1784,7 +1793,7 @@ export type Database = {
       booking_type_enum: "direct" | "cover" | "referral_network"
       business_type: "multi_staff_salon" | "solo_professional"
       commission_type: "finders_fee" | "revenue_share"
-      creative_tier: "standard" | "pro"
+      creative_tier: "standard" | "founder" | "pro"
       discount_type: "percentage" | "fixed_amount"
     }
     CompositeTypes: {
@@ -1917,7 +1926,7 @@ export const Constants = {
       booking_type_enum: ["direct", "cover", "referral_network"],
       business_type: ["multi_staff_salon", "solo_professional"],
       commission_type: ["finders_fee", "revenue_share"],
-      creative_tier: ["standard", "pro"],
+      creative_tier: ["standard", "founder", "pro"],
       discount_type: ["percentage", "fixed_amount"],
     },
   },

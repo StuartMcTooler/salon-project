@@ -4,7 +4,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Scissors, LogOut, Home, Users, Calendar, UserCog, MoreHorizontal, ArrowLeft } from "lucide-react";
+import { Scissors, LogOut, Home, Users, Calendar, UserCog, MoreHorizontal, ArrowLeft, User } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { InitialsAvatar } from "@/components/discovery/InitialsAvatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ServiceGrid } from "@/components/pos/ServiceGrid";
 import { QuickCustomerForm } from "@/components/pos/QuickCustomerForm";
 import { PostCheckoutActions } from "@/components/pos/PostCheckoutActions";
@@ -268,7 +278,32 @@ const POS = () => {
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-1 md:gap-2 w-full md:w-auto">
+            <div className="flex flex-wrap gap-1 md:gap-2 w-full md:w-auto items-center">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full">
+                    {staffMember?.profile_image_url ? (
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={staffMember.profile_image_url} alt={staffMember.display_name} />
+                        <AvatarFallback>
+                          <InitialsAvatar name={staffMember.display_name} className="h-8 w-8 rounded-full" />
+                        </AvatarFallback>
+                      </Avatar>
+                    ) : (
+                      <InitialsAvatar name={staffMember.display_name} className="h-8 w-8 rounded-full" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/my-profile')}>
+                    <User className="h-4 w-4 mr-2" />
+                    My Profile
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
               <Button 
                 variant="ghost" 
                 size="sm"

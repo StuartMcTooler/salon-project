@@ -1418,6 +1418,47 @@ export type Database = {
           },
         ]
       }
+      staff_invites: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          invite_token: string
+          phone: string
+          staff_member_id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          invite_token: string
+          phone: string
+          staff_member_id: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          invite_token?: string
+          phone?: string
+          staff_member_id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_invites_staff_member_id_fkey"
+            columns: ["staff_member_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_members: {
         Row: {
           area: string | null

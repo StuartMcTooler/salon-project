@@ -12,6 +12,7 @@ import { ServiceManager } from "@/components/dashboard/ServiceManager";
 import { WalkInToggle } from "@/components/dashboard/WalkInToggle";
 import { MyLoyaltySettings } from "@/components/dashboard/MyLoyaltySettings";
 import { ContentHub } from "@/components/dashboard/ContentHub";
+import { ProfilePictureSettings } from "@/components/dashboard/ProfilePictureSettings";
 import { ReferralIncomeCard } from "@/components/dashboard/ReferralIncomeCard";
 import { SmartWaitlistToggle } from "@/components/dashboard/SmartWaitlistToggle";
 
@@ -156,17 +157,7 @@ const Dashboard = () => {
               <div>
                 <h2 className="text-2xl font-bold mb-4">Settings</h2>
                 <div className="space-y-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Profile</CardTitle>
-                      <CardDescription>Update your profile information</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Manage your profile details including name, bio, and profile picture in Staff Management.
-                      </p>
-                    </CardContent>
-                  </Card>
+                  <ProfilePictureSettings staffId={staffId} />
                   <ServiceManager staffId={staffId} />
                   <WalkInToggle businessId={businessId} />
                   <MyLoyaltySettings staffId={staffId} businessId={businessId} />

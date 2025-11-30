@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InboxImageCard } from "./InboxImageCard";
+import { PortfolioUpload } from "./PortfolioUpload";
 import { PackageOpen } from "lucide-react";
 
 interface InboxViewProps {
@@ -70,12 +71,21 @@ export const InboxView = ({ staffId }: InboxViewProps) => {
 
   if (!inboxItems || inboxItems.length === 0) {
     return (
-      <Card className="p-12 text-center">
-        <PackageOpen className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-        <h3 className="text-lg font-semibold mb-2">Your inbox is empty</h3>
-        <p className="text-muted-foreground">
-          New client-uploaded content will appear here for you to review and organize
-        </p>
+      <Card className="p-12 text-center space-y-6">
+        <div>
+          <PackageOpen className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+          <h3 className="text-lg font-semibold mb-2">Your inbox is empty</h3>
+          <p className="text-muted-foreground mb-4">
+            New client-uploaded content will appear here for you to review and organize
+          </p>
+        </div>
+        <div className="border-t pt-6">
+          <p className="text-sm font-medium mb-3">New to the platform?</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Upload your best work now to populate your Discovery card and attract clients
+          </p>
+          <PortfolioUpload staffId={staffId} />
+        </div>
       </Card>
     );
   }

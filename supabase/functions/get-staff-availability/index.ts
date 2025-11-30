@@ -130,6 +130,7 @@ Deno.serve(async (req) => {
           availability_status: {
             first_slot_timestamp: null,
             first_slot_display_time: null,
+            first_slot_day_name: null,
             time_to_first_slot_days: 999,
           }
         }),
@@ -196,6 +197,7 @@ Deno.serve(async (req) => {
           availability_status: {
             first_slot_timestamp: null,
             first_slot_display_time: null,
+            first_slot_day_name: null,
             time_to_first_slot_days: 999,
           }
         }),

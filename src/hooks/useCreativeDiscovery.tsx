@@ -138,7 +138,7 @@ export const useCreativeDiscovery = (filters: Filters) => {
         });
         return {
           staff_id: creative.id,
-          ...data
+          ...data?.availability_status
         };
       });
 

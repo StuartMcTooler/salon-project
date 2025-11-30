@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,9 +13,19 @@ interface SalonServiceSelectionProps {
   onBack?: () => void;
   businessId: string | null;
   businessType: string | null;
+  preSelectedServiceId?: string | null;
 }
 
-export const SalonServiceSelection = ({ selectedStaff, onSelect, onBack, businessId, businessType }: SalonServiceSelectionProps) => {
+export const SalonServiceSelection = ({ 
+  selectedStaff, 
+  onSelect, 
+  onBack, 
+  businessId, 
+  businessType,
+  preSelectedServiceId 
+}: SalonServiceSelectionProps) => {
+  const highlightedServiceRef = useRef<HTMLDivElement>(null);
+
   const { data: servicesData, isLoading } = useQuery({
     queryKey: selectedStaff 
       ? ['services-for-staff', selectedStaff.id] 
@@ -52,6 +63,18 @@ export const SalonServiceSelection = ({ selectedStaff, onSelect, onBack, busines
       }
     },
   });
+
+  // Auto-scroll to pre-selected service when data loads
+  useEffect(() => {
+    if (preSelectedServiceId && servicesData && highlightedServiceRef.current) {
+      setTimeout(() => {
+        highlightedServiceRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }, 300);
+    }
+  }, [preSelectedServiceId, servicesData]);
 
   if (isLoading) {
     return (
@@ -95,12 +118,32 @@ export const SalonServiceSelection = ({ selectedStaff, onSelect, onBack, busines
         {servicesData?.map((item: any) => {
           const service = 'service' in item ? item.service : item;
           const pricing = 'custom_price' in item ? item.custom_price : null;
+          const isHighlighted = preSelectedServiceId === service.id;
           
           return (
-            <Card key={service.id} className="hover:shadow-lg transition-shadow">
+            <Card 
+              key={service.id} 
+              ref={isHighlighted ? highlightedServiceRef : null}
+              className={`hover:shadow-lg transition-all ${
+                isHighlighted 
+                  ? 'ring-2 ring-primary shadow-xl scale-105 border-primary' 
+                  : ''
+              }`}
+            >
               <CardHeader>
-                <CardTitle>{service.name}</CardTitle>
-                <CardDescription>{service.description}</CardDescription>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="flex items-center gap-2">
+                      {service.name}
+                      {isHighlighted && (
+                        <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded-full animate-pulse">
+                          From Portfolio
+                        </span>
+                      )}
+                    </CardTitle>
+                    <CardDescription>{service.description}</CardDescription>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">

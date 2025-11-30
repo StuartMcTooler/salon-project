@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Scissors, LogOut, Home, Users, Calendar, UserCog, MoreHorizontal, ArrowLeft, User } from "lucide-react";
+import { Scissors, LogOut, Home, Users, Calendar, UserCog, MoreHorizontal, ArrowLeft, User, Share2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InitialsAvatar } from "@/components/discovery/InitialsAvatar";
 import {
@@ -27,6 +27,7 @@ import { PaymentMethodSelector } from "@/components/pos/PaymentMethodSelector";
 import { CustomerDepositManager } from "@/components/pos/CustomerDepositManager";
 import { SalonServiceSelection } from "@/components/salon/SalonServiceSelection";
 import { SalonCheckout } from "@/components/salon/SalonCheckout";
+import { QuickBookingLinkModal } from "@/components/pos/QuickBookingLinkModal";
 
 const POS = () => {
   const navigate = useNavigate();
@@ -46,6 +47,9 @@ const POS = () => {
   const [bookingStep, setBookingStep] = useState<'service' | 'checkout'>('service');
   const [bookingService, setBookingService] = useState<any>(null);
   const [bookingPricing, setBookingPricing] = useState<any>(null);
+  
+  // Quick booking link modal state
+  const [showQuickLinkModal, setShowQuickLinkModal] = useState(false);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -279,6 +283,16 @@ const POS = () => {
               </div>
             </div>
             <div className="flex flex-wrap gap-1 md:gap-2 w-full md:w-auto items-center">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowQuickLinkModal(true)}
+                className="rounded-full"
+                title="Share booking link"
+              >
+                <Share2 className="h-5 w-5" />
+              </Button>
+              
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
@@ -502,6 +516,13 @@ const POS = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      <QuickBookingLinkModal
+        isOpen={showQuickLinkModal}
+        onClose={() => setShowQuickLinkModal(false)}
+        staffMember={staffMember}
+        businessId={businessId}
+      />
     </div>
   );
 };

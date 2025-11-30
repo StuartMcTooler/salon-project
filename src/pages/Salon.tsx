@@ -29,6 +29,7 @@ const Salon = () => {
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referralInfo, setReferralInfo] = useState<any>(null);
   const [portalClient, setPortalClient] = useState<any>(null);
+  const [businessInfo, setBusinessInfo] = useState<{ name: string; logo_url: string | null } | null>(null);
 
   useEffect(() => {
     const checkAuthAndRole = async () => {
@@ -81,13 +82,17 @@ const Salon = () => {
         // Check if there's a business to book with
         const { data: businesses } = await supabase
           .from("business_accounts")
-          .select("id, business_type")
+          .select("id, business_type, business_name, logo_url")
           .eq("is_active", true)
           .limit(1);
 
         if (businesses && businesses.length > 0) {
           setBusinessId(businesses[0].id);
           setBusinessType(businesses[0].business_type);
+          setBusinessInfo({ 
+            name: businesses[0].business_name, 
+            logo_url: businesses[0].logo_url 
+          });
         }
       } catch (error) {
         console.error("Setup failed:", error);
@@ -218,9 +223,17 @@ const Salon = () => {
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Scissors className="h-6 w-6 text-primary" />
+            {businessInfo?.logo_url ? (
+              <img 
+                src={businessInfo.logo_url} 
+                alt={`${businessInfo.name} Logo`}
+                className="w-8 h-8 object-contain"
+              />
+            ) : (
+              <Scissors className="h-6 w-6 text-primary" />
+            )}
             <div>
-              <h1 className="text-2xl font-bold">Salon Booking</h1>
+              <h1 className="text-2xl font-bold">{businessInfo?.name || 'Salon Booking'}</h1>
               {referralInfo && (
                 <p className="text-sm text-muted-foreground">
                   Referred by {referralInfo.referrer_name} 🎁

@@ -22,6 +22,7 @@ import Portal from "./pages/Portal";
 import PortalVerify from "./pages/PortalVerify";
 import PortalHome from "./pages/PortalHome";
 import ImageProcessingTest from "./pages/ImageProcessingTest";
+import AcceptInvite from "./pages/AcceptInvite";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ const App = () => (
           <Route path="/portal/verify" element={<PortalVerify />} />
           <Route path="/portal/home" element={<PortalHome />} />
           <Route path="/test/image-processing" element={<ImageProcessingTest />} />
+          <Route path="/accept-invite" element={<AcceptInvite />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

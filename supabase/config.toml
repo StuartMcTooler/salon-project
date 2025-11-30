@@ -1,5 +1,8 @@
 project_id = "ynmfedrtxqbovkglrymg"
 
+[functions.send-staff-invite]
+verify_jwt = false
+
 [functions.stripe-webhook]
 verify_jwt = false
 

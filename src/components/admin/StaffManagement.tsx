@@ -40,6 +40,7 @@ export function StaffManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isMultiStaff, setIsMultiStaff] = useState(false);
   const [creatingLogin, setCreatingLogin] = useState<string | null>(null);
+  const [sendingInvite, setSendingInvite] = useState<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [decouplingStaff, setDecouplingStaff] = useState<StaffMember | null>(null);
   const [bulkDepositEnabled, setBulkDepositEnabled] = useState(false);
@@ -192,6 +193,36 @@ export function StaffManagement() {
       });
     } finally {
       setCreatingLogin(null);
+    }
+  };
+
+  const handleSendInvite = async (staffMember: StaffMember) => {
+    setSendingInvite(staffMember.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-staff-invite', {
+        body: { staffMemberId: staffMember.id },
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success(`Invite sent to ${staffMember.display_name}`, {
+          description: data.messageSent 
+            ? `Text message sent to ${staffMember.phone}`
+            : 'Invite created but message failed to send',
+        });
+      } else {
+        throw new Error('Failed to send invite');
+      }
+
+      loadStaff();
+    } catch (error: any) {
+      console.error('Error sending invite:', error);
+      toast.error('Failed to send invite', {
+        description: error.message,
+      });
+    } finally {
+      setSendingInvite(null);
     }
   };
 
@@ -471,25 +502,49 @@ export function StaffManagement() {
               </div>
 
               {isMultiStaff && !member.user_id && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full mt-2"
-                  onClick={() => handleCreateLogin(member)}
-                  disabled={creatingLogin === member.id}
-                >
-                  {creatingLogin === member.id ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
-                    </>
+                <div className="space-y-2 mt-2">
+                  {member.phone ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => handleSendInvite(member)}
+                      disabled={sendingInvite === member.id}
+                    >
+                      {sendingInvite === member.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="mr-2 h-4 w-4" />
+                          Send Invite
+                        </>
+                      )}
+                    </Button>
                   ) : (
-                    <>
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      Create Login
-                    </>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => handleCreateLogin(member)}
+                      disabled={creatingLogin === member.id}
+                    >
+                      {creatingLogin === member.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="mr-2 h-4 w-4" />
+                          Create Login
+                        </>
+                      )}
+                    </Button>
                   )}
-                </Button>
+                </div>
               )}
 
               {member.user_id && isMultiStaff && (

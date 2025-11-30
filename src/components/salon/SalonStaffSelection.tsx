@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Clock, Users } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { PortfolioCarousel } from "@/components/portfolio/PortfolioCarousel";
 
 interface AvailabilityStatus {
   first_slot_timestamp: number | null;
@@ -25,6 +27,7 @@ interface SalonStaffSelectionProps {
 
 export const SalonStaffSelection = ({ selectedService, onSelect, onBack, businessId }: SalonStaffSelectionProps) => {
   const [showingOverflowFor, setShowingOverflowFor] = useState<string | null>(null);
+  const navigate = useNavigate();
   
   const { data: staffData, isLoading } = useQuery({
     queryKey: selectedService 
@@ -344,8 +347,22 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
           
           return (
             <Card key={staff.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="text-center">
-                <Avatar className="h-24 w-24 mx-auto mb-4">
+              <CardHeader className="text-center space-y-4">
+                {/* Portfolio Carousel */}
+                <div className="w-full -mx-6 -mt-6 mb-2">
+                  <PortfolioCarousel 
+                    staffId={staff.id}
+                    maxImages={5}
+                    compact={true}
+                    onImageClick={(serviceId) => {
+                      if (serviceId) {
+                        navigate(`/book/${staff.id}?service=${serviceId}`);
+                      }
+                    }}
+                  />
+                </div>
+
+                <Avatar className="h-24 w-24 mx-auto">
                   <AvatarImage src={staff.profile_image_url} alt={staff.display_name} />
                   <AvatarFallback className="text-2xl">
                     {staff.display_name.split(' ').map((n: string) => n[0]).join('')}

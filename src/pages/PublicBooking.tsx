@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { SalonServiceSelection } from "@/components/salon/SalonServiceSelection";
 import { SalonCheckout } from "@/components/salon/SalonCheckout";
+import { PortfolioCarousel } from "@/components/portfolio/PortfolioCarousel";
 import { Scissors, ArrowLeft, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -25,7 +26,9 @@ const PublicBooking = () => {
   const [businessType, setBusinessType] = useState<string | null>(null);
   const [referralInfo, setReferralInfo] = useState<any>(null);
   const [contentRef, setContentRef] = useState<string | null>(null);
+  const [preSelectedServiceId, setPreSelectedServiceId] = useState<string | null>(null);
 
+  const serviceListRef = useRef<HTMLDivElement>(null);
   const referralCode = searchParams.get('ref');
 
   useEffect(() => {
@@ -98,6 +101,21 @@ const PublicBooking = () => {
     setSelectedService(service);
     setSelectedPricing(pricing);
     setCurrentStep('checkout');
+    setPreSelectedServiceId(null);
+  };
+
+  const handleImageClick = (serviceId: string | null) => {
+    if (serviceId) {
+      setPreSelectedServiceId(serviceId);
+      
+      // Scroll to service section with slight delay for better UX
+      setTimeout(() => {
+        serviceListRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }, 100);
+    }
   };
 
   const handleBack = () => {
@@ -238,13 +256,30 @@ const PublicBooking = () => {
 
       <main className="container mx-auto px-4 py-8">
         {currentStep === 'service' && (
-          <SalonServiceSelection 
-            selectedStaff={selectedStaff}
-            onSelect={handleServiceSelect}
-            onBack={handleBack}
-            businessId={businessId}
-            businessType={businessType}
-          />
+          <div className="space-y-8">
+            {/* Portfolio Carousel Section */}
+            {selectedStaff && (
+              <div className="mb-8">
+                <PortfolioCarousel 
+                  staffId={selectedStaff.id}
+                  maxImages={10}
+                  onImageClick={handleImageClick}
+                />
+              </div>
+            )}
+
+            {/* Service Selection Section */}
+            <div ref={serviceListRef}>
+              <SalonServiceSelection 
+                selectedStaff={selectedStaff}
+                onSelect={handleServiceSelect}
+                onBack={handleBack}
+                businessId={businessId}
+                businessType={businessType}
+                preSelectedServiceId={preSelectedServiceId}
+              />
+            </div>
+          </div>
         )}
         
         {currentStep === 'checkout' && selectedService && selectedStaff && selectedPricing && (

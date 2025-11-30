@@ -7,6 +7,7 @@ import { Inbox, Eye, History } from "lucide-react";
 import { InboxView } from "./content-hub/InboxView";
 import { PublicPortfolioView } from "./content-hub/PublicPortfolioView";
 import { ClientHistoryView } from "./content-hub/ClientHistoryView";
+import { PortfolioUpload } from "./content-hub/PortfolioUpload";
 
 interface ContentHubProps {
   staffId: string;
@@ -66,11 +67,14 @@ export const ContentHub = ({ staffId }: ContentHubProps) => {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-bold">Content Hub</h2>
-        <p className="text-muted-foreground">
-          Manage your client content, public portfolio, and private visual history
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h2 className="text-2xl font-bold">Content Hub</h2>
+          <p className="text-muted-foreground">
+            Manage your client content, public portfolio, and private visual history
+          </p>
+        </div>
+        <PortfolioUpload staffId={staffId} />
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

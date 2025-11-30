@@ -227,6 +227,7 @@ export type Database = {
           appointment_id: string | null
           approved_at: string | null
           client_approved: boolean
+          content_origin: string | null
           created_at: string
           creative_id: string
           enhanced_file_path: string | null
@@ -243,6 +244,7 @@ export type Database = {
           appointment_id?: string | null
           approved_at?: string | null
           client_approved?: boolean
+          content_origin?: string | null
           created_at?: string
           creative_id: string
           enhanced_file_path?: string | null
@@ -259,6 +261,7 @@ export type Database = {
           appointment_id?: string | null
           approved_at?: string | null
           client_approved?: boolean
+          content_origin?: string | null
           created_at?: string
           creative_id?: string
           enhanced_file_path?: string | null

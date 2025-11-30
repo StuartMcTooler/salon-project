@@ -24,6 +24,7 @@ import { FeedbackDashboard } from "@/components/admin/FeedbackDashboard";
 import { ReferralTestingTool } from "@/components/admin/ReferralTestingTool";
 import { OverflowTestMode } from "@/components/admin/OverflowTestMode";
 import { AvailabilityTestingTool } from "@/components/admin/AvailabilityTestingTool";
+import { BusinessSettings } from "@/components/admin/BusinessSettings";
 import { toast } from "sonner";
 import { useBusinessConfig } from "@/hooks/useBusinessConfig";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -109,18 +110,19 @@ export default function Admin() {
                   <Button variant="outline" size="sm">Settings ▼</Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  <DropdownMenuItem onClick={() => navigate('?tab=business')}>Business</DropdownMenuItem>
-                  {features.staffManagement && <DropdownMenuItem onClick={() => navigate('?tab=staff')}>Staff</DropdownMenuItem>}
-                  {features.staffManagement && <DropdownMenuItem onClick={() => navigate('?tab=tiers')}>Tiers</DropdownMenuItem>}
-                  {features.staffManagement && <DropdownMenuItem onClick={() => navigate('?tab=overflow')}>Overflow Test</DropdownMenuItem>}
-                  <DropdownMenuItem onClick={() => navigate('?tab=availability-test')}>Availability Testing</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('?tab=services')}>Services</DropdownMenuItem>
-                  {features.servicePricing && <DropdownMenuItem onClick={() => navigate('?tab=pricing')}>Pricing</DropdownMenuItem>}
-                  {features.businessHours && <DropdownMenuItem onClick={() => navigate('?tab=hours')}>Hours</DropdownMenuItem>}
-                  {features.terminalSettings && <DropdownMenuItem onClick={() => navigate('?tab=terminal')}>Terminal</DropdownMenuItem>}
-                  {features.loyaltyProgram && <DropdownMenuItem onClick={() => navigate('?tab=loyalty')}>Loyalty</DropdownMenuItem>}
-                  <DropdownMenuItem onClick={() => navigate('?tab=feedback')}>Feedback</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('?tab=front-desk')}>Front Desk</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSearchParams({ tab: 'business' })}>Business Info</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSearchParams({ tab: 'branding' })}>Logo & Branding</DropdownMenuItem>
+                  {features.staffManagement && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'staff' })}>Staff</DropdownMenuItem>}
+                  {features.staffManagement && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'tiers' })}>Tiers</DropdownMenuItem>}
+                  {features.staffManagement && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'overflow' })}>Overflow Test</DropdownMenuItem>}
+                  <DropdownMenuItem onClick={() => setSearchParams({ tab: 'availability-test' })}>Availability Testing</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSearchParams({ tab: 'services' })}>Services</DropdownMenuItem>
+                  {features.servicePricing && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'pricing' })}>Pricing</DropdownMenuItem>}
+                  {features.businessHours && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'hours' })}>Hours</DropdownMenuItem>}
+                  {features.terminalSettings && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'terminal' })}>Terminal</DropdownMenuItem>}
+                  {features.loyaltyProgram && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'loyalty' })}>Loyalty</DropdownMenuItem>}
+                  <DropdownMenuItem onClick={() => setSearchParams({ tab: 'feedback' })}>Feedback</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSearchParams({ tab: 'front-desk' })}>Front Desk</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -145,6 +147,10 @@ export default function Admin() {
             <>
               <TabsContent value="business">
                 <BusinessManagement />
+              </TabsContent>
+
+              <TabsContent value="branding">
+                <BusinessSettings />
               </TabsContent>
 
               {features.staffManagement && (

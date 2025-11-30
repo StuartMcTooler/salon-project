@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Scissors } from "lucide-react";
@@ -151,9 +152,27 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
-            <ServiceManager staffId={staffId} />
-            <WalkInToggle businessId={businessId} />
-            <MyLoyaltySettings staffId={staffId} businessId={businessId} />
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold mb-4">Settings</h2>
+                <div className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Profile</CardTitle>
+                      <CardDescription>Update your profile information</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Manage your profile details including name, bio, and profile picture in Staff Management.
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <ServiceManager staffId={staffId} />
+                  <WalkInToggle businessId={businessId} />
+                  <MyLoyaltySettings staffId={staffId} businessId={businessId} />
+                </div>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </main>

@@ -11,6 +11,7 @@ import { Pencil, Trash2, Plus, Loader2, UserPlus, UserMinus, Building2 } from "l
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ImageUpload } from "@/components/ui/ImageUpload";
 
 interface StaffMember {
   id: string;
@@ -25,6 +26,7 @@ interface StaffMember {
   is_active: boolean;
   user_id: string | null;
   business_id: string | null;
+  profile_image_url?: string | null;
   require_booking_deposit?: boolean;
   deposit_type?: 'percentage' | 'fixed_amount';
   deposit_percentage?: number;
@@ -99,6 +101,7 @@ export function StaffManagement() {
         commission_rate: parseFloat(formData.get("commission_rate") as string) || 0,
         hourly_rate: parseFloat(formData.get("hourly_rate") as string) || null,
         is_active: formData.get("is_active") === "true",
+        profile_image_url: formData.get("profile_image_url") as string || null,
       };
 
       if (editingStaff) {
@@ -620,6 +623,7 @@ function DepositConfigForm({ member, onSave }: { member: StaffMember; onSave: ()
 
 function StaffForm({ staff, onSave }: { staff: StaffMember | null; onSave: (data: FormData) => void }) {
   const [isActive, setIsActive] = useState(staff?.is_active ?? true);
+  const [profileImageUrl, setProfileImageUrl] = useState(staff?.profile_image_url || "");
 
   return (
     <form
@@ -627,6 +631,9 @@ function StaffForm({ staff, onSave }: { staff: StaffMember | null; onSave: (data
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
         formData.set("is_active", isActive.toString());
+        if (profileImageUrl) {
+          formData.set("profile_image_url", profileImageUrl);
+        }
         onSave(formData);
       }}
       className="space-y-4"
@@ -725,6 +732,18 @@ function StaffForm({ staff, onSave }: { staff: StaffMember | null; onSave: (data
           name="bio"
           defaultValue={staff?.bio || ""}
           rows={3}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Profile Image</Label>
+        <ImageUpload
+          bucket="profile-images"
+          folder="staff"
+          aspectRatio="1:1"
+          onUploadComplete={setProfileImageUrl}
+          currentImageUrl={staff?.profile_image_url || undefined}
+          maxSizeMB={2}
         />
       </div>
 

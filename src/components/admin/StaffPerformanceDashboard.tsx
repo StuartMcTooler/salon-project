@@ -50,7 +50,7 @@ export const StaffPerformanceDashboard = () => {
         .gte("appointment_date", start.toISOString())
         .lte("appointment_date", end.toISOString())
         .eq("status", "completed")
-        .or("booking_type.is.null,booking_type.neq.block"); // Exclude blocks from analytics
+        .or("is_blocked.is.null,is_blocked.eq.false"); // Exclude time blocks from analytics
 
       if (error) throw error;
       return data;

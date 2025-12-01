@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { AppointmentDetailsDialog } from "@/components/booking/AppointmentDetailsDialog";
 import { TimeBlockModal } from "@/components/pos/TimeBlockModal";
 import { Ban } from "lucide-react";
-import type { BookingTypeWithBlock } from "@/types/supabase-temp";
 
 interface VerticalStaffCalendarProps {
   selectedDate: Date;
@@ -157,9 +156,9 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
     return true;
   };
 
-  const getStatusColor = (status: string, bookingType?: BookingTypeWithBlock | null) => {
+  const getStatusColor = (status: string, isBlocked?: boolean) => {
     // Blocks have distinct grey striped styling via CSS class
-    if (bookingType === 'block') {
+    if (isBlocked) {
       return 'time-block';
     }
     
@@ -250,10 +249,10 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
           return (
             <div
               key={appointment.id}
-              className={`${getStatusColor(appointment.status || 'pending', appointment.booking_type as BookingTypeWithBlock | null)} ${
-                (appointment.booking_type as BookingTypeWithBlock | null) === 'block' ? 'text-gray-700' : 'text-white'
+              className={`${getStatusColor(appointment.status || 'pending', appointment.is_blocked)} ${
+                appointment.is_blocked ? 'text-gray-700' : 'text-white'
               } p-2 rounded cursor-pointer hover:opacity-90 transition-opacity border-l-4 ${
-                (appointment.booking_type as BookingTypeWithBlock | null) === 'block' ? 'border-gray-500' : 'border-white/50'
+                appointment.is_blocked ? 'border-gray-500' : 'border-white/50'
               } shadow-sm overflow-hidden`}
               style={{
                 gridColumn: staffIndex + 2,
@@ -263,13 +262,12 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
               }}
               onClick={() => {
                 // Blocks are not editable
-                const bookingType = appointment.booking_type as BookingTypeWithBlock | null;
-                if (bookingType === 'block') return;
+                if (appointment.is_blocked) return;
                 setSelectedAppointment(appointment);
                 setDialogOpen(true);
               }}
             >
-              {(appointment.booking_type as BookingTypeWithBlock | null) === 'block' ? (
+              {appointment.is_blocked ? (
                 // Block display
                 <>
                   <div className="flex items-center gap-1 text-xs font-semibold">

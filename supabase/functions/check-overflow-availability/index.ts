@@ -109,7 +109,7 @@ serve(async (req) => {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Critical: Exclude 'block' type from availability check (blocks are lunch/personal time)
+    // Critical: Exclude time blocks from availability check (blocks are lunch/personal time)
     const { data: appointments } = await supabaseClient
       .from("salon_appointments")
       .select("appointment_date, duration_minutes")
@@ -117,7 +117,7 @@ serve(async (req) => {
       .gte("appointment_date", startOfDay.toISOString())
       .lte("appointment_date", endOfDay.toISOString())
       .neq("status", "cancelled")
-      .or("booking_type.is.null,booking_type.neq.block"); // Don't count blocks as bookings
+      .or("is_blocked.is.null,is_blocked.eq.false"); // Don't count blocks as bookings
 
     // Get business hours
     const dayOfWeek = new Date(date).getDay();
@@ -170,7 +170,7 @@ serve(async (req) => {
     const coverOptions = [];
 
     for (const colleague of trustedColleagues || []) {
-      // Critical: Exclude blocks from colleague availability (don't trigger Cover for lunch)
+      // Critical: Exclude time blocks from colleague availability (don't trigger Cover for lunch)
       const { data: colleagueAppointments } = await supabaseClient
         .from("salon_appointments")
         .select("appointment_date, duration_minutes")
@@ -178,7 +178,7 @@ serve(async (req) => {
         .gte("appointment_date", startOfDay.toISOString())
         .lte("appointment_date", endOfDay.toISOString())
         .neq("status", "cancelled")
-        .or("booking_type.is.null,booking_type.neq.block"); // Don't count blocks
+        .or("is_blocked.is.null,is_blocked.eq.false"); // Don't count blocks
 
       const colleagueSlots = generateAvailableSlots(
         colleagueAppointments || [],

@@ -9,7 +9,6 @@ import { format, isAfter, isBefore, addMinutes } from "date-fns";
 import { UserCheck, Scissors, CreditCard, Edit2, Loader2, Camera, Ban } from "lucide-react";
 import { AppointmentDetailsDialog } from "@/components/booking/AppointmentDetailsDialog";
 import { TimeBlockModal } from "@/components/pos/TimeBlockModal";
-import type { BookingTypeWithBlock } from "@/types/supabase-temp";
 
 interface TimelineAppointmentsProps {
   staffId: string;
@@ -131,8 +130,7 @@ export const TimelineAppointments = ({ staffId, onAppointmentSelect }: TimelineA
 
   const getActionButton = (appointment: any) => {
     // Blocks don't need action buttons
-    const bookingType = appointment.booking_type as BookingTypeWithBlock | null;
-    if (bookingType === 'block') {
+    if (appointment.is_blocked) {
       return null;
     }
 
@@ -268,7 +266,7 @@ export const TimelineAppointments = ({ staffId, onAppointmentSelect }: TimelineA
             <Card
               key={appointment.id}
               className={`cursor-pointer hover:shadow-lg transition-shadow p-3 ${
-                (appointment.booking_type as BookingTypeWithBlock | null) === 'block' ? 'time-block' : ''
+                appointment.is_blocked ? 'time-block' : ''
               }`}
               style={{
                 gridColumn: '2',
@@ -278,8 +276,7 @@ export const TimelineAppointments = ({ staffId, onAppointmentSelect }: TimelineA
               }}
               onClick={(e) => {
                 // Blocks are not editable, just display
-                const bookingType = appointment.booking_type as BookingTypeWithBlock | null;
-                if (bookingType === 'block') {
+                if (appointment.is_blocked) {
                   e.stopPropagation();
                   return;
                 }
@@ -288,7 +285,7 @@ export const TimelineAppointments = ({ staffId, onAppointmentSelect }: TimelineA
               }}
             >
               <div className="space-y-1">
-                {(appointment.booking_type as BookingTypeWithBlock | null) === 'block' ? (
+                {appointment.is_blocked ? (
                   // Blocks show reason and time only
                   <>
                     <div className="flex items-center gap-2">

@@ -1248,6 +1248,7 @@ export type Database = {
           deposit_paid: boolean | null
           duration_minutes: number
           id: string
+          is_blocked: boolean | null
           notes: string | null
           original_requested_staff_id: string | null
           payment_method: string | null
@@ -1273,6 +1274,7 @@ export type Database = {
           deposit_paid?: boolean | null
           duration_minutes: number
           id?: string
+          is_blocked?: boolean | null
           notes?: string | null
           original_requested_staff_id?: string | null
           payment_method?: string | null
@@ -1298,6 +1300,7 @@ export type Database = {
           deposit_paid?: boolean | null
           duration_minutes?: number
           id?: string
+          is_blocked?: boolean | null
           notes?: string | null
           original_requested_staff_id?: string | null
           payment_method?: string | null

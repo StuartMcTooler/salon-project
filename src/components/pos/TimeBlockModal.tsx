@@ -55,13 +55,13 @@ export const TimeBlockModal = ({ open, onOpenChange, staffId, startTime, onSucce
       // Create initial block
       blocksToCreate.push({
         staff_id: staffId,
-        booking_type: 'block',
+        is_blocked: true,
         appointment_date: startTime.toISOString(),
         duration_minutes: duration,
         price: 0,
-        customer_name: 'Blocked',
+        customer_name: 'TIME BLOCK',
         service_name: reason,
-        status: 'blocked',
+        status: 'confirmed',
         notes: notes || `${reason}${repeatDaily ? ' (Daily)' : ''}${repeatWeekly ? ' (Weekly)' : ''}`,
       });
 
@@ -71,13 +71,13 @@ export const TimeBlockModal = ({ open, onOpenChange, staffId, startTime, onSucce
           const nextDate = addDays(startTime, i);
           blocksToCreate.push({
             staff_id: staffId,
-            booking_type: 'block',
+            is_blocked: true,
             appointment_date: nextDate.toISOString(),
             duration_minutes: duration,
             price: 0,
-            customer_name: 'Blocked',
+            customer_name: 'TIME BLOCK',
             service_name: reason,
-            status: 'blocked',
+            status: 'confirmed',
             notes: `${notes || reason} (Daily Recurring)`,
           });
         }
@@ -88,13 +88,13 @@ export const TimeBlockModal = ({ open, onOpenChange, staffId, startTime, onSucce
           const nextDate = addWeeks(startTime, i);
           blocksToCreate.push({
             staff_id: staffId,
-            booking_type: 'block',
+            is_blocked: true,
             appointment_date: nextDate.toISOString(),
             duration_minutes: duration,
             price: 0,
-            customer_name: 'Blocked',
+            customer_name: 'TIME BLOCK',
             service_name: reason,
-            status: 'blocked',
+            status: 'confirmed',
             notes: `${notes || reason} (Weekly Recurring)`,
           });
         }

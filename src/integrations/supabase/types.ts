@@ -1622,33 +1622,47 @@ export type Database = {
       }
       terminal_settings: {
         Row: {
-          business_id: string
+          business_id: string | null
+          connection_type: string | null
           created_at: string | null
           id: string
           is_active: boolean | null
-          reader_id: string
+          reader_id: string | null
           reader_name: string | null
+          staff_id: string | null
           updated_at: string | null
         }
         Insert: {
-          business_id: string
+          business_id?: string | null
+          connection_type?: string | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
-          reader_id: string
+          reader_id?: string | null
           reader_name?: string | null
+          staff_id?: string | null
           updated_at?: string | null
         }
         Update: {
-          business_id?: string
+          business_id?: string | null
+          connection_type?: string | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
-          reader_id?: string
+          reader_id?: string | null
           reader_name?: string | null
+          staff_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "terminal_settings_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trusted_network: {
         Row: {

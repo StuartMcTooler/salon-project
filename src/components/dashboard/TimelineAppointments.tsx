@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { format, isAfter, isBefore, addMinutes } from "date-fns";
-import { UserCheck, Scissors, CreditCard, Edit2, Loader2, Camera } from "lucide-react";
+import { UserCheck, Scissors, CreditCard, Edit2, Loader2, Camera, Ban } from "lucide-react";
 import { AppointmentDetailsDialog } from "@/components/booking/AppointmentDetailsDialog";
+import { TimeBlockModal } from "@/components/pos/TimeBlockModal";
+import type { BookingTypeWithBlock } from "@/types/supabase-temp";
 
 interface TimelineAppointmentsProps {
   staffId: string;
@@ -19,6 +21,8 @@ export const TimelineAppointments = ({ staffId, onAppointmentSelect }: TimelineA
   const queryClient = useQueryClient();
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [blockModalOpen, setBlockModalOpen] = useState(false);
+  const [blockStartTime, setBlockStartTime] = useState<Date>(new Date());
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Update current time every minute
@@ -126,6 +130,12 @@ export const TimelineAppointments = ({ staffId, onAppointmentSelect }: TimelineA
   });
 
   const getActionButton = (appointment: any) => {
+    // Blocks don't need action buttons
+    const bookingType = appointment.booking_type as BookingTypeWithBlock | null;
+    if (bookingType === 'block') {
+      return null;
+    }
+
     const aptStart = new Date(appointment.appointment_date);
     const aptEnd = addMinutes(aptStart, appointment.duration_minutes);
     const fiveMinBefore = addMinutes(aptStart, -5);
@@ -220,7 +230,16 @@ export const TimelineAppointments = ({ staffId, onAppointmentSelect }: TimelineA
             <div key={`time-${idx}`} className="bg-background p-1 text-xs text-muted-foreground flex items-start">
               {slot.label}
             </div>
-            <div key={`slot-${idx}`} className="bg-background relative" />
+            <div 
+              key={`slot-${idx}`} 
+              className="bg-background relative hover:bg-accent/50 cursor-pointer transition-colors"
+              onClick={() => {
+                const slotDate = new Date();
+                slotDate.setHours(slot.hour, slot.minute, 0, 0);
+                setBlockStartTime(slotDate);
+                setBlockModalOpen(true);
+              }}
+            />
           </>
         ))}
 
@@ -248,60 +267,87 @@ export const TimelineAppointments = ({ staffId, onAppointmentSelect }: TimelineA
           return (
             <Card
               key={appointment.id}
-              className="cursor-pointer hover:shadow-lg transition-shadow p-3"
+              className={`cursor-pointer hover:shadow-lg transition-shadow p-3 ${
+                (appointment.booking_type as BookingTypeWithBlock | null) === 'block' ? 'time-block' : ''
+              }`}
               style={{
                 gridColumn: '2',
                 gridRow: `${rowStart} / span ${rowSpan}`,
                 position: 'relative',
                 zIndex: 1,
               }}
-              onClick={() => {
+              onClick={(e) => {
+                // Blocks are not editable, just display
+                const bookingType = appointment.booking_type as BookingTypeWithBlock | null;
+                if (bookingType === 'block') {
+                  e.stopPropagation();
+                  return;
+                }
                 setSelectedAppointment(appointment);
                 setDialogOpen(true);
               }}
             >
               <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <div className="font-semibold">{appointment.customer_name}</div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedAppointment(appointment);
-                      setDialogOpen(true);
-                    }}
-                  >
-                    <Edit2 className="h-3 w-3" />
-                  </Button>
-                </div>
-                
-                <div className="flex items-center gap-1 flex-wrap">
-                  {tags.map((tag, idx) => (
-                    <Badge key={idx} className={`${tag.color} text-white text-xs`}>
-                      {tag.label}
-                    </Badge>
-                  ))}
-                  {appointment.mediaCount > 0 && (
-                    <Badge variant="outline" className="gap-1 border-blue-500 text-blue-600 ml-auto">
-                      <Camera className="h-3 w-3" />
-                      {appointment.mediaCount}
-                    </Badge>
-                  )}
-                </div>
+                {(appointment.booking_type as BookingTypeWithBlock | null) === 'block' ? (
+                  // Blocks show reason and time only
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Ban className="h-4 w-4" />
+                      <div className="font-semibold">{appointment.service_name}</div>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {format(new Date(appointment.appointment_date), 'h:mm a')} - {format(addMinutes(new Date(appointment.appointment_date), appointment.duration_minutes), 'h:mm a')}
+                    </div>
+                    {appointment.notes && (
+                      <p className="text-xs text-muted-foreground italic">{appointment.notes}</p>
+                    )}
+                  </>
+                ) : (
+                  // Regular appointments
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div className="font-semibold">{appointment.customer_name}</div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedAppointment(appointment);
+                          setDialogOpen(true);
+                        }}
+                      >
+                        <Edit2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {tags.map((tag, idx) => (
+                        <Badge key={idx} className={`${tag.color} text-white text-xs`}>
+                          {tag.label}
+                        </Badge>
+                      ))}
+                      {appointment.mediaCount > 0 && (
+                        <Badge variant="outline" className="gap-1 border-blue-500 text-blue-600 ml-auto">
+                          <Camera className="h-3 w-3" />
+                          {appointment.mediaCount}
+                        </Badge>
+                      )}
+                    </div>
 
-                <div className="text-sm text-muted-foreground">
-                  {appointment.service_name} • €{appointment.price}
-                </div>
+                    <div className="text-sm text-muted-foreground">
+                      {appointment.service_name} • €{appointment.price}
+                    </div>
 
-                <div className="text-xs text-muted-foreground">
-                  {format(aptDate, 'h:mm a')} - {format(addMinutes(aptDate, appointment.duration_minutes), 'h:mm a')}
-                </div>
+                    <div className="text-xs text-muted-foreground">
+                      {format(aptDate, 'h:mm a')} - {format(addMinutes(aptDate, appointment.duration_minutes), 'h:mm a')}
+                    </div>
 
-                <div className="pt-2">
-                  {getActionButton(appointment)}
-                </div>
+                    <div className="pt-2">
+                      {getActionButton(appointment)}
+                    </div>
+                  </>
+                )}
               </div>
             </Card>
           );
@@ -312,6 +358,16 @@ export const TimelineAppointments = ({ staffId, onAppointmentSelect }: TimelineA
         appointment={selectedAppointment}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+      />
+
+      <TimeBlockModal
+        open={blockModalOpen}
+        onOpenChange={setBlockModalOpen}
+        staffId={staffId}
+        startTime={blockStartTime}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['timeline-appointments', staffId] });
+        }}
       />
     </div>
   );

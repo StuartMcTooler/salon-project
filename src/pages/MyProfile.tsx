@@ -4,17 +4,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, User, Image, Settings } from "lucide-react";
+import { ArrowLeft, User, Image } from "lucide-react";
 import { ProfilePictureSettings } from "@/components/dashboard/ProfilePictureSettings";
 import { ContentHub } from "@/components/dashboard/ContentHub";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { BookingLinkCard } from "@/components/profile/BookingLinkCard";
+import { ProfileCompletionCard } from "@/components/profile/ProfileCompletionCard";
 
 const MyProfile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [staffMember, setStaffMember] = useState<any>(null);
+  const [editedBio, setEditedBio] = useState("");
+  const [savingBio, setSavingBio] = useState(false);
 
   useEffect(() => {
     const loadStaffProfile = async () => {
@@ -42,11 +48,39 @@ const MyProfile = () => {
       }
 
       setStaffMember(staff);
+      setEditedBio(staff.bio || "");
       setLoading(false);
     };
 
     loadStaffProfile();
   }, [navigate, toast]);
+
+  const handleSaveBio = async () => {
+    setSavingBio(true);
+    try {
+      const { error } = await supabase
+        .from("staff_members")
+        .update({ bio: editedBio })
+        .eq("id", staffMember.id);
+
+      if (error) throw error;
+
+      setStaffMember({ ...staffMember, bio: editedBio });
+      toast({
+        title: "Bio updated",
+        description: "Your bio has been saved successfully",
+      });
+    } catch (error) {
+      console.error("Error saving bio:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save bio",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingBio(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -105,39 +139,54 @@ const MyProfile = () => {
           </TabsList>
 
           <TabsContent value="profile" className="space-y-6">
+            <BookingLinkCard staffId={staffMember.id} />
+            
+            <ProfileCompletionCard staffId={staffMember.id} />
+            
             <ProfilePictureSettings staffId={staffMember.id} />
             
             <Card>
               <CardHeader>
                 <CardTitle>Profile Information</CardTitle>
                 <CardDescription>
-                  Your basic profile details
+                  Manage your professional details
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium">Display Name</label>
+                  <Label className="text-sm font-medium">Display Name</Label>
                   <p className="text-sm text-muted-foreground">{staffMember.display_name}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Full Name</label>
+                  <Label className="text-sm font-medium">Full Name</Label>
                   <p className="text-sm text-muted-foreground">{staffMember.full_name}</p>
                 </div>
-                {staffMember.bio && (
-                  <div>
-                    <label className="text-sm font-medium">Bio</label>
-                    <p className="text-sm text-muted-foreground">{staffMember.bio}</p>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio</Label>
+                  <Textarea
+                    id="bio"
+                    value={editedBio}
+                    onChange={(e) => setEditedBio(e.target.value)}
+                    placeholder="Tell clients about yourself, your experience, and your specialties..."
+                    className="min-h-[100px]"
+                  />
+                  <Button 
+                    onClick={handleSaveBio} 
+                    disabled={savingBio || editedBio === staffMember.bio}
+                    size="sm"
+                  >
+                    {savingBio ? "Saving..." : "Save Bio"}
+                  </Button>
+                </div>
                 {staffMember.email && (
                   <div>
-                    <label className="text-sm font-medium">Email</label>
+                    <Label className="text-sm font-medium">Email</Label>
                     <p className="text-sm text-muted-foreground">{staffMember.email}</p>
                   </div>
                 )}
                 {staffMember.tier && (
                   <div>
-                    <label className="text-sm font-medium">Tier</label>
+                    <Label className="text-sm font-medium">Tier (Admin Only)</Label>
                     <p className="text-sm text-muted-foreground capitalize">{staffMember.tier}</p>
                   </div>
                 )}

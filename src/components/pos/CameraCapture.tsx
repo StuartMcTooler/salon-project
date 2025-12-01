@@ -3,6 +3,7 @@ import { Camera, X, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useNativeCamera } from "@/hooks/useNativeCamera";
 
 interface CameraCaptureProps {
   open: boolean;
@@ -13,6 +14,7 @@ interface CameraCaptureProps {
 
 export const CameraCapture = ({ open, onClose, onCapture, customerName }: CameraCaptureProps) => {
   const { toast } = useToast();
+  const { takePhoto, isNativeSupported } = useNativeCamera();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -59,7 +61,28 @@ export const CameraCapture = ({ open, onClose, onCapture, customerName }: Camera
     }
   };
 
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
+    // Native camera for mobile app
+    if (isNativeSupported) {
+      try {
+        setIsProcessing(true);
+        const blob = await takePhoto();
+        await onCapture(blob);
+        onClose();
+      } catch (error) {
+        console.error("Native camera error:", error);
+        toast({
+          title: "Camera Error",
+          description: "Failed to capture photo",
+          variant: "destructive",
+        });
+      } finally {
+        setIsProcessing(false);
+      }
+      return;
+    }
+
+    // Web camera fallback
     if (!videoRef.current || !canvasRef.current) return;
 
     const canvas = canvasRef.current;
@@ -131,28 +154,30 @@ export const CameraCapture = ({ open, onClose, onCapture, customerName }: Camera
         </DialogHeader>
         
         <div className="space-y-4">
-          <div className="relative aspect-[9/16] bg-black rounded-lg overflow-hidden">
-            {!capturedImage ? (
-              <>
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
+          {!isNativeSupported && (
+            <div className="relative aspect-[9/16] bg-black rounded-lg overflow-hidden">
+              {!capturedImage ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                  <canvas ref={canvasRef} className="hidden" />
+                </>
+              ) : (
+                <img
+                  src={capturedImage}
+                  alt="Captured photo"
                   className="w-full h-full object-cover"
                 />
-                <canvas ref={canvasRef} className="hidden" />
-              </>
-            ) : (
-              <img
-                src={capturedImage}
-                alt="Captured photo"
-                className="w-full h-full object-cover"
-              />
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-3 justify-center">
-            {!capturedImage ? (
+            {!capturedImage && !isNativeSupported ? (
               <>
                 <Button
                   variant="outline"
@@ -171,6 +196,22 @@ export const CameraCapture = ({ open, onClose, onCapture, customerName }: Camera
                   Take Photo
                 </Button>
               </>
+            ) : isNativeSupported ? (
+              <Button
+                size="lg"
+                onClick={capturePhoto}
+                disabled={isProcessing}
+                className="flex-1"
+              >
+                {isProcessing ? (
+                  "Processing..."
+                ) : (
+                  <>
+                    <Camera className="mr-2 h-5 w-5" />
+                    Open Camera
+                  </>
+                )}
+              </Button>
             ) : (
               <>
                 <Button

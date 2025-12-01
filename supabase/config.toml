@@ -50,3 +50,18 @@ verify_jwt = false
 
 [functions.create-terminal-payment-intent]
 verify_jwt = true
+
+[functions.get-portal-visual-history]
+verify_jwt = false
+
+[functions.send-portal-otp]
+verify_jwt = false
+
+[functions.verify-portal-otp]
+verify_jwt = false
+
+[functions.validate-portal-session]
+verify_jwt = false
+
+[functions.get-portal-appointments]
+verify_jwt = false

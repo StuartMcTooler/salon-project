@@ -17,40 +17,21 @@ export const PortalVisualHistory = ({ clientId }: PortalVisualHistoryProps) => {
   const { data: historyItems, isLoading } = useQuery({
     queryKey: ["visual-history", clientId],
     queryFn: async () => {
-      // Get lookbook items for this client (shared or public visibility)
-      const { data: lookbooks, error } = await supabase
-        .from("creative_lookbooks")
-        .select(`
-          *,
-          content:client_content(*),
-          service:services(name)
-        `)
-        .eq("client_id", clientId)
-        .in("visibility_scope", ["shared", "public"])
-        .order("added_at", { ascending: false });
+      const sessionToken = localStorage.getItem("portal_session_token");
+      
+      if (!sessionToken) {
+        throw new Error("No session token found");
+      }
+
+      // Call secure edge function to fetch visual history
+      const { data, error } = await supabase.functions.invoke("get-portal-visual-history", {
+        body: { sessionToken },
+      });
 
       if (error) throw error;
+      if (!data?.success) throw new Error("Failed to fetch visual history");
 
-      // Fetch signed URLs for each image
-      const itemsWithUrls = await Promise.all(
-        (lookbooks || []).map(async (item: any) => {
-          const path = item.content.enhanced_file_path || item.content.raw_file_path;
-          const bucket = item.content.enhanced_file_path
-            ? "client-content-enhanced"
-            : "client-content-raw";
-
-          const { data: urlData } = await supabase.storage
-            .from(bucket)
-            .createSignedUrl(path, 3600);
-
-          return {
-            ...item,
-            imageUrl: urlData?.signedUrl || null,
-          };
-        })
-      );
-
-      return itemsWithUrls;
+      return data.items || [];
     },
   });
 

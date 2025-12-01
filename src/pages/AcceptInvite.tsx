@@ -140,7 +140,7 @@ export default function AcceptInvite() {
       });
 
       setTimeout(() => {
-        navigate("/dashboard");
+        navigate("/my-profile");
       }, 1500);
     } catch (error: any) {
       console.error("Error accepting invite:", error);

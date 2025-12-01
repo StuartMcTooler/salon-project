@@ -1,6 +1,10 @@
 // Temporary type definitions until auto-generated types update
 // These match the database schema for the new tables
 
+// Type extension for booking_type_enum with 'block' (Time Blocking feature)
+// Once enum is added to database, this will match the auto-generated types
+export type BookingTypeWithBlock = 'direct' | 'cover' | 'referral_network' | 'block';
+
 export interface ContentRequest {
   id: string;
   appointment_id: string;

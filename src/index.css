@@ -158,3 +158,20 @@ All colors MUST be HSL.
     border-color: hsl(var(--border));
   }
 }
+
+/* Time Block Styling - Grey with diagonal stripes */
+.time-block {
+  background: repeating-linear-gradient(
+    45deg,
+    rgb(156, 163, 175),
+    rgb(156, 163, 175) 4px,
+    rgb(209, 213, 219) 4px,
+    rgb(209, 213, 219) 8px
+  ) !important;
+  color: rgb(75, 85, 99) !important;
+  border-left: 4px solid rgb(107, 114, 128) !important;
+}
+
+.time-block:hover {
+  opacity: 0.9;
+}

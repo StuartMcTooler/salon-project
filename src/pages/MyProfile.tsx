@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, User, Image } from "lucide-react";
+import { ArrowLeft, User, Image, Settings } from "lucide-react";
 import { ProfilePictureSettings } from "@/components/dashboard/ProfilePictureSettings";
 import { ContentHub } from "@/components/dashboard/ContentHub";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { BookingLinkCard } from "@/components/profile/BookingLinkCard";
 import { ProfileCompletionCard } from "@/components/profile/ProfileCompletionCard";
+import { StaffTerminalSettings } from "@/components/profile/StaffTerminalSettings";
 
 const MyProfile = () => {
   const navigate = useNavigate();
@@ -127,14 +128,18 @@ const MyProfile = () => {
 
       <div className="max-w-6xl mx-auto p-6">
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-2 mb-6">
+          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3 mb-6">
             <TabsTrigger value="profile" className="gap-2">
               <User className="h-4 w-4" />
               Profile
             </TabsTrigger>
             <TabsTrigger value="content" className="gap-2">
               <Image className="h-4 w-4" />
-              Content Hub
+              Content
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-2">
+              <Settings className="h-4 w-4" />
+              Settings
             </TabsTrigger>
           </TabsList>
 
@@ -196,6 +201,10 @@ const MyProfile = () => {
 
           <TabsContent value="content">
             <ContentHub staffId={staffMember.id} />
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-6">
+            <StaffTerminalSettings staffId={staffMember.id} />
           </TabsContent>
         </Tabs>
       </div>

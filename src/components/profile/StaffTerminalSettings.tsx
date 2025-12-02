@@ -1,0 +1,316 @@
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Smartphone, Bluetooth, Loader2, CheckCircle, Search, CreditCard } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { usePlatform } from '@/hooks/usePlatform';
+import { useTerminalPayment } from '@/hooks/useTerminalPayment';
+
+interface StaffTerminalSettingsProps {
+  staffId: string;
+}
+
+export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) => {
+  const { toast } = useToast();
+  const { isNative, canUseTapToPay, canUseBluetoothReader } = usePlatform();
+  const { discoverReaders, connectReader, discoveredReaders, connectedReader, isProcessing } = useTerminalPayment();
+  
+  const [connectionType, setConnectionType] = useState<'tap_to_pay' | 'bluetooth'>('tap_to_pay');
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [existingSettings, setExistingSettings] = useState<any>(null);
+  const [isDiscovering, setIsDiscovering] = useState(false);
+
+  useEffect(() => {
+    loadSettings();
+  }, [staffId]);
+
+  const loadSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('terminal_settings')
+        .select('*')
+        .eq('staff_id', staffId)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setExistingSettings(data);
+        setConnectionType(data.connection_type as 'tap_to_pay' | 'bluetooth' || 'tap_to_pay');
+      }
+    } catch (error) {
+      console.error('Error loading terminal settings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const settingsData = {
+        staff_id: staffId,
+        connection_type: connectionType,
+        reader_id: connectionType === 'bluetooth' && connectedReader ? connectedReader.serialNumber : null,
+        reader_name: connectionType === 'bluetooth' && connectedReader ? (connectedReader.label || 'Bluetooth Reader') : null,
+        is_active: true,
+      };
+
+      if (existingSettings) {
+        const { error } = await supabase
+          .from('terminal_settings')
+          .update(settingsData)
+          .eq('id', existingSettings.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('terminal_settings')
+          .insert(settingsData);
+        if (error) throw error;
+      }
+
+      toast({
+        title: "Settings saved",
+        description: `${connectionType === 'tap_to_pay' ? 'Tap to Pay' : 'Bluetooth Reader'} configured successfully`,
+      });
+
+      loadSettings();
+    } catch (error: any) {
+      console.error('Error saving terminal settings:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save settings",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleScanReaders = async () => {
+    setIsDiscovering(true);
+    try {
+      await discoverReaders('bluetooth');
+    } catch (error) {
+      console.error('Error discovering readers:', error);
+      toast({
+        title: "Scan failed",
+        description: "Could not find nearby readers. Make sure Bluetooth is enabled.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
+
+  const handleConnectReader = async (reader: any) => {
+    try {
+      await connectReader(reader);
+      toast({
+        title: "Reader connected",
+        description: `Connected to ${reader.label || reader.serialNumber}`,
+      });
+    } catch (error) {
+      console.error('Error connecting reader:', error);
+      toast({
+        title: "Connection failed",
+        description: "Could not connect to the reader",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Terminal & Hardware
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Web users see a different message
+  if (!isNative) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Terminal & Hardware
+          </CardTitle>
+          <CardDescription>
+            Configure your personal card reader
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-6 space-y-3">
+            <Smartphone className="h-12 w-12 mx-auto text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              Terminal settings are configured in the native app.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Download the app to use Tap to Pay or connect a Bluetooth reader.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <CreditCard className="h-5 w-5" />
+          Terminal & Hardware
+        </CardTitle>
+        <CardDescription>
+          Choose how you accept card payments
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <RadioGroup 
+          value={connectionType} 
+          onValueChange={(v) => setConnectionType(v as 'tap_to_pay' | 'bluetooth')}
+          className="space-y-3"
+        >
+          {/* Tap to Pay Option */}
+          {canUseTapToPay && (
+            <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+              <RadioGroupItem value="tap_to_pay" id="tap_to_pay" className="mt-1" />
+              <Label htmlFor="tap_to_pay" className="flex-1 cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="h-5 w-5 text-primary" />
+                  <span className="font-medium">Tap to Pay on Android</span>
+                  <Badge variant="secondary" className="text-xs">Recommended</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Accept contactless payments directly on your phone. No hardware needed.
+                </p>
+              </Label>
+            </div>
+          )}
+
+          {/* Bluetooth Reader Option */}
+          {canUseBluetoothReader && (
+            <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+              <RadioGroupItem value="bluetooth" id="bluetooth" className="mt-1" />
+              <Label htmlFor="bluetooth" className="flex-1 cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <Bluetooth className="h-5 w-5 text-blue-500" />
+                  <span className="font-medium">Bluetooth Reader</span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Connect a portable Stripe reader (BBPOS, Chipper, etc.)
+                </p>
+              </Label>
+            </div>
+          )}
+        </RadioGroup>
+
+        {/* Bluetooth Reader Discovery */}
+        {connectionType === 'bluetooth' && (
+          <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium text-sm">Pair Bluetooth Reader</h4>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleScanReaders}
+                disabled={isDiscovering}
+              >
+                {isDiscovering ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Scanning...
+                  </>
+                ) : (
+                  <>
+                    <Search className="h-4 w-4 mr-2" />
+                    Scan for Readers
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {discoveredReaders.length > 0 ? (
+              <div className="space-y-2">
+                {discoveredReaders.map((reader) => (
+                  <div 
+                    key={reader.id || reader.serialNumber}
+                    className="flex items-center justify-between p-3 bg-background rounded-md border"
+                  >
+                    <div>
+                      <p className="font-medium text-sm">{reader.label || 'Stripe Reader'}</p>
+                      <p className="text-xs text-muted-foreground">{reader.serialNumber}</p>
+                    </div>
+                    {connectedReader?.serialNumber === reader.serialNumber ? (
+                      <Badge className="bg-green-500">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Connected
+                      </Badge>
+                    ) : (
+                      <Button 
+                        size="sm" 
+                        variant="secondary"
+                        onClick={() => handleConnectReader(reader)}
+                        disabled={isProcessing}
+                      >
+                        Connect
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                {isDiscovering ? 'Looking for nearby readers...' : 'No readers found. Tap "Scan for Readers" to search.'}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Current Status */}
+        {existingSettings && (
+          <div className="flex items-center gap-2 text-sm">
+            <CheckCircle className="h-4 w-4 text-green-500" />
+            <span className="text-muted-foreground">
+              Currently using: {existingSettings.connection_type === 'tap_to_pay' ? 'Tap to Pay' : `Bluetooth (${existingSettings.reader_name || 'Reader'})`}
+            </span>
+          </div>
+        )}
+
+        {/* Save Button */}
+        <Button 
+          onClick={handleSave} 
+          disabled={saving || (connectionType === 'bluetooth' && !connectedReader && !existingSettings?.reader_id)}
+          className="w-full"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            'Save Terminal Settings'
+          )}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};

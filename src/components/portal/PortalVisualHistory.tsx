@@ -36,7 +36,6 @@ export const PortalVisualHistory = ({ clientId }: PortalVisualHistoryProps) => {
 
       return data.items || [];
     },
-    enabled: !!clientId, // Only run when clientId is available
     retry: false, // Don't retry on error - show issue immediately
     staleTime: 0, // Always consider data stale
     refetchOnMount: 'always', // Always refetch when component mounts

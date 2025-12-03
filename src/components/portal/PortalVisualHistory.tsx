@@ -118,7 +118,10 @@ export const PortalVisualHistory = ({ clientId }: PortalVisualHistoryProps) => {
                 <img
                   src={item.imageUrl}
                   alt="Visual history"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover opacity-0 transition-opacity duration-300"
+                  loading="lazy"
+                  decoding="async"
+                  onLoad={(e) => e.currentTarget.classList.replace('opacity-0', 'opacity-100')}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">

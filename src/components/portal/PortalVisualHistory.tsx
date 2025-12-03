@@ -14,25 +14,32 @@ interface PortalVisualHistoryProps {
 export const PortalVisualHistory = ({ clientId }: PortalVisualHistoryProps) => {
   const [selectedImage, setSelectedImage] = useState<any>(null);
   
-  const { data: historyItems, isLoading } = useQuery({
+  const { data: historyItems, isLoading, error } = useQuery({
     queryKey: ["visual-history", clientId],
     queryFn: async () => {
       const sessionToken = localStorage.getItem("portal_session_token");
+      console.log('Visual history: session token exists:', !!sessionToken);
+      console.log('Visual history: clientId:', clientId);
       
       if (!sessionToken) {
         throw new Error("No session token found");
       }
 
-      // Call secure edge function to fetch visual history
       const { data, error } = await supabase.functions.invoke("get-portal-visual-history", {
         body: { sessionToken },
       });
 
+      console.log('Visual history response:', { data, error });
+
       if (error) throw error;
-      if (!data?.success) throw new Error("Failed to fetch visual history");
+      if (!data?.success) throw new Error(data?.error || "Failed to fetch visual history");
 
       return data.items || [];
     },
+    enabled: !!clientId, // Only run when clientId is available
+    retry: false, // Don't retry on error - show issue immediately
+    staleTime: 0, // Always consider data stale
+    refetchOnMount: 'always', // Always refetch when component mounts
   });
 
   if (isLoading) {
@@ -50,6 +57,23 @@ export const PortalVisualHistory = ({ clientId }: PortalVisualHistoryProps) => {
               <Skeleton key={i} className="aspect-square rounded-lg" />
             ))}
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Image className="h-5 w-5" />
+            My Visual History
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-center py-8">
+          <p className="text-destructive font-medium">Error loading visual history</p>
+          <p className="text-sm text-muted-foreground mt-2">{(error as Error).message}</p>
         </CardContent>
       </Card>
     );

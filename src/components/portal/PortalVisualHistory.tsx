@@ -2,17 +2,21 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Image, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Image, Loader2, Share2, Download } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useState } from "react";
+import { toast } from "sonner";
 
 interface PortalVisualHistoryProps {
   clientId: string;
+  clientPhone: string;
 }
 
-export const PortalVisualHistory = ({ clientId }: PortalVisualHistoryProps) => {
+export const PortalVisualHistory = ({ clientId, clientPhone }: PortalVisualHistoryProps) => {
   const [selectedImage, setSelectedImage] = useState<any>(null);
+  const [isSharing, setIsSharing] = useState(false);
   
   const { data: historyItems, isLoading, error } = useQuery({
     queryKey: ["visual-history", clientId],
@@ -36,10 +40,87 @@ export const PortalVisualHistory = ({ clientId }: PortalVisualHistoryProps) => {
 
       return data.items || [];
     },
-    retry: false, // Don't retry on error - show issue immediately
-    staleTime: 0, // Always consider data stale
-    refetchOnMount: 'always', // Always refetch when component mounts
+    retry: false,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
+
+  const generateReferralLink = () => {
+    const encodedPhone = encodeURIComponent(clientPhone);
+    const baseUrl = window.location.origin;
+    // Use creative's staff ID for booking link if available
+    if (selectedImage?.creative?.id) {
+      return `${baseUrl}/book/${selectedImage.creative.id}?ref=${encodedPhone}`;
+    }
+    return `${baseUrl}/discover?ref=${encodedPhone}`;
+  };
+
+  const shareToSocial = async () => {
+    if (!selectedImage) return;
+    
+    setIsSharing(true);
+    
+    try {
+      const creativeName = selectedImage.creative?.display_name || 'my stylist';
+      const referralLink = generateReferralLink();
+      const caption = `Fresh look by @${creativeName}! 🚀\n\nBook yours here: ${referralLink}`;
+      
+      // Copy caption to clipboard first
+      await navigator.clipboard.writeText(caption);
+      toast.success("Caption copied to clipboard!");
+
+      // Try Web Share API with image
+      if (navigator.share && selectedImage.imageUrl) {
+        try {
+          // Fetch the image and create a file
+          const response = await fetch(selectedImage.imageUrl);
+          const blob = await response.blob();
+          const file = new File([blob], 'my-look.jpg', { type: blob.type });
+          
+          await navigator.share({
+            title: `Fresh look by @${creativeName}!`,
+            text: caption,
+            files: [file],
+          });
+          toast.success("Shared successfully!");
+        } catch (shareError: any) {
+          // If share fails (e.g., user cancels), just keep the copied caption
+          if (shareError.name !== 'AbortError') {
+            console.log('Web Share failed, caption already copied');
+          }
+        }
+      } else {
+        // Fallback: Download image
+        await downloadPhoto();
+        toast.success("Image downloaded! Caption copied to clipboard - paste it with your post.");
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      toast.error("Failed to share. Please try again.");
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const downloadPhoto = async () => {
+    if (!selectedImage?.imageUrl) return;
+    
+    try {
+      const response = await fetch(selectedImage.imageUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `my-look-${format(new Date(selectedImage.added_at), 'yyyy-MM-dd')}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error("Failed to download image");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -153,12 +234,41 @@ export const PortalVisualHistory = ({ clientId }: PortalVisualHistoryProps) => {
                 className="w-full rounded-lg"
               />
               <div className="text-center space-y-1">
+                {selectedImage.creative?.display_name && (
+                  <p className="text-sm text-muted-foreground">
+                    by {selectedImage.creative.display_name}
+                  </p>
+                )}
                 {selectedImage.service && (
                   <p className="font-medium">{selectedImage.service.name}</p>
                 )}
                 <p className="text-sm text-muted-foreground">
                   {format(new Date(selectedImage.added_at), "MMMM d, yyyy")}
                 </p>
+              </div>
+              
+              {/* Share Actions */}
+              <div className="flex gap-3 pt-2">
+                <Button 
+                  className="flex-1" 
+                  onClick={shareToSocial}
+                  disabled={isSharing}
+                >
+                  {isSharing ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Share2 className="h-4 w-4 mr-2" />
+                  )}
+                  Share this look & earn €10 for every friend who books!
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={downloadPhoto}
+                  title="Download photo"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           )}

@@ -297,45 +297,22 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
     checkOverflow();
   }, [date, service, staff.id, availableSlots.length]);
 
-  // Load referral discount
+  // Load referral discount - Fixed €10 credit
   useEffect(() => {
-    const loadDiscount = async () => {
-      if (!referralCode || discountApplied) return;
+    if (!referralCode || discountApplied) return;
 
-      try {
-        // Fetch business or staff discount settings
-        const { data: businessData } = await supabase
-          .from("business_accounts")
-          .select("referral_discount_type, referral_discount_value")
-          .eq("id", businessId)
-          .single();
+    // Fixed €10 discount for all new customer referrals
+    const CLIENT_REFERRAL_DISCOUNT_AMOUNT = 10;
+    const discount = CLIENT_REFERRAL_DISCOUNT_AMOUNT;
+    const newPrice = Math.max(0, pricing.custom_price - discount);
+    setFinalPrice(newPrice);
+    setDiscountApplied(true);
 
-        if (businessData) {
-          const { referral_discount_type, referral_discount_value } = businessData;
-          
-          let discount = 0;
-          if (referral_discount_type === 'percentage') {
-            discount = (pricing.custom_price * referral_discount_value) / 100;
-          } else {
-            discount = referral_discount_value;
-          }
-
-          const newPrice = Math.max(0, pricing.custom_price - discount);
-          setFinalPrice(newPrice);
-          setDiscountApplied(true);
-
-          toast({
-            title: "Referral discount applied!",
-            description: `You saved €${discount.toFixed(2)}`,
-          });
-        }
-      } catch (error) {
-        console.error("Error loading discount:", error);
-      }
-    };
-
-    loadDiscount();
-  }, [referralCode, businessId, pricing.custom_price, discountApplied, toast]);
+    toast({
+      title: "Referral discount applied!",
+      description: `You saved €${discount.toFixed(2)}`,
+    });
+  }, [referralCode, pricing.custom_price, discountApplied, toast]);
 
   // Pre-fill customer info if logged in or from portal
   useEffect(() => {

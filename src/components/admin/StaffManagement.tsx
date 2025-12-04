@@ -90,13 +90,42 @@ export function StaffManagement() {
     }
   };
 
+  // Format phone number to E.164 format (Irish numbers)
+  const formatPhoneToE164 = (phone: string | null): string | null => {
+    if (!phone) return null;
+    
+    // Remove all non-digit characters
+    const digits = phone.replace(/\D/g, '');
+    
+    // Irish mobile numbers starting with 08x -> +353
+    if (digits.startsWith('08') && digits.length === 10) {
+      return '+353' + digits.substring(1);
+    }
+    
+    // Already has country code (starts with 353)
+    if (digits.startsWith('353') && digits.length === 12) {
+      return '+' + digits;
+    }
+    
+    // Already in E.164 format
+    if (phone.startsWith('+')) {
+      return phone;
+    }
+    
+    // Return as-is if we can't determine the format
+    return phone;
+  };
+
   const handleSave = async (formData: FormData) => {
     try {
+      const rawPhone = formData.get("phone") as string || null;
+      const formattedPhone = formatPhoneToE164(rawPhone);
+      
       const staffData = {
         full_name: formData.get("full_name") as string,
         display_name: formData.get("display_name") as string,
         email: formData.get("email") as string || null,
-        phone: formData.get("phone") as string || null,
+        phone: formattedPhone,
         bio: formData.get("bio") as string || null,
         skill_level: formData.get("skill_level") as string || null,
         commission_rate: parseFloat(formData.get("commission_rate") as string) || 0,
@@ -114,9 +143,13 @@ export function StaffManagement() {
         if (error) throw error;
         toast.success("Staff member updated");
       } else {
+        // Auto-link new staff to the admin's business
         const { error } = await supabase
           .from("staff_members")
-          .insert(staffData);
+          .insert({
+            ...staffData,
+            business_id: businessId,
+          });
 
         if (error) throw error;
         toast.success("Staff member added");

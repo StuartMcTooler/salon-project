@@ -98,6 +98,10 @@ Deno.serve(async (req) => {
         service:services(
           id,
           name
+        ),
+        creative:staff_members(
+          id,
+          display_name
         )
       `)
       .eq('client_id', session.client_id)

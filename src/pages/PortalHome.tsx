@@ -101,7 +101,7 @@ const PortalHome = () => {
         </div>
 
         {/* Visual History */}
-        <PortalVisualHistory clientId={client.id} />
+        <PortalVisualHistory clientId={client.id} clientPhone={client.phone} />
       </main>
     </div>
   );

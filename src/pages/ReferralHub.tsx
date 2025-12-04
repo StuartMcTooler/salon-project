@@ -89,7 +89,7 @@ export default function ReferralHub() {
             <div>
               <h1 className="text-2xl font-bold">Referral Hub</h1>
               <p className="text-sm text-muted-foreground">
-                Monetize your overflow and grow your network
+                Unlock Pro status and grow your passive income
               </p>
             </div>
           </div>
@@ -98,15 +98,15 @@ export default function ReferralHub() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             {isSoloProfessional && (
               <TabsTrigger value="customer-codes">Customer Codes</TabsTrigger>
             )}
             {isSoloProfessional && (
-              <TabsTrigger value="client-network">Client Network</TabsTrigger>
+              <TabsTrigger value="client-network">Smart Waitlist</TabsTrigger>
             )}
-            <TabsTrigger value="pro-invites">Pro Invites</TabsTrigger>
+            <TabsTrigger value="pro-invites">Founder's Circle</TabsTrigger>
             <TabsTrigger value="earnings">Earnings</TabsTrigger>
           </TabsList>
 

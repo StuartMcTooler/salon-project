@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Image, Loader2, Share2, Download } from "lucide-react";
+import { Image, Loader2, Share2, Download, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useState } from "react";
@@ -67,7 +67,10 @@ export const PortalVisualHistory = ({ clientId, clientPhone }: PortalVisualHisto
       
       // Copy caption to clipboard first
       await navigator.clipboard.writeText(caption);
-      toast.success("Caption copied to clipboard!");
+      toast.success("Caption copied! Paste it in your message 📋");
+
+      // Brief pause so user sees the instruction
+      await new Promise(resolve => setTimeout(resolve, 800));
 
       // Try Web Share API with image
       if (navigator.share && selectedImage.imageUrl) {
@@ -92,7 +95,7 @@ export const PortalVisualHistory = ({ clientId, clientPhone }: PortalVisualHisto
       } else {
         // Fallback: Download image
         await downloadPhoto();
-        toast.success("Image downloaded! Caption copied to clipboard - paste it with your post.");
+        toast.success("Image downloaded! Paste caption with your post.");
       }
     } catch (error) {
       console.error('Share error:', error);
@@ -100,6 +103,17 @@ export const PortalVisualHistory = ({ clientId, clientPhone }: PortalVisualHisto
     } finally {
       setIsSharing(false);
     }
+  };
+
+  const copyCaption = async () => {
+    if (!selectedImage) return;
+    
+    const creativeName = selectedImage.creative?.display_name || 'my stylist';
+    const referralLink = generateReferralLink();
+    const caption = `Fresh look by @${creativeName}! 🚀\n\nBook yours here: ${referralLink}`;
+    
+    await navigator.clipboard.writeText(caption);
+    toast.success("Caption & link copied! 📋");
   };
 
   const downloadPhoto = async () => {
@@ -248,9 +262,9 @@ export const PortalVisualHistory = ({ clientId, clientPhone }: PortalVisualHisto
               </div>
               
               {/* Share Actions */}
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-col gap-2 pt-2">
                 <Button 
-                  className="flex-1" 
+                  className="w-full" 
                   onClick={shareToSocial}
                   disabled={isSharing}
                 >
@@ -261,14 +275,24 @@ export const PortalVisualHistory = ({ clientId, clientPhone }: PortalVisualHisto
                   )}
                   Share this look & earn €10 for every friend who books!
                 </Button>
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  onClick={downloadPhoto}
-                  title="Download photo"
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={copyCaption}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy caption & link
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    onClick={downloadPhoto}
+                    title="Download photo"
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           )}

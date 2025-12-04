@@ -73,11 +73,31 @@ export const PaymentMethodSelector = ({
     });
   };
 
+  // TEST MODE: Set to false to enable actual terminal processing
+  const TEST_MODE = true;
+
   const handleCardReaderPayment = async () => {
     setLoading(true);
     setPaymentMethod("card_reader");
 
     try {
+      if (TEST_MODE) {
+        // TEST MODE: Skip terminal processing, just record as card payment
+        const { error } = await supabase
+          .from('salon_appointments')
+          .update({ 
+            payment_status: 'paid', 
+            payment_method: 'card_present', 
+            status: 'completed' 
+          })
+          .eq('id', appointmentId);
+        if (error) throw error;
+        toast.success('Card payment recorded (Test Mode)');
+        onPaymentComplete();
+        return;
+      }
+
+      // PRODUCTION MODE: Actual terminal processing
       if (!businessId) throw new Error('No business configured for this staff.');
 
       const { data: terminalData, error: termErr } = await supabase

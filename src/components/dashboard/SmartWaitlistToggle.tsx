@@ -40,10 +40,10 @@ export const SmartWaitlistToggle = ({ staffId }: SmartWaitlistToggleProps) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff-referral-status', staffId] });
       toast({
-        title: "Status updated",
+        title: "Smart Waitlist updated",
         description: staff?.is_accepting_referrals 
-          ? "You are no longer accepting referrals" 
-          : "You are now accepting referrals",
+          ? "Colleagues will no longer refer overflow clients to you" 
+          : "You are now accepting overflow clients from your network",
       });
     },
   });
@@ -54,9 +54,11 @@ export const SmartWaitlistToggle = ({ staffId }: SmartWaitlistToggleProps) => {
     <Card className="p-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="font-semibold">Referral Status</p>
+          <p className="font-semibold">Smart Waitlist</p>
           <p className="text-sm text-muted-foreground">
-            {isReceiving ? 'Accepting new referrals' : 'Currently unavailable'}
+            {isReceiving 
+              ? 'You are accepting overflow clients from your network.' 
+              : "Colleagues won't refer overflow clients to you."}
           </p>
         </div>
         <Switch 

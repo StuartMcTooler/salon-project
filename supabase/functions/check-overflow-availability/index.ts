@@ -35,21 +35,27 @@ serve(async (req) => {
     if (staff.simulate_fully_booked) {
       console.log(`[OVERFLOW] Test mode enabled for staff ${staffId}`);
       
-      // Get trusted network
+      // Get trusted network with is_accepting_referrals status
       const { data: trustedColleagues } = await supabaseClient
         .from("trusted_network")
         .select(`
           colleague_creative_id,
           staff_members!colleague_creative_id (
-            id, full_name, display_name, profile_image_url, email
+            id, full_name, display_name, profile_image_url, email, is_accepting_referrals
           )
         `)
         .eq("alpha_creative_id", staffId);
 
+      // Filter to only colleagues accepting overflow (honor creative autonomy)
+      const acceptingColleagues = (trustedColleagues || []).filter(
+        (c: any) => c.staff_members?.is_accepting_referrals !== false
+      );
+      console.log(`[OVERFLOW] Found ${acceptingColleagues.length} accepting colleagues out of ${trustedColleagues?.length || 0} total`);
+
       const coverOptions = [];
       const dayOfWeek = new Date(date).getDay();
       
-      for (const colleague of trustedColleagues || []) {
+      for (const colleague of acceptingColleagues) {
         // Check colleague availability
         const { data: colleagueAppointments } = await supabaseClient
           .from("salon_appointments")
@@ -162,14 +168,20 @@ serve(async (req) => {
       .select(`
         colleague_creative_id,
         staff_members!colleague_creative_id (
-          id, full_name, display_name, profile_image_url, email
+          id, full_name, display_name, profile_image_url, email, is_accepting_referrals
         )
       `)
       .eq("alpha_creative_id", staffId);
 
+    // Filter to only colleagues accepting overflow (honor creative autonomy)
+    const acceptingColleagues = (trustedColleagues || []).filter(
+      (c: any) => c.staff_members?.is_accepting_referrals !== false
+    );
+    console.log(`[OVERFLOW] ${acceptingColleagues.length} colleagues accepting overflow out of ${trustedColleagues?.length || 0} total`);
+
     const coverOptions = [];
 
-    for (const colleague of trustedColleagues || []) {
+    for (const colleague of acceptingColleagues) {
       // Critical: Exclude time blocks from colleague availability (don't trigger Cover for lunch)
       const { data: colleagueAppointments } = await supabaseClient
         .from("salon_appointments")

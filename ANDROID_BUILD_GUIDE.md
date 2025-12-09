@@ -67,7 +67,64 @@ npx cap add android
 
 This creates the `android/` folder with native project files.
 
-### Step 5: Build the Web App
+### Step 5: Configure Android for Stripe Terminal (CRITICAL)
+
+After adding Android, you **MUST** make these changes for Stripe Terminal (Tap to Pay) to work:
+
+#### 5a. Update `android/variables.gradle`
+
+Open `android/variables.gradle` and update to these values:
+
+```gradle
+ext {
+    minSdkVersion = 30
+    compileSdkVersion = 34
+    targetSdkVersion = 34
+    androidxActivityVersion = '1.8.0'
+    androidxAppCompatVersion = '1.6.1'
+    androidxCoordinatorLayoutVersion = '1.2.0'
+    androidxCoreVersion = '1.12.0'
+    androidxFragmentVersion = '1.6.2'
+    coreSplashScreenVersion = '1.0.1'
+    androidxWebkitVersion = '1.9.0'
+    junitVersion = '4.13.2'
+    androidxJunitVersion = '1.1.5'
+    androidxEspressoCoreVersion = '3.5.1'
+    cordovaAndroidVersion = '10.1.1'
+    kotlin_version = '1.9.22'
+}
+```
+
+**Important:** `minSdkVersion = 30` is required by Stripe Terminal SDK.
+
+#### 5b. Update `android/app/build.gradle`
+
+Add `packagingOptions` inside the `android { }` block:
+
+```gradle
+android {
+    // ... existing configuration ...
+
+    packagingOptions {
+        resources.excludes.add("org/bouncycastle/x509/*")
+    }
+}
+```
+
+#### 5c. Add Permissions to `android/app/src/main/AndroidManifest.xml`
+
+Add these permissions inside the `<manifest>` tag (before `<application>`):
+
+```xml
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+<uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+<uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+```
+
+### Step 6: Build the Web App
 
 ```bash
 npm run build
@@ -75,7 +132,7 @@ npm run build
 
 This compiles your React app into the `dist/` folder.
 
-### Step 6: Sync to Native Platform
+### Step 7: Sync to Native Platform
 
 ```bash
 npx cap sync android
@@ -83,7 +140,7 @@ npx cap sync android
 
 This copies the web build to the Android project and updates native dependencies.
 
-### Step 7: Open in Android Studio
+### Step 8: Open in Android Studio
 
 ```bash
 npx cap open android
@@ -91,11 +148,11 @@ npx cap open android
 
 This opens the Android project in Android Studio.
 
-### Step 8: Run the App
+### Step 9: Run the App
 
 **Option A: Run on Emulator**
 1. In Android Studio, click **Device Manager** (phone icon in toolbar)
-2. Create a new Virtual Device (Pixel 7 recommended)
+2. Create a new Virtual Device (Pixel 7 recommended, **API 30+**)
 3. Click the **Run** button (green play icon)
 
 **Option B: Run on Physical Device**
@@ -160,6 +217,22 @@ cd ..
 npx cap sync android
 ```
 
+### Stripe Terminal / Tap to Pay build errors
+
+If you get errors related to Stripe Terminal:
+
+1. **Verify minSdkVersion is 30** in `android/variables.gradle`
+2. **Verify compileSdkVersion is 34** in `android/variables.gradle`
+3. **Verify packagingOptions** is added to `android/app/build.gradle`
+4. **Verify Kotlin version** is `1.9.22` or higher
+5. Clean and rebuild:
+   ```bash
+   cd android
+   ./gradlew clean
+   cd ..
+   npx cap sync android
+   ```
+
 ### App crashes on launch
 - Check Android Studio's **Logcat** for error messages
 - Ensure all environment variables are set
@@ -167,8 +240,22 @@ npx cap sync android
 
 ---
 
+## Stripe Terminal Requirements Summary
+
+| Setting | Required Value | File |
+|---------|----------------|------|
+| minSdkVersion | 30 | `android/variables.gradle` |
+| compileSdkVersion | 34 | `android/variables.gradle` |
+| targetSdkVersion | 34 | `android/variables.gradle` |
+| kotlin_version | 1.9.22+ | `android/variables.gradle` |
+| packagingOptions | See above | `android/app/build.gradle` |
+| Permissions | Location + Bluetooth | `AndroidManifest.xml` |
+
+---
+
 ## Need Help?
 
 - [Capacitor Documentation](https://capacitorjs.com/docs)
 - [Android Studio User Guide](https://developer.android.com/studio/intro)
+- [Stripe Terminal Android Docs](https://stripe.com/docs/terminal/payments/setup-integration?terminal-sdk-platform=android)
 - Ask in the project Lovable chat

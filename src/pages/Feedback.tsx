@@ -16,6 +16,7 @@ import { VoiceRecorder } from "@/components/feedback/VoiceRecorder";
 const Feedback = () => {
   const [searchParams] = useSearchParams();
   const appointmentId = searchParams.get('appointment');
+  const staffIdParam = searchParams.get('staff');
   
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -26,7 +27,28 @@ const Feedback = () => {
   const [showReferralModal, setShowReferralModal] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState("");
   const [submittedPhone, setSubmittedPhone] = useState("");
-  const [staffId, setStaffId] = useState<string | undefined>(undefined);
+  const [staffId, setStaffId] = useState<string | undefined>(staffIdParam || undefined);
+
+  // Check if we have valid context (either appointment or staff)
+  const hasValidContext = !!(appointmentId || staffIdParam);
+
+  // Load staff details if staff ID is provided directly
+  const { data: staffMember } = useQuery({
+    queryKey: ['staff-for-feedback', staffIdParam],
+    queryFn: async () => {
+      if (!staffIdParam) return null;
+      
+      const { data, error } = await supabase
+        .from('staff_members')
+        .select('id, display_name')
+        .eq('id', staffIdParam)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!staffIdParam && !appointmentId,
+  });
 
   // Load appointment details if ID is provided
   const { data: appointment } = useQuery({
@@ -36,7 +58,7 @@ const Feedback = () => {
       
       const { data, error } = await supabase
         .from('salon_appointments')
-        .select('customer_name, customer_email, customer_phone, service_name, staff_id')
+        .select('customer_name, customer_email, customer_phone, service_name, staff_id, staff_members!staff_id(display_name)')
         .eq('id', appointmentId)
         .single();
 
@@ -52,7 +74,7 @@ const Feedback = () => {
       setName(appointment.customer_name || "");
       setEmail(appointment.customer_email || "");
       setPhone(appointment.customer_phone || "");
-      setStaffId(appointment.staff_id);
+      setStaffId(appointment.staff_id || undefined);
     }
   }, [appointment]);
 
@@ -149,13 +171,46 @@ const Feedback = () => {
 
   const canSubmit = name && starRating > 0;
 
+  // Get the display name for the header
+  const creativeDisplayName = appointment?.staff_members?.display_name || staffMember?.display_name;
+
+  // Show error state if no valid context
+  if (!hasValidContext) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-accent/10 to-background">
+        <header className="border-b bg-card/50 backdrop-blur-sm">
+          <div className="container mx-auto px-4 py-4">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <MessageSquare className="h-6 w-6 text-primary" />
+              Customer Feedback
+            </h1>
+          </div>
+        </header>
+
+        <main className="container mx-auto px-4 py-12">
+          <div className="max-w-2xl mx-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle>Invalid Feedback Link</CardTitle>
+                <CardDescription>
+                  This feedback page requires a valid appointment or staff reference. 
+                  Please use the feedback link provided after your appointment.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/10 to-background">
       <header className="border-b bg-card/50 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <MessageSquare className="h-6 w-6 text-primary" />
-            Customer Feedback
+            {creativeDisplayName ? `Feedback for ${creativeDisplayName}` : 'Customer Feedback'}
           </h1>
         </div>
       </header>
@@ -168,8 +223,10 @@ const Feedback = () => {
               <CardDescription>
                 {appointment ? (
                   <>We'd love to hear about your {appointment.service_name} appointment</>
+                ) : creativeDisplayName ? (
+                  <>We'd love to hear about your experience with {creativeDisplayName}</>
                 ) : (
-                  <>We'd love to hear about your visit to our salon</>
+                  <>We'd love to hear about your visit</>
                 )}
               </CardDescription>
             </CardHeader>

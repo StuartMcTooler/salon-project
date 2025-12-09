@@ -12,7 +12,6 @@ interface AvailabilityStatus {
 interface Creative {
   id: string;
   display_name: string;
-  full_name: string;
   profile_image_url: string | null;
   tier: 'founder' | 'pro' | 'standard';
   average_rating: number;
@@ -68,12 +67,12 @@ export const useCreativeDiscovery = (filters: Filters) => {
   return useQuery({
     queryKey: ['creative-discovery', filters],
     queryFn: async () => {
+      // Use staff_members_public view to avoid exposing sensitive contact info
       let query = supabase
-        .from('staff_members')
+        .from('staff_members_public')
         .select(`
           id,
           display_name,
-          full_name,
           profile_image_url,
           tier,
           average_rating,
@@ -103,7 +102,7 @@ export const useCreativeDiscovery = (filters: Filters) => {
       // Apply filters
       if (filters.searchQuery) {
         query = query.or(
-          `display_name.ilike.%${filters.searchQuery}%,full_name.ilike.%${filters.searchQuery}%,city.ilike.%${filters.searchQuery}%,area.ilike.%${filters.searchQuery}%`
+          `display_name.ilike.%${filters.searchQuery}%,city.ilike.%${filters.searchQuery}%,area.ilike.%${filters.searchQuery}%`
         );
       }
 

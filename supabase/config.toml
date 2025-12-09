@@ -46,7 +46,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.request-portfolio-approval]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-terminal-payment-intent]
 verify_jwt = true

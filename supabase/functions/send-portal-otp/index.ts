@@ -9,6 +9,10 @@ interface SendOtpRequest {
   phoneNumber: string;
 }
 
+// Rate limiting constants
+const MAX_OTP_ATTEMPTS = 5;
+const RATE_LIMIT_WINDOW_MINUTES = 60;
+
 // Function to normalize phone numbers to +353 format
 function normalizePhoneNumber(phone: string): string {
   let cleaned = phone.replace(/\D/g, '');
@@ -29,13 +33,53 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Simple hash function (in production, use crypto.subtle)
+// Simple hash function
 async function hashCode(code: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(code);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Check rate limiting for a phone number
+async function checkRateLimit(supabaseClient: any, phoneNumber: string): Promise<{ allowed: boolean; remaining: number }> {
+  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60 * 1000).toISOString();
+  
+  // Get existing rate limit record within the window
+  const { data: existing } = await supabaseClient
+    .from('otp_rate_limits')
+    .select('id, attempt_count, window_start')
+    .eq('phone_number', phoneNumber)
+    .gte('window_start', windowStart)
+    .order('window_start', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    if (existing.attempt_count >= MAX_OTP_ATTEMPTS) {
+      return { allowed: false, remaining: 0 };
+    }
+    
+    // Increment attempt count
+    await supabaseClient
+      .from('otp_rate_limits')
+      .update({ attempt_count: existing.attempt_count + 1 })
+      .eq('id', existing.id);
+    
+    return { allowed: true, remaining: MAX_OTP_ATTEMPTS - existing.attempt_count - 1 };
+  }
+  
+  // Create new rate limit record
+  await supabaseClient
+    .from('otp_rate_limits')
+    .insert({
+      phone_number: phoneNumber,
+      attempt_count: 1,
+      window_start: new Date().toISOString()
+    });
+  
+  return { allowed: true, remaining: MAX_OTP_ATTEMPTS - 1 };
 }
 
 Deno.serve(async (req) => {
@@ -60,7 +104,21 @@ Deno.serve(async (req) => {
 
     // Normalize phone number
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    console.log('Looking up client with phone:', normalizedPhone);
+    console.log('Processing OTP request for normalized phone');
+
+    // Check rate limiting BEFORE checking if client exists (prevents enumeration)
+    const rateLimit = await checkRateLimit(supabaseClient, normalizedPhone);
+    
+    if (!rateLimit.allowed) {
+      console.log('Rate limit exceeded for phone');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Too many attempts. Please try again later.',
+          retryAfter: RATE_LIMIT_WINDOW_MINUTES
+        }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Find client by phone number
     const { data: client, error: clientError } = await supabaseClient
@@ -69,13 +127,18 @@ Deno.serve(async (req) => {
       .eq('phone', normalizedPhone)
       .single();
 
+    // SECURITY: Use consistent response message regardless of whether phone exists
+    // This prevents phone number enumeration attacks
     if (clientError || !client) {
-      console.log('Client not found:', clientError);
+      console.log('Client not found, but returning success response to prevent enumeration');
+      // Return success response even if client doesn't exist
+      // This prevents attackers from enumerating valid phone numbers
       return new Response(
         JSON.stringify({ 
-          error: 'Phone number not found. Please book an appointment to create your portal.' 
+          success: true,
+          message: 'If this number is registered, an OTP will be sent.',
         }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -118,22 +181,23 @@ Deno.serve(async (req) => {
       throw new Error('Failed to send OTP code');
     }
 
-    console.log('OTP sent successfully to:', normalizedPhone);
+    console.log('OTP sent successfully');
 
+    // SECURITY: Return consistent success message (same as when client not found)
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'OTP sent successfully',
-        clientId: client.id,
+        message: 'If this number is registered, an OTP will be sent.',
+        clientId: client.id, // Only included when client exists
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error in send-portal-otp:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    // SECURITY: Generic error message to prevent information disclosure
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'An error occurred. Please try again.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

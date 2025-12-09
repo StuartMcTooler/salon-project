@@ -161,6 +161,13 @@ export type Database = {
             referencedRelation: "staff_members"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "business_hours_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       c2c_revenue_share: {
@@ -206,10 +213,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "c2c_revenue_share_invited_creative_id_fkey"
+            columns: ["invited_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "c2c_revenue_share_inviter_creative_id_fkey"
             columns: ["inviter_creative_id"]
             isOneToOne: false
             referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "c2c_revenue_share_inviter_creative_id_fkey"
+            columns: ["inviter_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
             referencedColumns: ["id"]
           },
           {
@@ -289,6 +310,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "client_content_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "client_content_request_id_fkey"
             columns: ["request_id"]
             isOneToOne: false
@@ -331,6 +359,13 @@ export type Database = {
             columns: ["creative_id"]
             isOneToOne: false
             referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_ownership_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
             referencedColumns: ["id"]
           },
         ]
@@ -381,6 +416,13 @@ export type Database = {
             columns: ["primary_creative_id"]
             isOneToOne: false
             referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_primary_creative_id_fkey"
+            columns: ["primary_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
             referencedColumns: ["id"]
           },
         ]
@@ -453,6 +495,13 @@ export type Database = {
             referencedRelation: "staff_members"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "content_requests_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       creative_invites: {
@@ -498,10 +547,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "creative_invites_invited_creative_id_fkey"
+            columns: ["invited_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "creative_invites_inviter_creative_id_fkey"
             columns: ["inviter_creative_id"]
             isOneToOne: false
             referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creative_invites_inviter_creative_id_fkey"
+            columns: ["inviter_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
             referencedColumns: ["id"]
           },
         ]
@@ -578,6 +641,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "creative_lookbooks_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "creative_lookbooks_service_id_fkey"
             columns: ["service_id"]
             isOneToOne: false
@@ -640,6 +710,13 @@ export type Database = {
             referencedRelation: "staff_members"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "creative_loyalty_settings_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: true
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       creative_performance_metrics: {
@@ -684,6 +761,13 @@ export type Database = {
             referencedRelation: "staff_members"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "creative_performance_metrics_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: true
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       creative_referral_terms: {
@@ -723,6 +807,13 @@ export type Database = {
             columns: ["creative_id"]
             isOneToOne: true
             referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creative_referral_terms_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: true
+            referencedRelation: "staff_members_public"
             referencedColumns: ["id"]
           },
         ]
@@ -795,6 +886,13 @@ export type Database = {
             columns: ["creative_id"]
             isOneToOne: false
             referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_loyalty_points_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
             referencedColumns: ["id"]
           },
         ]
@@ -895,6 +993,13 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1001,6 +1106,13 @@ export type Database = {
             referencedRelation: "staff_members"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "loyalty_transactions_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       notification_logs: {
@@ -1046,6 +1158,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      otp_rate_limits: {
+        Row: {
+          attempt_count: number
+          created_at: string | null
+          id: string
+          phone_number: string
+          window_start: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string | null
+          id?: string
+          phone_number: string
+          window_start?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string | null
+          id?: string
+          phone_number?: string
+          window_start?: string
+        }
+        Relationships: []
       }
       portfolio_approval_requests: {
         Row: {
@@ -1103,6 +1239,13 @@ export type Database = {
             columns: ["creative_id"]
             isOneToOne: false
             referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portfolio_approval_requests_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1226,10 +1369,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "referral_transactions_receiver_creative_id_fkey"
+            columns: ["receiver_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "referral_transactions_referrer_creative_id_fkey"
             columns: ["referrer_creative_id"]
             isOneToOne: false
             referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_transactions_referrer_creative_id_fkey"
+            columns: ["referrer_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1329,6 +1486,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "salon_appointments_original_requested_staff_id_fkey"
+            columns: ["original_requested_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "salon_appointments_service_id_fkey"
             columns: ["service_id"]
             isOneToOne: false
@@ -1340,6 +1504,13 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salon_appointments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1458,6 +1629,13 @@ export type Database = {
             columns: ["staff_member_id"]
             isOneToOne: false
             referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_invites_staff_member_id_fkey"
+            columns: ["staff_member_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1621,6 +1799,13 @@ export type Database = {
             referencedRelation: "staff_members"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "staff_service_pricing_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       terminal_settings: {
@@ -1665,6 +1850,13 @@ export type Database = {
             referencedRelation: "staff_members"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "terminal_settings_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       trusted_network: {
@@ -1695,10 +1887,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "trusted_network_alpha_creative_id_fkey"
+            columns: ["alpha_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "trusted_network_colleague_creative_id_fkey"
             columns: ["colleague_creative_id"]
             isOneToOne: false
             referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trusted_network_colleague_creative_id_fkey"
+            columns: ["colleague_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1820,7 +2026,95 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      staff_members_public: {
+        Row: {
+          area: string | null
+          availability_test_days_from_now: number | null
+          average_rating: number | null
+          bio: string | null
+          business_id: string | null
+          city: string | null
+          deposit_fixed_amount: number | null
+          deposit_percentage: number | null
+          deposit_type: string | null
+          display_name: string | null
+          id: string | null
+          is_accepting_referrals: boolean | null
+          is_active: boolean | null
+          profile_image_url: string | null
+          referral_discount_type:
+            | Database["public"]["Enums"]["discount_type"]
+            | null
+          referral_discount_value: number | null
+          require_booking_deposit: boolean | null
+          simulate_fully_booked: boolean | null
+          skill_level: string | null
+          specialties: string[] | null
+          tier: Database["public"]["Enums"]["creative_tier"] | null
+          total_bookings: number | null
+        }
+        Insert: {
+          area?: string | null
+          availability_test_days_from_now?: number | null
+          average_rating?: number | null
+          bio?: string | null
+          business_id?: string | null
+          city?: string | null
+          deposit_fixed_amount?: number | null
+          deposit_percentage?: number | null
+          deposit_type?: string | null
+          display_name?: string | null
+          id?: string | null
+          is_accepting_referrals?: boolean | null
+          is_active?: boolean | null
+          profile_image_url?: string | null
+          referral_discount_type?:
+            | Database["public"]["Enums"]["discount_type"]
+            | null
+          referral_discount_value?: number | null
+          require_booking_deposit?: boolean | null
+          simulate_fully_booked?: boolean | null
+          skill_level?: string | null
+          specialties?: string[] | null
+          tier?: Database["public"]["Enums"]["creative_tier"] | null
+          total_bookings?: number | null
+        }
+        Update: {
+          area?: string | null
+          availability_test_days_from_now?: number | null
+          average_rating?: number | null
+          bio?: string | null
+          business_id?: string | null
+          city?: string | null
+          deposit_fixed_amount?: number | null
+          deposit_percentage?: number | null
+          deposit_type?: string | null
+          display_name?: string | null
+          id?: string | null
+          is_accepting_referrals?: boolean | null
+          is_active?: boolean | null
+          profile_image_url?: string | null
+          referral_discount_type?:
+            | Database["public"]["Enums"]["discount_type"]
+            | null
+          referral_discount_value?: number | null
+          require_booking_deposit?: boolean | null
+          simulate_fully_booked?: boolean | null
+          skill_level?: string | null
+          specialties?: string[] | null
+          tier?: Database["public"]["Enums"]["creative_tier"] | null
+          total_bookings?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_members_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       assign_front_desk_role: {

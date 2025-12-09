@@ -731,11 +731,13 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
         </Card>
 
         {/* Customer Information - Mobile inline */}
-        {!portalClient && time && (
+        {time && (
           <Card ref={customerInfoRef} className="lg:hidden mt-2">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Your Details</CardTitle>
-              <CardDescription className="text-xs">Required for confirmation</CardDescription>
+              <CardDescription className="text-xs">
+                {portalClient ? "Verify your details are correct" : "Required for confirmation"}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <CompactCustomerForm
@@ -762,11 +764,13 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       {/* Right Column: Customer Form + Summary (Desktop only) */}
       <div className="hidden lg:flex flex-1 lg:max-w-xl lg:border-l lg:p-6 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto flex-col">
         {/* Customer Information */}
-        {!portalClient && time && (
+        {time && (
           <Card ref={customerInfoRef} className="lg:border-0 lg:shadow-none">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Your Details</CardTitle>
-              <CardDescription className="text-xs">Required for confirmation</CardDescription>
+              <CardDescription className="text-xs">
+                {portalClient ? "Verify your details are correct" : "Required for confirmation"}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <CompactCustomerForm

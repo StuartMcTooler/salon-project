@@ -11,27 +11,62 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Verify JWT token and get user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authorization header required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
     const { feedbackId } = await req.json();
 
     if (!feedbackId) {
       throw new Error('feedbackId is required');
     }
 
-    const supabase = createClient(
+    // Use service role for database operations
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get feedback
-    const { data: feedback, error: fetchError } = await supabase
+    // Verify user has access to this feedback (is staff member linked to feedback)
+    const { data: feedback, error: fetchError } = await supabaseAdmin
       .from('feedback')
-      .select('*')
+      .select('*, staff_members!inner(user_id)')
       .eq('id', feedbackId)
       .single();
 
     if (fetchError) throw fetchError;
 
-    console.log('Processing feedback:', feedbackId);
+    // Check if user is the staff member or admin
+    const isStaffOwner = feedback.staff_members?.user_id === user.id;
+    const { data: isAdmin } = await supabaseAdmin.rpc('has_role', { _user_id: user.id, _role: 'admin' });
+
+    if (!isStaffOwner && !isAdmin) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: You do not have permission to analyze this feedback' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      );
+    }
+
+    console.log('Processing feedback:', feedbackId, 'by user:', user.id);
 
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAIApiKey) {
@@ -82,7 +117,7 @@ Deno.serve(async (req) => {
       console.log('Sentiment analysis complete:', sentimentData);
 
       // Update feedback with sentiment
-      await supabase
+      await supabaseAdmin
         .from('feedback')
         .update({
           text_sentiment: sentimentData.sentiment,

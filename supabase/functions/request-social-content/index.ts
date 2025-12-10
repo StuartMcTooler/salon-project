@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { Image } from "https://deno.land/x/imagescript@1.3.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,10 +12,34 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // Verify JWT token and get user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authorization header required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    // Create client with user's auth token
+    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    // Create service role client for database operations
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     const formData = await req.formData();
     const file = formData.get('file') as File;
@@ -26,6 +49,31 @@ serve(async (req) => {
 
     if (!file || !appointmentId || !creativeId || !mediaType) {
       throw new Error('Missing required fields');
+    }
+
+    // Verify the user is the creative (staff member)
+    const { data: staffMember, error: staffError } = await supabaseClient
+      .from('staff_members')
+      .select('id, user_id')
+      .eq('id', creativeId)
+      .single();
+
+    if (staffError || !staffMember) {
+      return new Response(
+        JSON.stringify({ error: 'Creative not found' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      );
+    }
+
+    // Check if user is the creative or an admin
+    const isCreativeOwner = staffMember.user_id === user.id;
+    const { data: isAdmin } = await supabaseClient.rpc('has_role', { _user_id: user.id, _role: 'admin' });
+
+    if (!isCreativeOwner && !isAdmin) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: You can only request content for your own appointments' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      );
     }
 
     // Validate appointment exists and belongs to creative

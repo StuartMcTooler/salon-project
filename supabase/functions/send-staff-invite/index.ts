@@ -13,10 +13,34 @@ serve(async (req) => {
   }
 
   try {
+    // Verify JWT token and get user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authorization header required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const frontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:8080';
     
+    // Create client with user's auth token
+    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create service role client for admin operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { staffMemberId } = await req.json();
@@ -28,7 +52,7 @@ serve(async (req) => {
       );
     }
 
-    // Fetch staff member details
+    // Fetch staff member details including business info
     const { data: staffMember, error: staffError } = await supabase
       .from('staff_members')
       .select(`
@@ -37,7 +61,7 @@ serve(async (req) => {
         display_name,
         phone,
         business_id,
-        business_accounts!inner(business_name, id)
+        business_accounts!inner(business_name, id, owner_user_id)
       `)
       .eq('id', staffMemberId)
       .single();
@@ -47,6 +71,25 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Staff member not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Authorization check: user must be business owner or admin
+    const businessOwnerId = (staffMember.business_accounts as any).owner_user_id;
+    const isBusinessOwner = businessOwnerId === user.id;
+    
+    // Check if user is admin
+    const { data: isAdmin } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
+
+    if (!isBusinessOwner && !isAdmin) {
+      console.error('Authorization failed: User is not business owner or admin', {
+        userId: user.id,
+        businessOwnerId,
+        isAdmin
+      });
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: Only business owners or admins can send staff invites' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -121,6 +164,7 @@ serve(async (req) => {
       staffMemberId,
       phone: staffMember.phone,
       inviteToken,
+      sentBy: user.id,
     });
 
     return new Response(

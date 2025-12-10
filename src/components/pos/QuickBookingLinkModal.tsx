@@ -66,7 +66,7 @@ export function QuickBookingLinkModal({
       const bookingLink = `${APP_URL}/book/${staffMember.id}`;
 
       // Construct message
-      const message = `Hi${name.trim() ? ` ${name.trim()}` : ''}! Great to meet you. 👋\n\nTap here to book your next appointment with ${staffMember.display_name}:\n${bookingLink}`;
+      const message = `Hi${name.trim() ? ` ${name.trim()}` : ''}! Great to meet you. Tap here to book your next appointment with ${staffMember.display_name}: ${bookingLink}`;
 
       // Send via WhatsApp/SMS
       const { error } = await supabase.functions.invoke("send-whatsapp", {
@@ -145,7 +145,7 @@ export function QuickBookingLinkModal({
           <div className="bg-muted p-3 rounded-lg text-sm text-muted-foreground">
             <p className="font-medium mb-1">Message Preview:</p>
             <p className="text-xs">
-              "Hi{name.trim() ? ` ${name.trim()}` : ""}! Great to meet you. 👋
+              "Hi{name.trim() ? ` ${name.trim()}` : ""}! Great to meet you.
               {"\n\n"}
               Tap here to book your next appointment with{" "}
               {staffMember.display_name}:

@@ -61,19 +61,10 @@ Deno.serve(async (req) => {
       throw new Error(`Rate limit exceeded. Maximum ${MAX_MESSAGES_PER_HOUR} messages per hour to this number`);
     }
 
-    // Get business notification preference if businessId provided
-    let notificationMethod = 'sms_only'; // Default to SMS while awaiting WhatsApp template approval
-    if (businessId) {
-      const { data: business } = await supabase
-        .from('business_accounts')
-        .select('notification_method')
-        .eq('id', businessId)
-        .single();
-      
-      if (business?.notification_method) {
-        notificationMethod = business.notification_method;
-      }
-    }
+    // TEMPORARY: Force SMS-only while awaiting WhatsApp template approval
+    // Once templates are approved, restore business notification_method logic
+    const notificationMethod = 'sms_only';
+    console.log('Using SMS-only mode (WhatsApp templates pending approval)');
 
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
     let deliveryMethod = 'whatsapp';
@@ -188,7 +179,7 @@ Deno.serve(async (req) => {
         success: true, 
         messageId, 
         deliveryMethod,
-        fallbackUsed: deliveryMethod === 'sms' && notificationMethod === 'hybrid'
+        fallbackUsed: false // SMS-only mode, no fallback needed
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

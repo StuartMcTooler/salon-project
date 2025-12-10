@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ interface StaffBookingInterfaceProps {
 
 export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedService, setSelectedService] = useState<any>(null);
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState("");
@@ -49,6 +50,9 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
       return data || [];
     },
     enabled: !!date && !!selectedService,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: businessHours } = useQuery({
@@ -165,6 +169,10 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
       return data;
     },
     onSuccess: () => {
+      // Invalidate appointments queries to refresh availability
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['todays-appointments'] });
+      
       toast({
         title: "Appointment booked!",
         description: `${customerName} is scheduled for ${time} on ${date?.toLocaleDateString()}`,

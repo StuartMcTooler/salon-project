@@ -644,7 +644,7 @@ export const QuickCustomerForm = ({
         });
 
         const portalLink = `${window.location.origin}/portal`;
-        const message = `✅ Booking Confirmed!\n\n📅 ${formattedDate}\n🕐 ${formattedTime}\n💇 ${service.service.name}\n👤 with ${staffMember.display_name}\n💰 €${Number(service.custom_price).toFixed(2)}\n\n📱 Access your portal to view appointments, loyalty points & more:\n${portalLink}`;
+        const message = `Booking Confirmed! ${formattedDate} at ${formattedTime} - ${service.service.name} with ${staffMember.display_name}. Total: €${Number(service.custom_price).toFixed(2)}. Access your portal to view appointments, loyalty points & more: ${portalLink}`;
 
         await supabase.functions.invoke('send-whatsapp', {
           body: {

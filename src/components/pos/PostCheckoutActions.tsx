@@ -95,7 +95,7 @@ export const PostCheckoutActions = ({
 
   const handleSendReferral = () => {
     const referralUrl = `${APP_URL}/salon?ref=SHARE`;
-    const message = `Hi ${appointment.customer_name}! 💇\n\nLoved having you today! Want ${discount.displayText} your next visit? Refer a friend and you BOTH get ${discount.displayText}!\n\nShare this link:\n${referralUrl}\n\nThanks!`;
+    const message = `Hi ${appointment.customer_name}! Loved having you today! Want ${discount.displayText} your next visit? Refer a friend and you BOTH get ${discount.displayText}! Share this link: ${referralUrl}`;
     sendWhatsApp.mutate({ message, actionType: 'referral' });
   };
 

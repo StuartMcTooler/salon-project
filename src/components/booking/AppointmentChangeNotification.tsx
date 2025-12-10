@@ -62,8 +62,8 @@ export const AppointmentChangeNotification = ({
       let message = `Hi ${updatedAppointment.customer_name}! 📅\n\nYour appointment has been updated:\n\n`;
 
       if (dateChanged) {
-        message += `❌ OLD: ${oldDate} at ${oldTime}\n`;
-        message += `✅ NEW: ${newDate} at ${newTime}\n\n`;
+        message += `OLD: ${oldDate} at ${oldTime}\n`;
+        message += `NEW: ${newDate} at ${newTime}\n\n`;
       }
 
       message += `Service: ${updatedAppointment.service_name}\n`;

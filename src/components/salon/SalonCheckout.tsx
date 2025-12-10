@@ -476,7 +476,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
         });
 
         const portalLink = `${window.location.origin}/portal`;
-        const message = `✅ Booking Confirmed!\n\n📅 ${formattedDate}\n🕐 ${formattedTime}\n💇 ${service.name}\n👤 with ${staff.display_name}\n💰 €${finalPrice.toFixed(2)}\n\n📱 Access your portal to view appointments, loyalty points & more:\n${portalLink}`;
+        const message = `Booking Confirmed! ${formattedDate} at ${formattedTime} - ${service.name} with ${staff.display_name}. Total: €${finalPrice.toFixed(2)}. Access your portal to view appointments, loyalty points & more: ${portalLink}`;
 
         try {
           await supabase.functions.invoke('send-whatsapp', {

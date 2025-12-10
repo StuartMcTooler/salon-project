@@ -131,7 +131,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   // Query existing appointments for the selected date and staff
   const dateKey = date ? date.toISOString().split('T')[0] : null;
   
-  const { data: existingAppointments } = useQuery({
+  const { data: existingAppointments, refetch } = useQuery({
     queryKey: ['appointments', staff.id, dateKey],
     queryFn: async () => {
       if (!date) return [];
@@ -159,6 +159,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
     enabled: !!date,
     staleTime: 0,
     gcTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: businessHours } = useQuery({
@@ -586,10 +587,12 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       return { id: appointmentId };
     },
     onSuccess: async (data) => {
-      console.log('[SALON] Booking success, invalidating cache for', staff.id, dateKey);
+      console.log('[SALON] Booking success, refetching for', staff.id, dateKey);
       
-      // Force refetch by resetting and invalidating queries
-      await queryClient.resetQueries({ queryKey: ['appointments', staff.id, dateKey] });
+      // Force immediate refetch to update available slots
+      await refetch();
+      
+      // Also invalidate related queries
       queryClient.invalidateQueries({ queryKey: ['staff-availability'] });
       queryClient.invalidateQueries({ queryKey: ['todays-appointments'] });
       

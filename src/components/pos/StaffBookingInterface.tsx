@@ -168,8 +168,11 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      // Invalidate appointments queries to refresh availability
+    onSuccess: async () => {
+      // Refetch appointments immediately before resetting form
+      await refetch();
+      
+      // Also invalidate all related queries
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['todays-appointments'] });
       

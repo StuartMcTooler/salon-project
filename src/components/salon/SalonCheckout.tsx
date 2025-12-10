@@ -577,7 +577,10 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
 
       return { id: appointmentId };
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      // Refetch appointments immediately to update availability
+      await refetch();
+      
       // Invalidate all staff availability and booking queries
       queryClient.invalidateQueries({ queryKey: ['staff-availability'] });
       queryClient.invalidateQueries({ queryKey: ['all-staff'] });

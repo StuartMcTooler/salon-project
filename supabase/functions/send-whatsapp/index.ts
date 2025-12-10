@@ -37,8 +37,9 @@ Deno.serve(async (req) => {
     const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
     const whatsappNumber = Deno.env.get('TWILIO_WHATSAPP_NUMBER');
+    const smsSenderId = Deno.env.get('TWILIO_SMS_SENDER_ID') || whatsappNumber;
 
-    if (!accountSid || !authToken || !whatsappNumber) {
+    if (!accountSid || !authToken || (!whatsappNumber && !smsSenderId)) {
       throw new Error('Twilio credentials not configured');
     }
 
@@ -61,7 +62,7 @@ Deno.serve(async (req) => {
     }
 
     // Get business notification preference if businessId provided
-    let notificationMethod = 'hybrid';
+    let notificationMethod = 'sms_only'; // Default to SMS while awaiting WhatsApp template approval
     if (businessId) {
       const { data: business } = await supabase
         .from('business_accounts')
@@ -136,7 +137,7 @@ Deno.serve(async (req) => {
         
         const formData = new URLSearchParams();
         formData.append('To', to);
-        formData.append('From', whatsappNumber);
+        formData.append('From', smsSenderId!);
         formData.append('Body', sanitizedMessage);
         
         if (mediaUrl) {

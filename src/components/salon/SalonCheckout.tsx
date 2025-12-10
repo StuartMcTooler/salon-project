@@ -152,6 +152,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       return data || [];
     },
     enabled: !!date,
+    staleTime: 0, // Always fetch fresh data for availability
   });
 
   const { data: businessHours } = useQuery({
@@ -580,6 +581,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       queryClient.invalidateQueries({ queryKey: ['all-staff'] });
       queryClient.invalidateQueries({ queryKey: ['staff-for-service'] });
       queryClient.invalidateQueries({ queryKey: ['salon-appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['appointments'] }); // For time slot availability
       
       if (depositAmount > 0) {
         toast({

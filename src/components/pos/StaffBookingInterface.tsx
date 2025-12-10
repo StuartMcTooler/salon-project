@@ -169,12 +169,10 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
       return data;
     },
     onSuccess: async () => {
-      // Refetch appointments immediately before resetting form
-      await refetch();
-      
-      // Also invalidate all related queries
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      queryClient.invalidateQueries({ queryKey: ['todays-appointments'] });
+      // Remove all cached appointment queries to force fresh fetch on next booking
+      queryClient.removeQueries({ queryKey: ['appointments'] });
+      queryClient.removeQueries({ queryKey: ['todays-appointments'] });
+      queryClient.removeQueries({ queryKey: ['staff-availability'] });
       
       toast({
         title: "Appointment booked!",

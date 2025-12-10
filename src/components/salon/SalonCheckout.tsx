@@ -152,7 +152,9 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       return data || [];
     },
     enabled: !!date,
-    staleTime: 0, // Always fetch fresh data for availability
+    staleTime: 0,
+    gcTime: 0, // Don't cache - always fetch fresh
+    refetchOnMount: 'always', // Force refetch when navigating back
   });
 
   const { data: businessHours } = useQuery({

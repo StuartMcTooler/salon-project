@@ -129,8 +129,10 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   }, [customerName, customerPhone]);
 
   // Query existing appointments for the selected date and staff
-  const { data: existingAppointments, refetch } = useQuery({
-    queryKey: ['appointments', staff.id, date?.toISOString().split('T')[0]],
+  const dateKey = date ? date.toISOString().split('T')[0] : null;
+  
+  const { data: existingAppointments } = useQuery({
+    queryKey: ['appointments', staff.id, dateKey],
     queryFn: async () => {
       if (!date) return [];
       
@@ -140,6 +142,8 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       const endOfDay = new Date(date);
       endOfDay.setHours(23, 59, 59, 999);
 
+      console.log('[SALON] Fetching appointments for', staff.id, dateKey);
+      
       const { data, error } = await supabase
         .from('salon_appointments')
         .select('appointment_date, duration_minutes')
@@ -149,12 +153,12 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
         .in('status', ['pending', 'confirmed']);
 
       if (error) throw error;
+      console.log('[SALON] Got appointments:', data?.length);
       return data || [];
     },
     enabled: !!date,
     staleTime: 0,
-    gcTime: 0, // Don't cache - always fetch fresh
-    refetchOnMount: 'always', // Force refetch when navigating back
+    gcTime: 0,
   });
 
   const { data: businessHours } = useQuery({
@@ -213,18 +217,22 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
 
   // Realtime subscription
   useEffect(() => {
+    if (!staff.id || !dateKey) return;
+    
     const channel = supabase
-      .channel('salon-checkout-realtime')
+      .channel(`salon-checkout-${staff.id}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'salon_appointments',
-          filter: `staff_id=eq.${staff.id}`
         },
-        () => {
-          refetch();
+        (payload: any) => {
+          if (payload.new?.staff_id === staff.id || payload.old?.staff_id === staff.id) {
+            console.log('[SALON REALTIME] Appointment changed, invalidating...');
+            queryClient.invalidateQueries({ queryKey: ['appointments', staff.id, dateKey] });
+          }
         }
       )
       .subscribe();
@@ -232,7 +240,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [staff.id, refetch]);
+  }, [staff.id, dateKey, queryClient]);
 
   // Calculate available time slots dynamically based on service duration
   const availableSlots = useMemo(() => {
@@ -578,15 +586,12 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       return { id: appointmentId };
     },
     onSuccess: async (data) => {
-      // Refetch appointments immediately to update availability
-      await refetch();
+      console.log('[SALON] Booking success, invalidating cache for', staff.id, dateKey);
       
-      // Invalidate all staff availability and booking queries
+      // Force refetch by resetting and invalidating queries
+      await queryClient.resetQueries({ queryKey: ['appointments', staff.id, dateKey] });
       queryClient.invalidateQueries({ queryKey: ['staff-availability'] });
-      queryClient.invalidateQueries({ queryKey: ['all-staff'] });
-      queryClient.invalidateQueries({ queryKey: ['staff-for-service'] });
-      queryClient.invalidateQueries({ queryKey: ['salon-appointments'] });
-      queryClient.invalidateQueries({ queryKey: ['appointments'] }); // For time slot availability
+      queryClient.invalidateQueries({ queryKey: ['todays-appointments'] });
       
       if (depositAmount > 0) {
         toast({

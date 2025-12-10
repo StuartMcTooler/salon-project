@@ -96,23 +96,56 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
     enabled: !!date && !!staffId,
   });
 
-  // Realtime subscription
+  // Realtime subscription - refetch when any appointment changes for this staff
   useEffect(() => {
+    if (!staffId) return;
+    
     const channel = supabase
-      .channel('staff-booking-realtime')
+      .channel(`staff-booking-${staffId}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'salon_appointments',
-          filter: `staff_id=eq.${staffId}`
+        },
+        (payload) => {
+          // Only refetch if it's for our staff
+          if (payload.new && (payload.new as any).staff_id === staffId) {
+            console.log('[REALTIME] New appointment detected, refetching...');
+            refetch();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'salon_appointments',
+        },
+        (payload) => {
+          if (payload.new && (payload.new as any).staff_id === staffId) {
+            console.log('[REALTIME] Appointment updated, refetching...');
+            refetch();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'salon_appointments',
         },
         () => {
+          console.log('[REALTIME] Appointment deleted, refetching...');
           refetch();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[REALTIME] Subscription status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -172,27 +205,23 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
       return data;
     },
     onSuccess: async () => {
+      // Immediately refetch to update available slots BEFORE clearing form
+      await refetch();
+      
       toast({
         title: "Appointment booked!",
         description: `${customerName} is scheduled for ${time} on ${date?.toLocaleDateString()}`,
       });
       
-      // Clear selected time first to prevent rebooking same slot
+      // Clear selected time and customer form
       setTime("");
-      
-      // Clear customer form
       setCustomerName("");
       setCustomerPhone("");
       setCustomerEmail("");
       setNotes("");
       
-      // Remove ALL appointment queries from cache to force fresh fetch
-      queryClient.removeQueries({ queryKey: ['appointments'] });
-      queryClient.removeQueries({ queryKey: ['todays-appointments'] });
-      
-      // Small delay to ensure database commit is complete, then refetch
-      await new Promise(resolve => setTimeout(resolve, 100));
-      await refetch();
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['todays-appointments'] });
     },
     onError: (error: any) => {
       toast({

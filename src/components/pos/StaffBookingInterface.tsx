@@ -169,23 +169,23 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
       return data;
     },
     onSuccess: async () => {
-      // Remove all cached appointment queries to force fresh fetch on next booking
-      queryClient.removeQueries({ queryKey: ['appointments'] });
-      queryClient.removeQueries({ queryKey: ['todays-appointments'] });
-      queryClient.removeQueries({ queryKey: ['staff-availability'] });
-      
       toast({
         title: "Appointment booked!",
         description: `${customerName} is scheduled for ${time} on ${date?.toLocaleDateString()}`,
       });
-      // Reset form
-      setSelectedService(null);
-      setDate(undefined);
+      
+      // Clear customer form but keep date/service selection
       setTime("");
       setCustomerName("");
       setCustomerPhone("");
       setCustomerEmail("");
       setNotes("");
+      
+      // Force refetch to update available slots immediately
+      await refetch();
+      
+      // Also invalidate other related queries
+      queryClient.invalidateQueries({ queryKey: ['todays-appointments'] });
     },
     onError: (error: any) => {
       toast({

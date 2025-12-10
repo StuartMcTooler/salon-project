@@ -46,16 +46,21 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
     return data || [];
   };
 
-  const { data: existingAppointments, refetch } = useQuery({
-    queryKey: ['appointments', staffId, date?.toISOString().split('T')[0]],
+  const dateKey = date ? date.toISOString().split('T')[0] : null;
+  
+  const { data: existingAppointments } = useQuery({
+    queryKey: ['appointments', staffId, dateKey],
     queryFn: async () => {
       if (!date) return [];
-      return fetchAppointments(date);
+      console.log('[FETCH] Fetching appointments for', staffId, dateKey);
+      const result = await fetchAppointments(date);
+      console.log('[FETCH] Got appointments:', result.length);
+      return result;
     },
     enabled: !!date && !!selectedService,
     staleTime: 0,
     gcTime: 0,
-    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const { data: businessHours } = useQuery({
@@ -98,7 +103,7 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
 
   // Realtime subscription - refetch when any appointment changes for this staff
   useEffect(() => {
-    if (!staffId) return;
+    if (!staffId || !dateKey) return;
     
     const channel = supabase
       .channel(`staff-booking-${staffId}`)
@@ -110,10 +115,9 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
           table: 'salon_appointments',
         },
         (payload) => {
-          // Only refetch if it's for our staff
           if (payload.new && (payload.new as any).staff_id === staffId) {
-            console.log('[REALTIME] New appointment detected, refetching...');
-            refetch();
+            console.log('[REALTIME] New appointment detected, invalidating...');
+            queryClient.invalidateQueries({ queryKey: ['appointments', staffId, dateKey] });
           }
         }
       )
@@ -126,8 +130,8 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
         },
         (payload) => {
           if (payload.new && (payload.new as any).staff_id === staffId) {
-            console.log('[REALTIME] Appointment updated, refetching...');
-            refetch();
+            console.log('[REALTIME] Appointment updated, invalidating...');
+            queryClient.invalidateQueries({ queryKey: ['appointments', staffId, dateKey] });
           }
         }
       )
@@ -139,8 +143,8 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
           table: 'salon_appointments',
         },
         () => {
-          console.log('[REALTIME] Appointment deleted, refetching...');
-          refetch();
+          console.log('[REALTIME] Appointment deleted, invalidating...');
+          queryClient.invalidateQueries({ queryKey: ['appointments', staffId, dateKey] });
         }
       )
       .subscribe((status) => {
@@ -150,7 +154,7 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [staffId, refetch]);
+  }, [staffId, dateKey, queryClient]);
 
   // Calculate available time slots dynamically based on service duration
   const availableSlots = useMemo(() => {
@@ -204,9 +208,11 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
       if (error) throw error;
       return data;
     },
-    onSuccess: async () => {
-      // Immediately refetch to update available slots BEFORE clearing form
-      await refetch();
+    onSuccess: async (data) => {
+      console.log('[BOOKING] Success, invalidating queries for', staffId, dateKey);
+      
+      // Invalidate the appointments query to force a refetch
+      await queryClient.invalidateQueries({ queryKey: ['appointments', staffId, dateKey] });
       
       toast({
         title: "Appointment booked!",

@@ -27,27 +27,30 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
   const [customerEmail, setCustomerEmail] = useState("");
   const [notes, setNotes] = useState("");
 
+  const fetchAppointments = async (targetDate: Date) => {
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const { data, error } = await supabase
+      .from('salon_appointments')
+      .select('appointment_date, duration_minutes')
+      .eq('staff_id', staffId)
+      .gte('appointment_date', startOfDay.toISOString())
+      .lte('appointment_date', endOfDay.toISOString())
+      .in('status', ['pending', 'confirmed']);
+
+    if (error) throw error;
+    return data || [];
+  };
+
   const { data: existingAppointments, refetch } = useQuery({
     queryKey: ['appointments', staffId, date?.toISOString().split('T')[0]],
     queryFn: async () => {
       if (!date) return [];
-      
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      const { data, error } = await supabase
-        .from('salon_appointments')
-        .select('appointment_date, duration_minutes')
-        .eq('staff_id', staffId)
-        .gte('appointment_date', startOfDay.toISOString())
-        .lte('appointment_date', endOfDay.toISOString())
-        .in('status', ['pending', 'confirmed']);
-
-      if (error) throw error;
-      return data || [];
+      return fetchAppointments(date);
     },
     enabled: !!date && !!selectedService,
     staleTime: 0,
@@ -174,18 +177,22 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
         description: `${customerName} is scheduled for ${time} on ${date?.toLocaleDateString()}`,
       });
       
-      // Clear customer form but keep date/service selection
+      // Clear selected time first to prevent rebooking same slot
       setTime("");
+      
+      // Clear customer form
       setCustomerName("");
       setCustomerPhone("");
       setCustomerEmail("");
       setNotes("");
       
-      // Force refetch to update available slots immediately
-      await refetch();
+      // Remove ALL appointment queries from cache to force fresh fetch
+      queryClient.removeQueries({ queryKey: ['appointments'] });
+      queryClient.removeQueries({ queryKey: ['todays-appointments'] });
       
-      // Also invalidate other related queries
-      queryClient.invalidateQueries({ queryKey: ['todays-appointments'] });
+      // Small delay to ensure database commit is complete, then refetch
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await refetch();
     },
     onError: (error: any) => {
       toast({

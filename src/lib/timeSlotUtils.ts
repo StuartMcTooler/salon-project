@@ -187,16 +187,16 @@ export const getAvailableSlots = (
   // Generate standard slots from opening time (every 30 minutes on :00 and :30)
   const standardSlots = generateTimeSlots(actualStartHour, actualEndHour);
   
-  // Build set of potential slots
+  // Build set of potential slots - start with standard slots
   const potentialSlots = new Set<string>(standardSlots);
   
   // Cap the end hour at 24 for offset slot generation
   const cappedEndHour = Math.min(actualEndHour, 24);
   
-  // Track offset slots that are "forced" by appointment end times
-  const offsetSlots = new Set<string>();
+  // Collect single offset slots (one per non-standard appointment end)
+  const singleOffsetSlots = new Set<string>();
   
-  // Process each appointment to generate offset slots after they end
+  // Process each appointment to add ONE offset slot right after it ends
   appointments.forEach(appointment => {
     const appointmentStart = new Date(appointment.appointment_date);
     const appointmentEnd = new Date(appointmentStart.getTime() + appointment.duration_minutes * 60000);
@@ -209,35 +209,21 @@ export const getAvailableSlots = (
       end: appointmentEnd.toISOString(),
       duration: appointment.duration_minutes,
       roundedEnd: roundedEnd.toISOString(),
-      roundedMinutes,
-      endDecimal,
-      actualStartHour,
-      cappedEndHour,
-      willGenerateOffsets: (roundedMinutes === 15 || roundedMinutes === 45) && endDecimal >= actualStartHour && endDecimal < cappedEndHour
+      roundedMinutes
     });
     
-    // Only generate offset slots if the appointment ends at :15 or :45 (non-standard time)
+    // Only add ONE offset slot if the appointment ends at :15 or :45 (non-standard time)
     if ((roundedMinutes === 15 || roundedMinutes === 45) && endDecimal >= actualStartHour && endDecimal < cappedEndHour) {
-      // Generate slots at 30-minute intervals from the offset time
-      let current = new Date(roundedEnd);
-      const maxIterations = 48;
-      
-      console.log('[TimeSlots] Generating offset slots from:', `${roundedEnd.getHours()}:${roundedEnd.getMinutes()}`);
-      
-      for (let i = 0; i < maxIterations && current.getHours() + current.getMinutes() / 60 < cappedEndHour; i++) {
-        const h = current.getHours();
-        const m = current.getMinutes();
-        const slotStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-        potentialSlots.add(slotStr);
-        offsetSlots.add(slotStr);
-        current = new Date(current.getTime() + 30 * 60 * 1000);
-      }
-      
-      console.log('[TimeSlots] Offset slots generated:', Array.from(offsetSlots));
+      const h = roundedEnd.getHours();
+      const m = roundedEnd.getMinutes();
+      const slotStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      potentialSlots.add(slotStr);
+      singleOffsetSlots.add(slotStr);
+      console.log('[TimeSlots] Added single offset slot:', slotStr);
     }
   });
   
-  // Convert to sorted array and filter to maintain 30-min spacing
+  // Convert to sorted array
   const sortedAll = Array.from(potentialSlots).sort();
   const allSlots: string[] = [];
   
@@ -258,7 +244,7 @@ export const getAvailableSlots = (
     if (gap >= 30) {
       // 30+ minute gap - always include
       allSlots.push(slot);
-    } else if (gap === 15 && offsetSlots.has(slot)) {
+    } else if (gap === 15 && singleOffsetSlots.has(slot)) {
       // 15-minute gap but this is an offset slot forced by appointment end
       // Replace the previous standard slot with this offset slot
       allSlots.pop();

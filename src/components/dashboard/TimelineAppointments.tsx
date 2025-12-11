@@ -265,7 +265,7 @@ export const TimelineAppointments = ({ staffId, onAppointmentSelect }: TimelineA
           return (
             <Card
               key={appointment.id}
-              className={`cursor-pointer hover:shadow-lg transition-shadow p-3 ${
+              className={`cursor-pointer hover:shadow-lg transition-shadow p-2 overflow-hidden ${
                 appointment.is_blocked ? 'time-block' : ''
               }`}
               style={{
@@ -273,6 +273,7 @@ export const TimelineAppointments = ({ staffId, onAppointmentSelect }: TimelineA
                 gridRow: `${rowStart} / span ${rowSpan}`,
                 position: 'relative',
                 zIndex: 1,
+                maxHeight: `${rowSpan * 20}px`,
               }}
               onClick={(e) => {
                 // Blocks are not editable, just display

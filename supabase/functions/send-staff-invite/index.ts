@@ -27,13 +27,23 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const frontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:8080';
     
-    // Create client with user's auth token
+    // Create client with user's auth token - extract just the token part
+    const token = authHeader.replace('Bearer ', '');
+    
     const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
-    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
+    const { data: { user }, error: authError } = await supabaseUser.auth.getUser(token);
+    
+    console.log('Auth check result:', { 
+      hasUser: !!user, 
+      userId: user?.id,
+      authError: authError?.message 
+    });
+    
     if (authError || !user) {
+      console.error('Auth failed:', authError?.message || 'No user found');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

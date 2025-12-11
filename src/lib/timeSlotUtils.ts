@@ -187,81 +187,39 @@ export const getAvailableSlots = (
   // Generate standard slots from opening time (every 30 minutes on :00 and :30)
   const standardSlots = generateTimeSlots(actualStartHour, actualEndHour);
   
-  // Build set of potential slots, including offset slots after appointments end
+  // Build set of potential slots
   const potentialSlots = new Set<string>(standardSlots);
   
-  // Cap the end hour at 24 for offset slot generation to avoid issues with overnight hours
+  // Cap the end hour at 24 for offset slot generation
   const cappedEndHour = Math.min(actualEndHour, 24);
   
-  // Track offset slots that are "forced" by appointment end times
-  const forcedOffsetSlots = new Set<string>();
+  // Track the first available slot time after each appointment ends
+  const appointmentEndSlots = new Map<string, number>(); // slot time -> appointment end decimal
   
-  // Process each appointment to generate offset slots after they end
+  // Process each appointment to find when slots become available after they end
   appointments.forEach(appointment => {
     const appointmentStart = new Date(appointment.appointment_date);
     const appointmentEnd = new Date(appointmentStart.getTime() + appointment.duration_minutes * 60000);
     const roundedEnd = roundToNext15Minutes(appointmentEnd);
     const endDecimal = roundedEnd.getHours() + (roundedEnd.getMinutes() / 60);
-    const roundedMinutes = roundedEnd.getMinutes();
     
-    // Generate offset slots if within business hours
+    // Generate the first available slot right after this appointment
     if (endDecimal >= actualStartHour && endDecimal < cappedEndHour) {
-      let current = new Date(roundedEnd);
-      const maxIterations = 48;
-      
-      for (let i = 0; i < maxIterations && current.getHours() + current.getMinutes() / 60 < cappedEndHour; i++) {
-        const h = current.getHours();
-        const m = current.getMinutes();
-        const slotStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-        potentialSlots.add(slotStr);
-        
-        // Mark as forced offset if it's at :15 or :45
-        if (m === 15 || m === 45) {
-          forcedOffsetSlots.add(slotStr);
-        }
-        
-        current = new Date(current.getTime() + 30 * 60 * 1000);
-      }
+      const slotStr = `${roundedEnd.getHours().toString().padStart(2, '0')}:${roundedEnd.getMinutes().toString().padStart(2, '0')}`;
+      potentialSlots.add(slotStr);
+      appointmentEndSlots.set(slotStr, endDecimal);
     }
   });
   
   // Convert to sorted array
   const allSlots = Array.from(potentialSlots).sort();
   
-  // Filter to maintain 30-minute intervals, preferring forced offset slots
-  const sortedSlots: string[] = [];
-  for (const slot of allSlots) {
-    const [h, m] = slot.split(':').map(Number);
-    const slotMinutes = h * 60 + m;
-    
-    if (sortedSlots.length === 0) {
-      sortedSlots.push(slot);
-      continue;
-    }
-    
-    const prevSlot = sortedSlots[sortedSlots.length - 1];
-    const [ph, pm] = prevSlot.split(':').map(Number);
-    const prevMinutes = ph * 60 + pm;
-    const gap = slotMinutes - prevMinutes;
-    
-    if (gap >= 30) {
-      // 30+ minute gap - always include
-      sortedSlots.push(slot);
-    } else if (gap === 15 && forcedOffsetSlots.has(slot)) {
-      // 15-minute gap but this slot is forced by an appointment end
-      // Replace the previous standard slot with this offset slot
-      sortedSlots.pop();
-      sortedSlots.push(slot);
-    }
-    // Otherwise skip (15-min gap with non-forced slot)
-  }
-  
   // Get current time for filtering past slots on today
   const now = new Date();
   const isToday = selectedDate.toDateString() === now.toDateString();
   
   // Check each potential slot for availability
-  for (const slot of sortedSlots) {
+  for (const slot of allSlots) {
     const [hours, minutes] = slot.split(':').map(Number);
     const slotStart = new Date(selectedDate);
     slotStart.setHours(hours, minutes, 0, 0);
@@ -272,7 +230,7 @@ export const getAvailableSlots = (
       continue;
     }
     
-    // Make sure the service doesn't go past business hours (use actualEndHour, not default endHour)
+    // Make sure the service doesn't go past business hours
     const actualEndHourInt = Math.floor(actualEndHour);
     const actualEndMinuteInt = Math.round((actualEndHour - actualEndHourInt) * 60);
     
@@ -281,7 +239,7 @@ export const getAvailableSlots = (
       continue;
     }
     
-    // Check if slot is available
+    // Check if slot is available (doesn't conflict with any appointment)
     if (isSlotAvailable(slot, serviceDuration, appointments, selectedDate)) {
       const endHours = slotEnd.getHours();
       const endMinutes = slotEnd.getMinutes();

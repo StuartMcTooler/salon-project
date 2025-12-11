@@ -193,16 +193,16 @@ export const getAvailableSlots = (
   // Cap the end hour at 24 for offset slot generation
   const cappedEndHour = Math.min(actualEndHour, 24);
   
-  // Track offset slots that form a 30-min interval chain from non-standard end times
-  const offsetSlots = new Set<string>();
+  // Track appointment end times to know when to use offset vs standard slots
+  const appointmentEndTimes = new Map<string, 'offset' | 'standard'>();
   
-  // Process each appointment to generate offset slots if it ends at non-standard time
+  // Process each appointment to determine the next slot after it ends
   appointments.forEach(appointment => {
     const appointmentStart = new Date(appointment.appointment_date);
     const appointmentEnd = new Date(appointmentStart.getTime() + appointment.duration_minutes * 60000);
     const roundedEnd = roundToNext15Minutes(appointmentEnd);
-    const endDecimal = roundedEnd.getHours() + (roundedEnd.getMinutes() / 60);
     const roundedMinutes = roundedEnd.getMinutes();
+    const endDecimal = roundedEnd.getHours() + (roundedEnd.getMinutes() / 60);
     
     console.log('[TimeSlots] Appointment:', {
       start: appointmentStart.toISOString(),
@@ -212,31 +212,71 @@ export const getAvailableSlots = (
       roundedMinutes
     });
     
-    // If appointment ends at :15 or :45, generate 30-min interval slots from that offset
-    if ((roundedMinutes === 15 || roundedMinutes === 45) && endDecimal >= actualStartHour && endDecimal < cappedEndHour) {
-      let current = new Date(roundedEnd);
-      const maxIterations = 48;
+    if (endDecimal >= actualStartHour && endDecimal < cappedEndHour) {
+      const h = roundedEnd.getHours();
+      const m = roundedEnd.getMinutes();
+      const slotStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
       
-      for (let i = 0; i < maxIterations && current.getHours() + current.getMinutes() / 60 < cappedEndHour; i++) {
-        const h = current.getHours();
-        const m = current.getMinutes();
-        const slotStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-        potentialSlots.add(slotStr);
-        offsetSlots.add(slotStr);
-        current = new Date(current.getTime() + 30 * 60 * 1000);
+      // Add the immediate next slot after appointment
+      potentialSlots.add(slotStr);
+      
+      // Track whether this is an offset or standard time
+      if (roundedMinutes === 15 || roundedMinutes === 45) {
+        appointmentEndTimes.set(slotStr, 'offset');
+        
+        // For offset times, also generate the 30-min chain from this offset
+        let current = new Date(roundedEnd.getTime() + 30 * 60 * 1000);
+        while (current.getHours() + current.getMinutes() / 60 < cappedEndHour) {
+          const ch = current.getHours();
+          const cm = current.getMinutes();
+          const chainSlot = `${ch.toString().padStart(2, '0')}:${cm.toString().padStart(2, '0')}`;
+          potentialSlots.add(chainSlot);
+          current = new Date(current.getTime() + 30 * 60 * 1000);
+        }
+        
+        console.log('[TimeSlots] Offset slot chain started at:', slotStr);
+      } else {
+        appointmentEndTimes.set(slotStr, 'standard');
+        console.log('[TimeSlots] Standard slot after appointment:', slotStr);
       }
-      
-      console.log('[TimeSlots] Generated offset chain from:', `${roundedEnd.getHours()}:${roundedEnd.getMinutes().toString().padStart(2, '0')}`);
     }
   });
   
-  // Convert to sorted array and filter to keep only offset slots (removing standard slots that conflict)
+  // Sort appointments by end time to determine the "active" pattern at each point
+  const sortedAppointments = [...appointments].sort((a, b) => {
+    const endA = new Date(a.appointment_date).getTime() + a.duration_minutes * 60000;
+    const endB = new Date(b.appointment_date).getTime() + b.duration_minutes * 60000;
+    return endA - endB;
+  });
+  
+  // Find the last appointment that ends at a standard time
+  let lastStandardEndSlot: string | null = null;
+  for (const apt of sortedAppointments) {
+    const end = new Date(new Date(apt.appointment_date).getTime() + apt.duration_minutes * 60000);
+    const rounded = roundToNext15Minutes(end);
+    const mins = rounded.getMinutes();
+    if (mins === 0 || mins === 30) {
+      const h = rounded.getHours();
+      const m = rounded.getMinutes();
+      lastStandardEndSlot = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    }
+  }
+  
+  // Convert to sorted array
   const sortedAll = Array.from(potentialSlots).sort();
   const allSlots: string[] = [];
   
   for (const slot of sortedAll) {
     const [h, m] = slot.split(':').map(Number);
     const slotMinutes = h * 60 + m;
+    const isOffsetTime = (m === 15 || m === 45);
+    const isStandardTime = (m === 0 || m === 30);
+    
+    // If this slot is at or after the last standard appointment end, prefer standard slots
+    const lastStandardMinutes = lastStandardEndSlot 
+      ? parseInt(lastStandardEndSlot.split(':')[0]) * 60 + parseInt(lastStandardEndSlot.split(':')[1])
+      : 0;
+    const afterLastStandardEnd = slotMinutes >= lastStandardMinutes && lastStandardEndSlot;
     
     if (allSlots.length === 0) {
       allSlots.push(slot);
@@ -249,21 +289,28 @@ export const getAvailableSlots = (
     const gap = slotMinutes - prevMinutes;
     
     if (gap >= 30) {
-      // 30+ minute gap - always include
       allSlots.push(slot);
     } else if (gap === 15) {
-      // 15-minute gap - prefer offset slots over standard slots
-      const currentIsOffset = offsetSlots.has(slot);
-      const prevIsOffset = offsetSlots.has(prevSlot);
+      // 15-minute gap - need to choose one
+      const currentIsAppointmentEnd = appointmentEndTimes.has(slot);
+      const prevIsAppointmentEnd = appointmentEndTimes.has(prevSlot);
       
-      if (currentIsOffset && !prevIsOffset) {
-        // Current is offset, previous is standard - replace previous with current
+      if (currentIsAppointmentEnd && !prevIsAppointmentEnd) {
+        // Current is right after an appointment, prefer it
         allSlots.pop();
         allSlots.push(slot);
+      } else if (!currentIsAppointmentEnd && prevIsAppointmentEnd) {
+        // Previous is right after an appointment, keep it (skip current)
+      } else if (afterLastStandardEnd && isStandardTime) {
+        // After last standard end, prefer standard times
+        if (pm === 15 || pm === 45) {
+          // Previous was offset, replace with standard
+          allSlots.pop();
+          allSlots.push(slot);
+        }
       }
-      // If both are offset or both are standard, keep the first one (skip current)
+      // Otherwise keep the first one (skip current)
     }
-    // Otherwise skip (creates <15-min gap)
   }
   
   // Get current time for filtering past slots on today

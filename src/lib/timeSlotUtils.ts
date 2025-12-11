@@ -196,13 +196,40 @@ export const getAvailableSlots = (
   const standardSlots = generateTimeSlots(actualStartHour, actualEndHour);
   console.log('Generated standard slots:', standardSlots);
   
+  // Build set of potential slots, including offset slots after appointments end
+  const potentialSlots = new Set<string>(standardSlots);
+  
+  // For each appointment, add offset slots at quarter-hour marks after it ends
+  appointments.forEach(appointment => {
+    const appointmentStart = new Date(appointment.appointment_date);
+    const appointmentEnd = new Date(appointmentStart.getTime() + appointment.duration_minutes * 60000);
+    
+    // Round up to next 15-minute mark
+    const roundedEnd = roundToNext15Minutes(appointmentEnd);
+    
+    // Generate slots every 30 minutes from this rounded end time
+    const hours = roundedEnd.getHours();
+    const minutes = roundedEnd.getMinutes();
+    const startDecimal = hours + (minutes / 60);
+    
+    // Only generate offset slots if within business hours
+    if (startDecimal >= actualStartHour && startDecimal < actualEndHour) {
+      const offsetSlots = generateTimeSlots(startDecimal, actualEndHour);
+      offsetSlots.forEach(slot => potentialSlots.add(slot));
+    }
+  });
+  
+  // Convert to sorted array
+  const sortedSlots = Array.from(potentialSlots).sort();
+  console.log('Sorted potential slots (including offsets):', sortedSlots);
+  
   // Get current time for filtering past slots on today
   const now = new Date();
   const isToday = selectedDate.toDateString() === now.toDateString();
   console.log('Is today?', isToday, 'Current time:', now.toISOString());
   
   // Check each potential slot for availability
-  for (const slot of standardSlots) {
+  for (const slot of sortedSlots) {
     const [hours, minutes] = slot.split(':').map(Number);
     const slotStart = new Date(selectedDate);
     slotStart.setHours(hours, minutes, 0, 0);

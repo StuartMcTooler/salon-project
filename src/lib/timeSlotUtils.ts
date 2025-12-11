@@ -193,21 +193,27 @@ export const getAvailableSlots = (
   // Cap the end hour at 24 for offset slot generation
   const cappedEndHour = Math.min(actualEndHour, 24);
   
-  // Track the first available slot time after each appointment ends
-  const appointmentEndSlots = new Map<string, number>(); // slot time -> appointment end decimal
-  
-  // Process each appointment to find when slots become available after they end
+  // Process each appointment to generate offset slots after they end
   appointments.forEach(appointment => {
     const appointmentStart = new Date(appointment.appointment_date);
     const appointmentEnd = new Date(appointmentStart.getTime() + appointment.duration_minutes * 60000);
     const roundedEnd = roundToNext15Minutes(appointmentEnd);
     const endDecimal = roundedEnd.getHours() + (roundedEnd.getMinutes() / 60);
+    const roundedMinutes = roundedEnd.getMinutes();
     
-    // Generate the first available slot right after this appointment
-    if (endDecimal >= actualStartHour && endDecimal < cappedEndHour) {
-      const slotStr = `${roundedEnd.getHours().toString().padStart(2, '0')}:${roundedEnd.getMinutes().toString().padStart(2, '0')}`;
-      potentialSlots.add(slotStr);
-      appointmentEndSlots.set(slotStr, endDecimal);
+    // Only generate offset slots if the appointment ends at :15 or :45 (non-standard time)
+    if ((roundedMinutes === 15 || roundedMinutes === 45) && endDecimal >= actualStartHour && endDecimal < cappedEndHour) {
+      // Generate slots at 30-minute intervals from the offset time
+      let current = new Date(roundedEnd);
+      const maxIterations = 48;
+      
+      for (let i = 0; i < maxIterations && current.getHours() + current.getMinutes() / 60 < cappedEndHour; i++) {
+        const h = current.getHours();
+        const m = current.getMinutes();
+        const slotStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+        potentialSlots.add(slotStr);
+        current = new Date(current.getTime() + 30 * 60 * 1000);
+      }
     }
   });
   

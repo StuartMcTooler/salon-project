@@ -237,28 +237,42 @@ export const getAvailableSlots = (
   });
   
   // Filter out standard slots that would create 15-minute gaps with offset slots
-  // If we have an offset slot at :15 or :45, remove adjacent standard slots
-  const offsetSlots = new Set<string>();
+  // Only remove standard slots when we have a TRUE offset (at :15 or :45)
+  // Track which offset patterns are "active" based on appointment end times
   const standardSlotsSet = new Set<string>(standardSlots);
+  const activeOffsetRanges: Array<{ startHour: number; offsetMinute: 15 | 45 }> = [];
   
-  potentialSlots.forEach(slot => {
-    if (!standardSlotsSet.has(slot)) {
-      offsetSlots.add(slot);
+  // Determine active offset patterns from appointment end times
+  appointments.forEach(appointment => {
+    const appointmentStart = new Date(appointment.appointment_date);
+    const appointmentEnd = new Date(appointmentStart.getTime() + appointment.duration_minutes * 60000);
+    const roundedEnd = roundToNext15Minutes(appointmentEnd);
+    const roundedMinutes = roundedEnd.getMinutes();
+    
+    // Only track as active offset if it's NOT a standard time (:00 or :30)
+    if (roundedMinutes === 15 || roundedMinutes === 45) {
+      activeOffsetRanges.push({
+        startHour: roundedEnd.getHours(),
+        offsetMinute: roundedMinutes as 15 | 45
+      });
     }
   });
   
-  // For each offset slot, remove standard slots that would create 15-minute gaps
-  offsetSlots.forEach(offsetSlot => {
-    const [hours, minutes] = offsetSlot.split(':').map(Number);
-    
-    if (minutes === 15) {
-      // Remove :00 and :30 in the same hour
-      potentialSlots.delete(`${hours.toString().padStart(2, '0')}:00`);
-      potentialSlots.delete(`${hours.toString().padStart(2, '0')}:30`);
-    } else if (minutes === 45) {
-      // Remove :30 in same hour and :00 in next hour
-      potentialSlots.delete(`${hours.toString().padStart(2, '0')}:30`);
-      potentialSlots.delete(`${(hours + 1).toString().padStart(2, '0')}:00`);
+  // For each active offset range, remove standard slots that would create 15-minute gaps
+  activeOffsetRanges.forEach(({ startHour, offsetMinute }) => {
+    if (offsetMinute === 15) {
+      // Remove :00 and :30 from this hour onwards (they'd create 15-min gaps)
+      for (let h = startHour; h < 24; h++) {
+        potentialSlots.delete(`${h.toString().padStart(2, '0')}:00`);
+        potentialSlots.delete(`${h.toString().padStart(2, '0')}:30`);
+      }
+    } else if (offsetMinute === 45) {
+      // Remove :30 from this hour and :00/:30 from subsequent hours
+      potentialSlots.delete(`${startHour.toString().padStart(2, '0')}:30`);
+      for (let h = startHour + 1; h < 24; h++) {
+        potentialSlots.delete(`${h.toString().padStart(2, '0')}:00`);
+        potentialSlots.delete(`${h.toString().padStart(2, '0')}:30`);
+      }
     }
   });
   

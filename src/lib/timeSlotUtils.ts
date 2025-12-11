@@ -23,6 +23,9 @@ export interface BusinessHours {
 export const generateTimeSlots = (startHour: number = 9, endHour: number = 18): string[] => {
   const slots: string[] = [];
   
+  // Cap end hour at 24 to avoid invalid time strings
+  const cappedEndHour = Math.min(endHour, 24);
+  
   // Convert decimal hour to hour and minute
   const startHourInt = Math.floor(startHour);
   const startMinuteDecimal = (startHour - startHourInt) * 60;
@@ -31,7 +34,10 @@ export const generateTimeSlots = (startHour: number = 9, endHour: number = 18): 
   let currentMinute = Math.round(startMinuteDecimal);
   
   // Generate slots every 30 minutes from the start time
-  while (currentHour < endHour || (currentHour === endHour && currentMinute === 0)) {
+  while (currentHour < cappedEndHour || (currentHour === Math.floor(cappedEndHour) && currentMinute === 0 && cappedEndHour === Math.floor(cappedEndHour))) {
+    // Don't generate slots past 23:59
+    if (currentHour >= 24) break;
+    
     const timeSlot = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
     slots.push(timeSlot);
     
@@ -199,6 +205,9 @@ export const getAvailableSlots = (
   // Build set of potential slots, including offset slots after appointments end
   const potentialSlots = new Set<string>(standardSlots);
   
+  // Cap the end hour at 24 for offset slot generation to avoid issues with overnight hours
+  const cappedEndHour = Math.min(actualEndHour, 24);
+  
   // For each appointment, add offset slots at quarter-hour marks after it ends
   // These continue at 30-minute intervals from the offset time
   appointments.forEach(appointment => {
@@ -209,16 +218,20 @@ export const getAvailableSlots = (
     const roundedEnd = roundToNext15Minutes(appointmentEnd);
     const endDecimal = roundedEnd.getHours() + (roundedEnd.getMinutes() / 60);
     
-    // Only generate offset slots if within business hours
-    if (endDecimal >= actualStartHour && endDecimal < actualEndHour) {
+    // Only generate offset slots if within business hours (use capped end hour)
+    if (endDecimal >= actualStartHour && endDecimal < cappedEndHour) {
       // Generate slots every 30 minutes from the rounded end time
       let current = new Date(roundedEnd);
-      while (current.getHours() + current.getMinutes() / 60 < actualEndHour) {
+      let safetyCounter = 0;
+      const maxIterations = 48; // Maximum 24 hours worth of 30-min slots
+      
+      while (current.getHours() + current.getMinutes() / 60 < cappedEndHour && safetyCounter < maxIterations) {
         const h = current.getHours();
         const m = current.getMinutes();
         potentialSlots.add(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
         // Add 30 minutes for next slot
         current = new Date(current.getTime() + 30 * 60 * 1000);
+        safetyCounter++;
       }
     }
   });

@@ -193,24 +193,12 @@ export const getAvailableSlots = (
   // Cap the end hour at 24 for offset slot generation to avoid issues with overnight hours
   const cappedEndHour = Math.min(actualEndHour, 24);
   
-  // Track active offset patterns (at :15 or :45) to remove conflicting standard slots
-  const activeOffsetRanges: Array<{ startHour: number; offsetMinute: 15 | 45 }> = [];
-  
-  // Process each appointment: generate offset slots AND track offset patterns in single pass
+  // Process each appointment to generate offset slots after they end
   appointments.forEach(appointment => {
     const appointmentStart = new Date(appointment.appointment_date);
     const appointmentEnd = new Date(appointmentStart.getTime() + appointment.duration_minutes * 60000);
     const roundedEnd = roundToNext15Minutes(appointmentEnd);
     const endDecimal = roundedEnd.getHours() + (roundedEnd.getMinutes() / 60);
-    const roundedMinutes = roundedEnd.getMinutes();
-    
-    // Track offset pattern if NOT a standard time (:00 or :30)
-    if (roundedMinutes === 15 || roundedMinutes === 45) {
-      activeOffsetRanges.push({
-        startHour: roundedEnd.getHours(),
-        offsetMinute: roundedMinutes as 15 | 45
-      });
-    }
     
     // Generate offset slots if within business hours
     if (endDecimal >= actualStartHour && endDecimal < cappedEndHour) {
@@ -226,25 +214,7 @@ export const getAvailableSlots = (
     }
   });
   
-  // Remove standard slots that would create 15-minute gaps with active offset patterns
-  activeOffsetRanges.forEach(({ startHour, offsetMinute }) => {
-    if (offsetMinute === 15) {
-      // Remove :00 and :30 from this hour onwards
-      for (let h = startHour; h < 24; h++) {
-        potentialSlots.delete(`${h.toString().padStart(2, '0')}:00`);
-        potentialSlots.delete(`${h.toString().padStart(2, '0')}:30`);
-      }
-    } else if (offsetMinute === 45) {
-      // Remove :30 from this hour and :00/:30 from subsequent hours
-      potentialSlots.delete(`${startHour.toString().padStart(2, '0')}:30`);
-      for (let h = startHour + 1; h < 24; h++) {
-        potentialSlots.delete(`${h.toString().padStart(2, '0')}:00`);
-        potentialSlots.delete(`${h.toString().padStart(2, '0')}:30`);
-      }
-    }
-  });
-  
-  // Convert to sorted array
+  // Convert to sorted array - availability check handles conflicts
   const sortedSlots = Array.from(potentialSlots).sort();
   
   // Get current time for filtering past slots on today

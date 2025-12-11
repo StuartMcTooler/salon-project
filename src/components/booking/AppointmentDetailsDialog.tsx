@@ -93,6 +93,8 @@ export const AppointmentDetailsDialog = ({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['timeline-appointments'] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['visual-calendar'] });
+      queryClient.invalidateQueries({ queryKey: ['todays-appointments'] });
       toast({
         title: "Appointment Cancelled",
         description: "The appointment has been cancelled successfully.",

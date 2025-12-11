@@ -200,22 +200,26 @@ export const getAvailableSlots = (
   const potentialSlots = new Set<string>(standardSlots);
   
   // For each appointment, add offset slots at quarter-hour marks after it ends
+  // These continue at 30-minute intervals from the offset time
   appointments.forEach(appointment => {
     const appointmentStart = new Date(appointment.appointment_date);
     const appointmentEnd = new Date(appointmentStart.getTime() + appointment.duration_minutes * 60000);
     
     // Round up to next 15-minute mark
     const roundedEnd = roundToNext15Minutes(appointmentEnd);
-    
-    // Generate slots every 30 minutes from this rounded end time
-    const hours = roundedEnd.getHours();
-    const minutes = roundedEnd.getMinutes();
-    const startDecimal = hours + (minutes / 60);
+    const endDecimal = roundedEnd.getHours() + (roundedEnd.getMinutes() / 60);
     
     // Only generate offset slots if within business hours
-    if (startDecimal >= actualStartHour && startDecimal < actualEndHour) {
-      const offsetSlots = generateTimeSlots(startDecimal, actualEndHour);
-      offsetSlots.forEach(slot => potentialSlots.add(slot));
+    if (endDecimal >= actualStartHour && endDecimal < actualEndHour) {
+      // Generate slots every 30 minutes from the rounded end time
+      let current = new Date(roundedEnd);
+      while (current.getHours() + current.getMinutes() / 60 < actualEndHour) {
+        const h = current.getHours();
+        const m = current.getMinutes();
+        potentialSlots.add(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+        // Add 30 minutes for next slot
+        current = new Date(current.getTime() + 30 * 60 * 1000);
+      }
     }
   });
   

@@ -204,11 +204,25 @@ export const getAvailableSlots = (
     const endDecimal = roundedEnd.getHours() + (roundedEnd.getMinutes() / 60);
     const roundedMinutes = roundedEnd.getMinutes();
     
+    console.log('[TimeSlots] Appointment:', {
+      start: appointmentStart.toISOString(),
+      end: appointmentEnd.toISOString(),
+      duration: appointment.duration_minutes,
+      roundedEnd: roundedEnd.toISOString(),
+      roundedMinutes,
+      endDecimal,
+      actualStartHour,
+      cappedEndHour,
+      willGenerateOffsets: (roundedMinutes === 15 || roundedMinutes === 45) && endDecimal >= actualStartHour && endDecimal < cappedEndHour
+    });
+    
     // Only generate offset slots if the appointment ends at :15 or :45 (non-standard time)
     if ((roundedMinutes === 15 || roundedMinutes === 45) && endDecimal >= actualStartHour && endDecimal < cappedEndHour) {
       // Generate slots at 30-minute intervals from the offset time
       let current = new Date(roundedEnd);
       const maxIterations = 48;
+      
+      console.log('[TimeSlots] Generating offset slots from:', `${roundedEnd.getHours()}:${roundedEnd.getMinutes()}`);
       
       for (let i = 0; i < maxIterations && current.getHours() + current.getMinutes() / 60 < cappedEndHour; i++) {
         const h = current.getHours();
@@ -218,6 +232,8 @@ export const getAvailableSlots = (
         offsetSlots.add(slotStr);
         current = new Date(current.getTime() + 30 * 60 * 1000);
       }
+      
+      console.log('[TimeSlots] Offset slots generated:', Array.from(offsetSlots));
     }
   });
   

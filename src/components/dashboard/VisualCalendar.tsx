@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { format, startOfWeek, addDays, isSameDay } from "date-fns";
@@ -26,6 +26,7 @@ export const VisualCalendar = ({ staffId }: VisualCalendarProps) => {
         .from("salon_appointments")
         .select("*")
         .eq("staff_id", staffId)
+        .neq("status", "cancelled")
         .gte("appointment_date", weekStart.toISOString())
         .lt("appointment_date", weekEnd.toISOString())
         .order("appointment_date");
@@ -34,6 +35,8 @@ export const VisualCalendar = ({ staffId }: VisualCalendarProps) => {
       return data;
     },
   });
+
+  const queryClient = useQueryClient();
 
   // Realtime subscription
   useEffect(() => {
@@ -48,13 +51,8 @@ export const VisualCalendar = ({ staffId }: VisualCalendarProps) => {
           filter: `staff_id=eq.${staffId}`
         },
         () => {
-          // Refetch when appointments change
-          supabase
-            .from("salon_appointments")
-            .select("*")
-            .eq("staff_id", staffId)
-            .gte("appointment_date", weekStart.toISOString())
-            .lt("appointment_date", addDays(weekStart, 7).toISOString());
+          // Invalidate the query to refetch data
+          queryClient.invalidateQueries({ queryKey: ['visual-calendar', staffId] });
         }
       )
       .subscribe();
@@ -62,7 +60,7 @@ export const VisualCalendar = ({ staffId }: VisualCalendarProps) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [staffId, weekStart]);
+  }, [staffId, queryClient]);
 
   const hours = Array.from({ length: 10 }, (_, i) => i + 9); // 9 AM to 6 PM
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));

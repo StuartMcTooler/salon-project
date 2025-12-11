@@ -193,6 +193,9 @@ export const getAvailableSlots = (
   // Cap the end hour at 24 for offset slot generation
   const cappedEndHour = Math.min(actualEndHour, 24);
   
+  // Track offset slots that are "forced" by appointment end times
+  const offsetSlots = new Set<string>();
+  
   // Process each appointment to generate offset slots after they end
   appointments.forEach(appointment => {
     const appointmentStart = new Date(appointment.appointment_date);
@@ -212,13 +215,41 @@ export const getAvailableSlots = (
         const m = current.getMinutes();
         const slotStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
         potentialSlots.add(slotStr);
+        offsetSlots.add(slotStr);
         current = new Date(current.getTime() + 30 * 60 * 1000);
       }
     }
   });
   
-  // Convert to sorted array
-  const allSlots = Array.from(potentialSlots).sort();
+  // Convert to sorted array and filter to maintain 30-min spacing
+  const sortedAll = Array.from(potentialSlots).sort();
+  const allSlots: string[] = [];
+  
+  for (const slot of sortedAll) {
+    const [h, m] = slot.split(':').map(Number);
+    const slotMinutes = h * 60 + m;
+    
+    if (allSlots.length === 0) {
+      allSlots.push(slot);
+      continue;
+    }
+    
+    const prevSlot = allSlots[allSlots.length - 1];
+    const [ph, pm] = prevSlot.split(':').map(Number);
+    const prevMinutes = ph * 60 + pm;
+    const gap = slotMinutes - prevMinutes;
+    
+    if (gap >= 30) {
+      // 30+ minute gap - always include
+      allSlots.push(slot);
+    } else if (gap === 15 && offsetSlots.has(slot)) {
+      // 15-minute gap but this is an offset slot forced by appointment end
+      // Replace the previous standard slot with this offset slot
+      allSlots.pop();
+      allSlots.push(slot);
+    }
+    // Otherwise skip (15-min gap with non-offset slot)
+  }
   
   // Get current time for filtering past slots on today
   const now = new Date();

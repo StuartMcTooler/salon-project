@@ -376,6 +376,7 @@ export type Database = {
           email: string | null
           first_visit_date: string | null
           id: string
+          is_test_user: boolean | null
           last_visit_date: string | null
           name: string
           notes: string | null
@@ -389,6 +390,7 @@ export type Database = {
           email?: string | null
           first_visit_date?: string | null
           id?: string
+          is_test_user?: boolean | null
           last_visit_date?: string | null
           name: string
           notes?: string | null
@@ -402,6 +404,7 @@ export type Database = {
           email?: string | null
           first_visit_date?: string | null
           id?: string
+          is_test_user?: boolean | null
           last_visit_date?: string | null
           name?: string
           notes?: string | null
@@ -1660,6 +1663,7 @@ export type Database = {
           id: string
           is_accepting_referrals: boolean | null
           is_active: boolean | null
+          is_test_user: boolean | null
           phone: string | null
           profile_image_url: string | null
           referral_discount_type:
@@ -1695,6 +1699,7 @@ export type Database = {
           id?: string
           is_accepting_referrals?: boolean | null
           is_active?: boolean | null
+          is_test_user?: boolean | null
           phone?: string | null
           profile_image_url?: string | null
           referral_discount_type?:
@@ -1730,6 +1735,7 @@ export type Database = {
           id?: string
           is_accepting_referrals?: boolean | null
           is_active?: boolean | null
+          is_test_user?: boolean | null
           phone?: string | null
           profile_image_url?: string | null
           referral_discount_type?:

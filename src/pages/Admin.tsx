@@ -25,6 +25,8 @@ import { ReferralTestingTool } from "@/components/admin/ReferralTestingTool";
 import { OverflowTestMode } from "@/components/admin/OverflowTestMode";
 import { AvailabilityTestingTool } from "@/components/admin/AvailabilityTestingTool";
 import { BusinessSettings } from "@/components/admin/BusinessSettings";
+import { TestUserManagement } from "@/components/admin/TestUserManagement";
+import { SimulatedMessagesLog } from "@/components/admin/SimulatedMessagesLog";
 import { toast } from "sonner";
 import { useBusinessConfig } from "@/hooks/useBusinessConfig";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -116,6 +118,7 @@ export default function Admin() {
                   {features.staffManagement && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'tiers' })}>Tiers</DropdownMenuItem>}
                   {features.staffManagement && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'overflow' })}>Overflow Test</DropdownMenuItem>}
                   <DropdownMenuItem onClick={() => setSearchParams({ tab: 'availability-test' })}>Availability Testing</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSearchParams({ tab: 'test-users' })}>Test Users & Logs</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setSearchParams({ tab: 'services' })}>Services</DropdownMenuItem>
                   {features.servicePricing && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'pricing' })}>Pricing</DropdownMenuItem>}
                   {features.businessHours && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'hours' })}>Hours</DropdownMenuItem>}
@@ -219,6 +222,13 @@ export default function Admin() {
 
               <TabsContent value="availability-test">
                 <AvailabilityTestingTool />
+              </TabsContent>
+
+              <TabsContent value="test-users">
+                <div className="space-y-6">
+                  <TestUserManagement />
+                  <SimulatedMessagesLog />
+                </div>
               </TabsContent>
             </>
           )}

@@ -193,12 +193,16 @@ export const getAvailableSlots = (
   // Cap the end hour at 24 for offset slot generation to avoid issues with overnight hours
   const cappedEndHour = Math.min(actualEndHour, 24);
   
+  // Track offset slots that are "forced" by appointment end times
+  const forcedOffsetSlots = new Set<string>();
+  
   // Process each appointment to generate offset slots after they end
   appointments.forEach(appointment => {
     const appointmentStart = new Date(appointment.appointment_date);
     const appointmentEnd = new Date(appointmentStart.getTime() + appointment.duration_minutes * 60000);
     const roundedEnd = roundToNext15Minutes(appointmentEnd);
     const endDecimal = roundedEnd.getHours() + (roundedEnd.getMinutes() / 60);
+    const roundedMinutes = roundedEnd.getMinutes();
     
     // Generate offset slots if within business hours
     if (endDecimal >= actualStartHour && endDecimal < cappedEndHour) {
@@ -208,14 +212,49 @@ export const getAvailableSlots = (
       for (let i = 0; i < maxIterations && current.getHours() + current.getMinutes() / 60 < cappedEndHour; i++) {
         const h = current.getHours();
         const m = current.getMinutes();
-        potentialSlots.add(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+        const slotStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+        potentialSlots.add(slotStr);
+        
+        // Mark as forced offset if it's at :15 or :45
+        if (m === 15 || m === 45) {
+          forcedOffsetSlots.add(slotStr);
+        }
+        
         current = new Date(current.getTime() + 30 * 60 * 1000);
       }
     }
   });
   
-  // Convert to sorted array - availability check handles conflicts
-  const sortedSlots = Array.from(potentialSlots).sort();
+  // Convert to sorted array
+  const allSlots = Array.from(potentialSlots).sort();
+  
+  // Filter to maintain 30-minute intervals, preferring forced offset slots
+  const sortedSlots: string[] = [];
+  for (const slot of allSlots) {
+    const [h, m] = slot.split(':').map(Number);
+    const slotMinutes = h * 60 + m;
+    
+    if (sortedSlots.length === 0) {
+      sortedSlots.push(slot);
+      continue;
+    }
+    
+    const prevSlot = sortedSlots[sortedSlots.length - 1];
+    const [ph, pm] = prevSlot.split(':').map(Number);
+    const prevMinutes = ph * 60 + pm;
+    const gap = slotMinutes - prevMinutes;
+    
+    if (gap >= 30) {
+      // 30+ minute gap - always include
+      sortedSlots.push(slot);
+    } else if (gap === 15 && forcedOffsetSlots.has(slot)) {
+      // 15-minute gap but this slot is forced by an appointment end
+      // Replace the previous standard slot with this offset slot
+      sortedSlots.pop();
+      sortedSlots.push(slot);
+    }
+    // Otherwise skip (15-min gap with non-forced slot)
+  }
   
   // Get current time for filtering past slots on today
   const now = new Date();

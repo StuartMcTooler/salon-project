@@ -236,6 +236,32 @@ export const getAvailableSlots = (
     }
   });
   
+  // Filter out standard slots that would create 15-minute gaps with offset slots
+  // If we have an offset slot at :15 or :45, remove adjacent standard slots
+  const offsetSlots = new Set<string>();
+  const standardSlotsSet = new Set<string>(standardSlots);
+  
+  potentialSlots.forEach(slot => {
+    if (!standardSlotsSet.has(slot)) {
+      offsetSlots.add(slot);
+    }
+  });
+  
+  // For each offset slot, remove standard slots that would create 15-minute gaps
+  offsetSlots.forEach(offsetSlot => {
+    const [hours, minutes] = offsetSlot.split(':').map(Number);
+    
+    if (minutes === 15) {
+      // Remove :00 and :30 in the same hour
+      potentialSlots.delete(`${hours.toString().padStart(2, '0')}:00`);
+      potentialSlots.delete(`${hours.toString().padStart(2, '0')}:30`);
+    } else if (minutes === 45) {
+      // Remove :30 in same hour and :00 in next hour
+      potentialSlots.delete(`${hours.toString().padStart(2, '0')}:30`);
+      potentialSlots.delete(`${(hours + 1).toString().padStart(2, '0')}:00`);
+    }
+  });
+  
   // Convert to sorted array
   const sortedSlots = Array.from(potentialSlots).sort();
   console.log('Sorted potential slots (including offsets):', sortedSlots);

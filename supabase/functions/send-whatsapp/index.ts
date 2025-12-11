@@ -34,6 +34,61 @@ Deno.serve(async (req) => {
     // SECURITY: Sanitize message content - remove control characters
     const sanitizedMessage = message.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
 
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Check if recipient is a test user (client or staff)
+    const { data: testClient } = await supabase
+      .from('clients')
+      .select('is_test_user')
+      .eq('phone', to)
+      .eq('is_test_user', true)
+      .maybeSingle();
+
+    const { data: testStaff } = await supabase
+      .from('staff_members')
+      .select('is_test_user')
+      .eq('phone', to)
+      .eq('is_test_user', true)
+      .maybeSingle();
+
+    const isTestUser = testClient?.is_test_user || testStaff?.is_test_user;
+
+    // If test user, simulate the message instead of sending
+    if (isTestUser) {
+      console.log('TEST USER DETECTED - Simulating message instead of sending');
+      console.log('Recipient:', to);
+      console.log('Message:', sanitizedMessage);
+      console.log('Message Type:', messageType);
+
+      // Log the simulated message
+      if (businessId) {
+        await supabase.from('notification_logs').insert({
+          business_id: businessId,
+          recipient_phone: to,
+          message_type: messageType,
+          delivery_method: 'simulated',
+          status: 'simulated',
+          twilio_message_id: `SIM_${Date.now()}`,
+          error_message: `SIMULATED MESSAGE CONTENT: ${sanitizedMessage}`,
+        });
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          messageId: `SIM_${Date.now()}`, 
+          deliveryMethod: 'simulated',
+          simulated: true,
+          message: 'Test user - message simulated, not sent'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Continue with real message sending for non-test users
     const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
     const whatsappNumber = Deno.env.get('TWILIO_WHATSAPP_NUMBER');
@@ -43,17 +98,13 @@ Deno.serve(async (req) => {
       throw new Error('Twilio credentials not configured');
     }
 
-    // Initialize Supabase client for logging
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
     // SECURITY: Rate limiting check - max messages per hour to same number
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const { data: recentMessages } = await supabase
       .from('notification_logs')
       .select('id')
       .eq('recipient_phone', to)
+      .neq('status', 'simulated') // Don't count simulated messages
       .gte('created_at', oneHourAgo);
     
     const MAX_MESSAGES_PER_HOUR = 5;

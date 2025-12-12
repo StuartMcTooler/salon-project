@@ -6,9 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Clock, User, Loader2, CheckCircle2, Edit2, CreditCard, Camera } from "lucide-react";
+import { Clock, User, Loader2, CheckCircle2, Edit2, CreditCard, Camera, MoreVertical, UserCheck, UserX, XCircle } from "lucide-react";
 import { AppointmentDetailsDialog } from "@/components/booking/AppointmentDetailsDialog";
 import { InServicePhotoCapture } from "@/components/booking/InServicePhotoCapture";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 interface TodaysAppointmentsProps {
   staffId: string;
@@ -42,7 +50,39 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
       if (error) throw error;
       return data;
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 30000,
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: async ({ appointmentId, status }: { appointmentId: string; status: string }) => {
+      const { data, error } = await supabase
+        .from('salon_appointments')
+        .update({ status })
+        .eq('id', appointmentId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['todays-appointments', staffId] });
+      const statusMessages: Record<string, string> = {
+        checked_in: "Client checked in",
+        no_show: "Marked as no-show",
+        cancelled: "Appointment cancelled",
+      };
+      toast({
+        title: statusMessages[variables.status] || "Status updated",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update status",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const completeAppointment = useMutation({
@@ -60,7 +100,6 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
 
       if (error) throw error;
 
-      // Award loyalty points
       try {
         await supabase.functions.invoke('award-loyalty-points', {
           body: {
@@ -80,7 +119,6 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['todays-appointments', staffId] });
-      // Trigger checkout dialog immediately
       onAppointmentSelect(data);
     },
     onError: (error: any) => {
@@ -140,6 +178,13 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
     }
   };
 
+  const getStatusBorderClass = (status: string) => {
+    if (status === 'checked_in') {
+      return 'border-l-4 border-l-green-500';
+    }
+    return '';
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -158,8 +203,11 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
     );
   }
 
-  const pendingAppointments = appointments.filter(apt => apt.status === 'pending' || apt.status === 'confirmed');
+  const pendingAppointments = appointments.filter(apt => 
+    apt.status === 'pending' || apt.status === 'confirmed' || apt.status === 'checked_in'
+  );
   const completedAppointments = appointments.filter(apt => apt.status === 'completed');
+  const noShowAppointments = appointments.filter(apt => apt.status === 'no_show');
 
   return (
     <div className="space-y-6">
@@ -168,13 +216,25 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
           <h3 className="text-lg font-semibold mb-3">Pending Appointments</h3>
           <div className="space-y-3">
             {pendingAppointments.map((appointment) => (
-              <Card key={appointment.id} className="border-primary/20">
+              <Card 
+                key={appointment.id} 
+                className={cn(
+                  "border-primary/20",
+                  getStatusBorderClass(appointment.status)
+                )}
+              >
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div className="space-y-2 flex-1">
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">{appointment.customer_name}</span>
+                        {appointment.status === 'checked_in' && (
+                          <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
+                            <UserCheck className="h-3 w-3 mr-1" />
+                            Checked In
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Clock className="h-3 w-3" />
@@ -203,7 +263,51 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
+                      {/* Quick Actions Dropdown */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-popover">
+                          {appointment.status !== 'checked_in' && (
+                            <DropdownMenuItem 
+                              onClick={() => updateStatus.mutate({ 
+                                appointmentId: appointment.id, 
+                                status: 'checked_in' 
+                              })}
+                              className="text-green-600"
+                            >
+                              <UserCheck className="h-4 w-4 mr-2" />
+                              Check In
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem 
+                            onClick={() => updateStatus.mutate({ 
+                              appointmentId: appointment.id, 
+                              status: 'no_show' 
+                            })}
+                            className="text-red-600"
+                          >
+                            <UserX className="h-4 w-4 mr-2" />
+                            Mark No-Show
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => updateStatus.mutate({ 
+                              appointmentId: appointment.id, 
+                              status: 'cancelled' 
+                            })}
+                            className="text-muted-foreground"
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Cancel
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
                       <Button
                         variant="outline"
                         size="sm"
@@ -230,6 +334,36 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
                         <CreditCard className="mr-2 h-4 w-4" />
                         Take Payment
                       </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {noShowAppointments.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold mb-3 text-red-600">No-Shows</h3>
+          <div className="space-y-3">
+            {noShowAppointments.map((appointment) => (
+              <Card key={appointment.id} className="opacity-60 border-l-4 border-l-red-500">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{appointment.customer_name}</span>
+                        <Badge variant="destructive" className="ml-2">
+                          <UserX className="h-3 w-3 mr-1" />
+                          No-Show
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {format(new Date(appointment.appointment_date), 'HH:mm')} • {appointment.service_name}
+                      </div>
                     </div>
                   </div>
                 </CardContent>

@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { CreditCard, Smartphone, Loader2, Banknote, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useTerminalPayment } from "@/hooks/useTerminalPayment";
+import { isNativeApp } from "@/lib/platform";
 
 interface PaymentMethodSelectorProps {
   appointmentId: string;
@@ -38,6 +40,9 @@ export const PaymentMethodSelector = ({
 }: PaymentMethodSelectorProps) => {
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"card_reader" | "payment_link" | "cash" | null>(null);
+  
+  // Native terminal payment hook
+  const { processPayment, initializeNativeSDK, isProcessing } = useTerminalPayment();
 
   // Calculate the actual amount to charge
   const amountToCharge = (depositPaid && remainingBalance) 
@@ -97,7 +102,44 @@ export const PaymentMethodSelector = ({
         return;
       }
 
-      // PRODUCTION MODE: Actual terminal processing
+      // Check for staff-level terminal settings first (for Tap to Pay / Bluetooth)
+      if (staffId) {
+        const { data: staffTerminal } = await supabase
+          .from('terminal_settings')
+          .select('connection_type, reader_id')
+          .eq('staff_id', staffId)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        // If staff has Tap to Pay or Bluetooth configured and we're on native app
+        if (staffTerminal?.connection_type && 
+            (staffTerminal.connection_type === 'tap_to_pay' || staffTerminal.connection_type === 'bluetooth') &&
+            isNativeApp()) {
+          
+          console.log('[Payment] Using native SDK for:', staffTerminal.connection_type);
+          
+          // Initialize native SDK if needed
+          await initializeNativeSDK();
+          
+          // Process payment via native SDK
+          const result = await processPayment(
+            amountToCharge,
+            { connectionType: staffTerminal.connection_type as 'tap_to_pay' | 'bluetooth' },
+            appointmentId,
+            customerEmail
+          );
+          
+          if (result.success) {
+            toast.success('Card payment completed!');
+            onPaymentComplete();
+          } else {
+            throw new Error(result.error || 'Payment failed');
+          }
+          return;
+        }
+      }
+
+      // Fall back to business-level WiFi reader (server-driven)
       if (!businessId) throw new Error('No business configured for this staff.');
 
       const { data: terminalData, error: termErr } = await supabase
@@ -108,7 +150,7 @@ export const PaymentMethodSelector = ({
         .maybeSingle();
       if (termErr) throw termErr;
       const readerId = terminalData?.reader_id;
-      if (!readerId) throw new Error('No terminal reader configured.');
+      if (!readerId) throw new Error('No terminal reader configured. Please set up Tap to Pay in your profile settings.');
 
       const { data: readerStatus, error: readerError } = await supabase.functions.invoke(
         'check-terminal-reader',

@@ -29,7 +29,7 @@ export const PortfolioUpload = ({ staffId }: PortfolioUploadProps) => {
         .insert({
           creative_id: staffId,
           raw_file_path: filePath,
-          media_type: "image",
+          media_type: "photo",
           visibility_scope: "public",
           client_approved: true,
           content_origin: "manual_upload",

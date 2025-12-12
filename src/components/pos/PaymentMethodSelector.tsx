@@ -193,16 +193,32 @@ export const PaymentMethodSelector = ({
         // If staff has Tap to Pay or Bluetooth configured and we're on native app
         const isTapOrBluetooth = staffTerminal?.connection_type === 'tap_to_pay' || staffTerminal?.connection_type === 'bluetooth';
         
-        // Check if staff has permission to use this payment method
-        const hasPermission = staffTerminal?.connection_type && allowedTypes.includes(staffTerminal.connection_type);
+        // Check if staff has permission to use this payment method for their configured type
+        const hasPermissionForConfigured = staffTerminal?.connection_type && allowedTypes.includes(staffTerminal.connection_type);
+
+        // Also detect Tap to Pay permission even if no personal terminal_settings row exists
+        const canUseTapToPayPermission = allowedTypes.includes('tap_to_pay');
+
+        const shouldUseNativeTapToPay =
+          isNative &&
+          canUseTapToPayPermission &&
+          (!staffTerminal || staffTerminal.connection_type === 'tap_to_pay');
         
         console.log('[Payment Debug] Is Tap to Pay or Bluetooth:', isTapOrBluetooth);
-        console.log('[Payment Debug] Has permission:', hasPermission);
-        console.log('[Payment Debug] Should use native SDK:', isTapOrBluetooth && isNative && hasPermission);
+        console.log('[Payment Debug] Has permission for configured:', !!hasPermissionForConfigured);
+        console.log('[Payment Debug] Can use Tap to Pay (permission only):', canUseTapToPayPermission);
+        console.log('[Payment Debug] Should use native Tap to Pay (fallback):', shouldUseNativeTapToPay);
+        console.log('[Payment Debug] Should use native SDK (configured):', isTapOrBluetooth && isNative && !!hasPermissionForConfigured);
 
-        if (staffTerminal?.connection_type && isTapOrBluetooth && isNative && hasPermission) {
-          
-          console.log('[Payment Debug] ✅ Using native SDK for:', staffTerminal.connection_type);
+        if (
+          shouldUseNativeTapToPay ||
+          (staffTerminal?.connection_type && isTapOrBluetooth && isNative && !!hasPermissionForConfigured)
+        ) {
+          const connectionType = (shouldUseNativeTapToPay
+            ? 'tap_to_pay'
+            : (staffTerminal!.connection_type as 'tap_to_pay' | 'bluetooth'));
+
+          console.log('[Payment Debug] ✅ Using native SDK for:', connectionType);
           
           // Initialize native SDK if needed
           await initializeNativeSDK();
@@ -210,7 +226,7 @@ export const PaymentMethodSelector = ({
           // Process payment via native SDK
           const result = await processPayment(
             amountToCharge,
-            { connectionType: staffTerminal.connection_type as 'tap_to_pay' | 'bluetooth' },
+            { connectionType },
             appointmentId,
             customerEmail
           );
@@ -225,7 +241,7 @@ export const PaymentMethodSelector = ({
           return;
         } else {
           console.log('[Payment Debug] ❌ NOT using native SDK - falling through to WiFi reader');
-          if (!hasPermission && staffTerminal?.connection_type) {
+          if (!hasPermissionForConfigured && staffTerminal?.connection_type) {
             console.log('[Payment Debug] ⚠️ Staff does not have permission for', staffTerminal.connection_type);
           }
         }

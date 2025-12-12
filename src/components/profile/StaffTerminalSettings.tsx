@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Smartphone, Bluetooth, Loader2, CheckCircle, Search, CreditCard } from 'lucide-react';
+import { Smartphone, Bluetooth, Loader2, CheckCircle, Search, CreditCard, Wifi } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePlatform } from '@/hooks/usePlatform';
@@ -19,7 +20,8 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
   const { isNative, canUseTapToPay, canUseBluetoothReader } = usePlatform();
   const { discoverReaders, connectReader, discoveredReaders, connectedReader, isProcessing } = useTerminalPayment();
   
-  const [connectionType, setConnectionType] = useState<'tap_to_pay' | 'bluetooth'>('tap_to_pay');
+  const [connectionType, setConnectionType] = useState<'tap_to_pay' | 'bluetooth' | 'internet'>('tap_to_pay');
+  const [readerId, setReaderId] = useState('');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [existingSettings, setExistingSettings] = useState<any>(null);
@@ -42,7 +44,8 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
 
       if (data) {
         setExistingSettings(data);
-        setConnectionType(data.connection_type as 'tap_to_pay' | 'bluetooth' || 'tap_to_pay');
+        setConnectionType(data.connection_type as 'tap_to_pay' | 'bluetooth' | 'internet' || 'tap_to_pay');
+        setReaderId(data.reader_id || '');
       }
     } catch (error) {
       console.error('Error loading terminal settings:', error);
@@ -54,11 +57,22 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
   const handleSave = async () => {
     setSaving(true);
     try {
+      const getReaderInfo = () => {
+        if (connectionType === 'bluetooth' && connectedReader) {
+          return { reader_id: connectedReader.serialNumber, reader_name: connectedReader.label || 'Bluetooth Reader' };
+        }
+        if (connectionType === 'internet' && readerId) {
+          return { reader_id: readerId, reader_name: 'WiFi Reader' };
+        }
+        return { reader_id: null, reader_name: null };
+      };
+
+      const readerInfo = getReaderInfo();
       const settingsData = {
         staff_id: staffId,
         connection_type: connectionType,
-        reader_id: connectionType === 'bluetooth' && connectedReader ? connectedReader.serialNumber : null,
-        reader_name: connectionType === 'bluetooth' && connectedReader ? (connectedReader.label || 'Bluetooth Reader') : null,
+        reader_id: readerInfo.reader_id,
+        reader_name: readerInfo.reader_name,
         is_active: true,
       };
 
@@ -186,7 +200,7 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
       <CardContent className="space-y-6">
         <RadioGroup 
           value={connectionType} 
-          onValueChange={(v) => setConnectionType(v as 'tap_to_pay' | 'bluetooth')}
+          onValueChange={(v) => setConnectionType(v as 'tap_to_pay' | 'bluetooth' | 'internet')}
           className="space-y-3"
         >
           {/* Tap to Pay Option */}
@@ -221,7 +235,37 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
               </Label>
             </div>
           )}
+
+          {/* WiFi/Internet Reader Option */}
+          <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+            <RadioGroupItem value="internet" id="internet" className="mt-1" />
+            <Label htmlFor="internet" className="flex-1 cursor-pointer">
+              <div className="flex items-center gap-2">
+                <Wifi className="h-5 w-5 text-green-500" />
+                <span className="font-medium">WiFi Reader</span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                Use a shared WiFi-connected reader (WisePOS E, S700, etc.)
+              </p>
+            </Label>
+          </div>
         </RadioGroup>
+
+        {/* WiFi Reader ID Input */}
+        {connectionType === 'internet' && (
+          <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+            <Label htmlFor="reader-id" className="text-sm font-medium">Reader ID</Label>
+            <Input
+              id="reader-id"
+              value={readerId}
+              onChange={(e) => setReaderId(e.target.value)}
+              placeholder="tmr_xxxxxxxxxxxxx"
+            />
+            <p className="text-xs text-muted-foreground">
+              Find this in your Stripe Dashboard under Terminal → Readers
+            </p>
+          </div>
+        )}
 
         {/* Bluetooth Reader Discovery */}
         {connectionType === 'bluetooth' && (
@@ -298,7 +342,7 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
         {/* Save Button */}
         <Button 
           onClick={handleSave} 
-          disabled={saving || (connectionType === 'bluetooth' && !connectedReader && !existingSettings?.reader_id)}
+          disabled={saving || (connectionType === 'bluetooth' && !connectedReader && !existingSettings?.reader_id) || (connectionType === 'internet' && !readerId)}
           className="w-full"
         >
           {saving ? (

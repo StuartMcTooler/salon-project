@@ -85,6 +85,14 @@ export const PaymentMethodSelector = ({
     setLoading(true);
     setPaymentMethod("card_reader");
 
+    // DEBUG: Log all key detection values
+    const isNative = isNativeApp();
+    console.log('[Payment Debug] ===== PAYMENT FLOW START =====');
+    console.log('[Payment Debug] isNativeApp():', isNative);
+    console.log('[Payment Debug] staffId:', staffId);
+    console.log('[Payment Debug] businessId:', businessId);
+    console.log('[Payment Debug] User Agent:', navigator.userAgent);
+
     try {
       if (TEST_MODE) {
         // TEST MODE: Skip terminal processing, just record as card payment
@@ -104,19 +112,26 @@ export const PaymentMethodSelector = ({
 
       // Check for staff-level terminal settings first (for Tap to Pay / Bluetooth)
       if (staffId) {
-        const { data: staffTerminal } = await supabase
+        console.log('[Payment Debug] Querying staff terminal settings for staffId:', staffId);
+        
+        const { data: staffTerminal, error: staffTerminalError } = await supabase
           .from('terminal_settings')
           .select('connection_type, reader_id')
           .eq('staff_id', staffId)
           .eq('is_active', true)
           .maybeSingle();
 
+        console.log('[Payment Debug] Staff terminal query result:', staffTerminal);
+        console.log('[Payment Debug] Staff terminal query error:', staffTerminalError);
+
         // If staff has Tap to Pay or Bluetooth configured and we're on native app
-        if (staffTerminal?.connection_type && 
-            (staffTerminal.connection_type === 'tap_to_pay' || staffTerminal.connection_type === 'bluetooth') &&
-            isNativeApp()) {
+        const isTapOrBluetooth = staffTerminal?.connection_type === 'tap_to_pay' || staffTerminal?.connection_type === 'bluetooth';
+        console.log('[Payment Debug] Is Tap to Pay or Bluetooth:', isTapOrBluetooth);
+        console.log('[Payment Debug] Should use native SDK:', isTapOrBluetooth && isNative);
+
+        if (staffTerminal?.connection_type && isTapOrBluetooth && isNative) {
           
-          console.log('[Payment] Using native SDK for:', staffTerminal.connection_type);
+          console.log('[Payment Debug] ✅ Using native SDK for:', staffTerminal.connection_type);
           
           // Initialize native SDK if needed
           await initializeNativeSDK();
@@ -136,7 +151,11 @@ export const PaymentMethodSelector = ({
             throw new Error(result.error || 'Payment failed');
           }
           return;
+        } else {
+          console.log('[Payment Debug] ❌ NOT using native SDK - falling through to WiFi reader');
         }
+      } else {
+        console.log('[Payment Debug] ❌ No staffId provided - skipping staff terminal check');
       }
 
       // Fall back to business-level WiFi reader (server-driven)

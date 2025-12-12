@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Smartphone, Loader2, Banknote, CheckCircle2 } from "lucide-react";
+import { CreditCard, Smartphone, Loader2, Banknote, CheckCircle2, Bug } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTerminalPayment } from "@/hooks/useTerminalPayment";
-import { isNativeApp } from "@/lib/platform";
+import { isNativeApp, getPlatform } from "@/lib/platform";
 
 interface PaymentMethodSelectorProps {
   appointmentId: string;
@@ -40,6 +40,13 @@ export const PaymentMethodSelector = ({
 }: PaymentMethodSelectorProps) => {
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"card_reader" | "payment_link" | "cash" | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<{
+    isNative: boolean;
+    platform: string;
+    staffTerminal: any;
+    staffTerminalError: any;
+  } | null>(null);
   
   // Native terminal payment hook
   const { processPayment, initializeNativeSDK, isProcessing } = useTerminalPayment();
@@ -48,6 +55,37 @@ export const PaymentMethodSelector = ({
   const amountToCharge = (depositPaid && remainingBalance) 
     ? remainingBalance 
     : amount;
+
+  // Fetch debug info on mount
+  useEffect(() => {
+    const fetchDebugInfo = async () => {
+      const isNative = isNativeApp();
+      const platform = getPlatform();
+      
+      let staffTerminal = null;
+      let staffTerminalError = null;
+      
+      if (staffId) {
+        const { data, error } = await supabase
+          .from('terminal_settings')
+          .select('*')
+          .eq('staff_id', staffId)
+          .eq('is_active', true)
+          .maybeSingle();
+        staffTerminal = data;
+        staffTerminalError = error;
+      }
+      
+      setDebugInfo({
+        isNative,
+        platform,
+        staffTerminal,
+        staffTerminalError,
+      });
+    };
+    
+    fetchDebugInfo();
+  }, [staffId]);
 
   const pollPaymentStatus = async () => {
     const maxAttempts = 60;
@@ -257,22 +295,75 @@ export const PaymentMethodSelector = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Select Payment Method</CardTitle>
-        <CardDescription>
-          {depositPaid ? (
-            <div className="space-y-1">
-              <div className="flex items-center gap-1 text-green-600">
-                <CheckCircle2 className="h-3 w-3" />
-                Deposit paid: €{depositAmount?.toFixed(2)}
-              </div>
-              <div>Collecting remaining balance</div>
-            </div>
-          ) : (
-            `Choose how the customer wants to pay for ${serviceName}`
-          )}
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Select Payment Method</CardTitle>
+            <CardDescription>
+              {depositPaid ? (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1 text-green-600">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Deposit paid: €{depositAmount?.toFixed(2)}
+                  </div>
+                  <div>Collecting remaining balance</div>
+                </div>
+              ) : (
+                `Choose how the customer wants to pay for ${serviceName}`
+              )}
+            </CardDescription>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowDebug(!showDebug)}
+            className="h-8 w-8"
+          >
+            <Bug className="h-4 w-4" />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Debug Panel */}
+        {showDebug && (
+          <div className="p-3 bg-muted rounded-lg text-xs font-mono space-y-2 border border-dashed">
+            <div className="font-bold text-sm">🔧 Debug Info</div>
+            <div className="grid grid-cols-2 gap-1">
+              <span className="text-muted-foreground">isNativeApp():</span>
+              <span className={debugInfo?.isNative ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
+                {debugInfo?.isNative ? "✅ TRUE" : "❌ FALSE"}
+              </span>
+              
+              <span className="text-muted-foreground">Platform:</span>
+              <span>{debugInfo?.platform || "unknown"}</span>
+              
+              <span className="text-muted-foreground">staffId:</span>
+              <span className="truncate">{staffId || "❌ MISSING"}</span>
+              
+              <span className="text-muted-foreground">businessId:</span>
+              <span className="truncate">{businessId || "none"}</span>
+            </div>
+            
+            <div className="border-t pt-2 mt-2">
+              <div className="font-bold mb-1">Staff Terminal Settings:</div>
+              {debugInfo?.staffTerminalError ? (
+                <div className="text-red-600">Error: {JSON.stringify(debugInfo.staffTerminalError)}</div>
+              ) : debugInfo?.staffTerminal ? (
+                <div className="space-y-1">
+                  <div>connection_type: <span className="font-bold text-green-600">{debugInfo.staffTerminal.connection_type}</span></div>
+                  <div>reader_id: {debugInfo.staffTerminal.reader_id || "none"}</div>
+                  <div>is_active: {debugInfo.staffTerminal.is_active ? "✅" : "❌"}</div>
+                </div>
+              ) : (
+                <div className="text-amber-600">No staff terminal settings found</div>
+              )}
+            </div>
+            
+            <div className="border-t pt-2 mt-2 text-muted-foreground">
+              User Agent: {navigator.userAgent.substring(0, 50)}...
+            </div>
+          </div>
+        )}
+        
         <div className="space-y-3">
           <Button
             onClick={handleCardReaderPayment}

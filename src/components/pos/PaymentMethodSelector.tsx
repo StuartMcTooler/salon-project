@@ -74,7 +74,7 @@ export const PaymentMethodSelector = ({
   };
 
   // TEST MODE: Set to false to enable actual terminal processing
-  const TEST_MODE = true;
+  const TEST_MODE = false;
 
   const handleCardReaderPayment = async () => {
     setLoading(true);

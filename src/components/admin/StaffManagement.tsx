@@ -31,6 +31,7 @@ interface StaffMember {
   deposit_type?: 'percentage' | 'fixed_amount';
   deposit_percentage?: number;
   deposit_fixed_amount?: number;
+  allowed_terminal_types?: string[];
 }
 
 export function StaffManagement() {
@@ -144,11 +145,13 @@ export function StaffManagement() {
         toast.success("Staff member updated");
       } else {
         // Auto-link new staff to the admin's business
+        // Added staff members default to business_reader only (restricted)
         const { error } = await supabase
           .from("staff_members")
           .insert({
             ...staffData,
             business_id: businessId,
+            allowed_terminal_types: ['business_reader'], // Restricted by default
           });
 
         if (error) throw error;
@@ -323,6 +326,21 @@ export function StaffManagement() {
     } catch (error) {
       console.error('Error disabling deposits:', error);
       toast.error('Failed to disable deposits');
+    }
+  };
+
+  const handleUpdatePaymentPermissions = async (staffId: string, permissions: string[]) => {
+    try {
+      await supabase
+        .from('staff_members')
+        .update({ allowed_terminal_types: permissions })
+        .eq('id', staffId);
+      
+      toast.success('Payment permissions updated');
+      loadStaff();
+    } catch (error) {
+      console.error('Error updating payment permissions:', error);
+      toast.error('Failed to update permissions');
     }
   };
 
@@ -534,6 +552,19 @@ export function StaffManagement() {
                 )}
               </div>
 
+              {/* Payment Permissions Section - Only for multi-staff businesses */}
+              {isMultiStaff && (
+                <div className="mt-4 pt-4 border-t space-y-3">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    💳 Payment Permissions
+                  </Label>
+                  <PaymentPermissionsSelector
+                    allowedTypes={member.allowed_terminal_types || ['business_reader']}
+                    onChange={(permissions) => handleUpdatePaymentPermissions(member.id, permissions)}
+                  />
+                </div>
+              )}
+
               {isMultiStaff && !member.user_id && (
                 <div className="space-y-2 mt-2">
                   {member.phone ? (
@@ -705,6 +736,66 @@ function DepositConfigForm({ member, onSave }: { member: StaffMember; onSave: ()
       <Button onClick={handleSave} className="w-full">
         Save Settings
       </Button>
+    </div>
+  );
+}
+
+function PaymentPermissionsSelector({ 
+  allowedTypes, 
+  onChange 
+}: { 
+  allowedTypes: string[]; 
+  onChange: (permissions: string[]) => void;
+}) {
+  const togglePermission = (type: string) => {
+    const newPermissions = allowedTypes.includes(type)
+      ? allowedTypes.filter(t => t !== type)
+      : [...allowedTypes, type];
+    
+    // Always keep at least business_reader
+    if (newPermissions.length === 0) {
+      newPermissions.push('business_reader');
+    }
+    
+    onChange(newPermissions);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={allowedTypes.includes('business_reader') ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => togglePermission('business_reader')}
+          className="text-xs"
+        >
+          📡 Business Reader
+        </Button>
+        <Button
+          variant={allowedTypes.includes('tap_to_pay') ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => togglePermission('tap_to_pay')}
+          className="text-xs"
+        >
+          📱 Tap to Pay
+        </Button>
+        <Button
+          variant={allowedTypes.includes('bluetooth') ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => togglePermission('bluetooth')}
+          className="text-xs"
+        >
+          🔵 Bluetooth
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {allowedTypes.length === 1 && allowedTypes[0] === 'business_reader' 
+          ? 'Restricted to shared business reader only'
+          : allowedTypes.length === 3 
+            ? 'Full access to all payment methods'
+            : `Can use: ${allowedTypes.join(', ')}`
+        }
+      </p>
     </div>
   );
 }

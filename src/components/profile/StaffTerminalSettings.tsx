@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Smartphone, Bluetooth, Loader2, CheckCircle, Search, CreditCard, Wifi } from 'lucide-react';
+import { Smartphone, Bluetooth, Loader2, CheckCircle, Search, CreditCard, Wifi, Lock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +26,7 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
   const [loading, setLoading] = useState(true);
   const [existingSettings, setExistingSettings] = useState<any>(null);
   const [isDiscovering, setIsDiscovering] = useState(false);
+  const [allowedTerminalTypes, setAllowedTerminalTypes] = useState<string[]>(['business_reader']);
 
   useEffect(() => {
     loadSettings();
@@ -33,19 +34,32 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
 
   const loadSettings = async () => {
     try {
-      const { data, error } = await supabase
-        .from('terminal_settings')
-        .select('*')
-        .eq('staff_id', staffId)
-        .eq('is_active', true)
-        .maybeSingle();
+      // Load both terminal settings and staff permissions
+      const [terminalResult, staffResult] = await Promise.all([
+        supabase
+          .from('terminal_settings')
+          .select('*')
+          .eq('staff_id', staffId)
+          .eq('is_active', true)
+          .maybeSingle(),
+        supabase
+          .from('staff_members')
+          .select('allowed_terminal_types')
+          .eq('id', staffId)
+          .single()
+      ]);
 
-      if (error) throw error;
+      if (terminalResult.error) throw terminalResult.error;
 
-      if (data) {
-        setExistingSettings(data);
-        setConnectionType(data.connection_type as 'tap_to_pay' | 'bluetooth' | 'internet' || 'tap_to_pay');
-        setReaderId(data.reader_id || '');
+      if (terminalResult.data) {
+        setExistingSettings(terminalResult.data);
+        setConnectionType(terminalResult.data.connection_type as 'tap_to_pay' | 'bluetooth' | 'internet' || 'tap_to_pay');
+        setReaderId(terminalResult.data.reader_id || '');
+      }
+
+      // Set allowed terminal types (default to business_reader if not set)
+      if (staffResult.data?.allowed_terminal_types) {
+        setAllowedTerminalTypes(staffResult.data.allowed_terminal_types);
       }
     } catch (error) {
       console.error('Error loading terminal settings:', error);
@@ -158,6 +172,12 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
     );
   }
 
+  // Check permissions
+  const canUseTapToPayPermission = allowedTerminalTypes.includes('tap_to_pay');
+  const canUseBluetoothPermission = allowedTerminalTypes.includes('bluetooth');
+  const canUseBusinessReader = allowedTerminalTypes.includes('business_reader');
+  const isRestrictedToBusinessReader = allowedTerminalTypes.length === 1 && canUseBusinessReader;
+
   // Web users see a different message
   if (!isNative) {
     return (
@@ -186,6 +206,38 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
     );
   }
 
+  // If staff is restricted to business reader only, show a different UI
+  if (isRestrictedToBusinessReader) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Terminal & Hardware
+          </CardTitle>
+          <CardDescription>
+            Payment method configuration
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-6 space-y-3">
+            <div className="flex items-center justify-center gap-2">
+              <Wifi className="h-10 w-10 text-green-500" />
+              <Lock className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium">Business Reader Only</p>
+            <p className="text-sm text-muted-foreground">
+              You're configured to use the shared business card reader.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Contact your salon owner if you need access to Tap to Pay or Bluetooth readers.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -203,8 +255,8 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
           onValueChange={(v) => setConnectionType(v as 'tap_to_pay' | 'bluetooth' | 'internet')}
           className="space-y-3"
         >
-          {/* Tap to Pay Option */}
-          {canUseTapToPay && (
+          {/* Tap to Pay Option - Only show if platform supports AND staff has permission */}
+          {canUseTapToPay && canUseTapToPayPermission && (
             <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
               <RadioGroupItem value="tap_to_pay" id="tap_to_pay" className="mt-1" />
               <Label htmlFor="tap_to_pay" className="flex-1 cursor-pointer">
@@ -220,8 +272,8 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
             </div>
           )}
 
-          {/* Bluetooth Reader Option */}
-          {canUseBluetoothReader && (
+          {/* Bluetooth Reader Option - Only show if platform supports AND staff has permission */}
+          {canUseBluetoothReader && canUseBluetoothPermission && (
             <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
               <RadioGroupItem value="bluetooth" id="bluetooth" className="mt-1" />
               <Label htmlFor="bluetooth" className="flex-1 cursor-pointer">
@@ -236,19 +288,21 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
             </div>
           )}
 
-          {/* WiFi/Internet Reader Option */}
-          <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
-            <RadioGroupItem value="internet" id="internet" className="mt-1" />
-            <Label htmlFor="internet" className="flex-1 cursor-pointer">
-              <div className="flex items-center gap-2">
-                <Wifi className="h-5 w-5 text-green-500" />
-                <span className="font-medium">WiFi Reader</span>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Use a shared WiFi-connected reader (WisePOS E, S700, etc.)
-              </p>
-            </Label>
-          </div>
+          {/* WiFi/Internet Reader Option - Only show if staff has permission */}
+          {canUseBusinessReader && (
+            <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+              <RadioGroupItem value="internet" id="internet" className="mt-1" />
+              <Label htmlFor="internet" className="flex-1 cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <Wifi className="h-5 w-5 text-green-500" />
+                  <span className="font-medium">WiFi Reader</span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Use a shared WiFi-connected reader (WisePOS E, S700, etc.)
+                </p>
+              </Label>
+            </div>
+          )}
         </RadioGroup>
 
         {/* WiFi Reader ID Input */}

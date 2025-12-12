@@ -87,6 +87,20 @@ export const PaymentMethodSelector = ({
     fetchDebugInfo();
   }, [staffId]);
 
+  // Record payment_processed_by for audit trail
+  const recordPaymentAudit = async (paymentMethod: string) => {
+    if (!staffId) return;
+    
+    try {
+      await supabase
+        .from('salon_appointments')
+        .update({ payment_processed_by: staffId })
+        .eq('id', appointmentId);
+    } catch (error) {
+      console.error('Failed to record payment audit:', error);
+    }
+  };
+
   const pollPaymentStatus = async () => {
     const maxAttempts = 60;
     let attempts = 0;
@@ -143,6 +157,7 @@ export const PaymentMethodSelector = ({
           })
           .eq('id', appointmentId);
         if (error) throw error;
+        await recordPaymentAudit('card_present');
         toast.success('Card payment recorded (Test Mode)');
         onPaymentComplete();
         return;
@@ -152,22 +167,40 @@ export const PaymentMethodSelector = ({
       if (staffId) {
         console.log('[Payment Debug] Querying staff terminal settings for staffId:', staffId);
         
-        const { data: staffTerminal, error: staffTerminalError } = await supabase
-          .from('terminal_settings')
-          .select('connection_type, reader_id')
-          .eq('staff_id', staffId)
-          .eq('is_active', true)
-          .maybeSingle();
+        // Fetch both terminal settings and allowed permissions
+        const [terminalResult, permissionsResult] = await Promise.all([
+          supabase
+            .from('terminal_settings')
+            .select('connection_type, reader_id')
+            .eq('staff_id', staffId)
+            .eq('is_active', true)
+            .maybeSingle(),
+          supabase
+            .from('staff_members')
+            .select('allowed_terminal_types')
+            .eq('id', staffId)
+            .single()
+        ]);
+
+        const staffTerminal = terminalResult.data;
+        const staffTerminalError = terminalResult.error;
+        const allowedTypes = permissionsResult.data?.allowed_terminal_types || ['business_reader'];
 
         console.log('[Payment Debug] Staff terminal query result:', staffTerminal);
         console.log('[Payment Debug] Staff terminal query error:', staffTerminalError);
+        console.log('[Payment Debug] Allowed terminal types:', allowedTypes);
 
         // If staff has Tap to Pay or Bluetooth configured and we're on native app
         const isTapOrBluetooth = staffTerminal?.connection_type === 'tap_to_pay' || staffTerminal?.connection_type === 'bluetooth';
+        
+        // Check if staff has permission to use this payment method
+        const hasPermission = staffTerminal?.connection_type && allowedTypes.includes(staffTerminal.connection_type);
+        
         console.log('[Payment Debug] Is Tap to Pay or Bluetooth:', isTapOrBluetooth);
-        console.log('[Payment Debug] Should use native SDK:', isTapOrBluetooth && isNative);
+        console.log('[Payment Debug] Has permission:', hasPermission);
+        console.log('[Payment Debug] Should use native SDK:', isTapOrBluetooth && isNative && hasPermission);
 
-        if (staffTerminal?.connection_type && isTapOrBluetooth && isNative) {
+        if (staffTerminal?.connection_type && isTapOrBluetooth && isNative && hasPermission) {
           
           console.log('[Payment Debug] ✅ Using native SDK for:', staffTerminal.connection_type);
           
@@ -183,6 +216,7 @@ export const PaymentMethodSelector = ({
           );
           
           if (result.success) {
+            await recordPaymentAudit('card_present');
             toast.success('Card payment completed!');
             onPaymentComplete();
           } else {
@@ -191,6 +225,9 @@ export const PaymentMethodSelector = ({
           return;
         } else {
           console.log('[Payment Debug] ❌ NOT using native SDK - falling through to WiFi reader');
+          if (!hasPermission && staffTerminal?.connection_type) {
+            console.log('[Payment Debug] ⚠️ Staff does not have permission for', staffTerminal.connection_type);
+          }
         }
       } else {
         console.log('[Payment Debug] ❌ No staffId provided - skipping staff terminal check');
@@ -230,6 +267,7 @@ export const PaymentMethodSelector = ({
 
       toast.info('Present card to the reader to complete payment');
       await pollPaymentStatus();
+      await recordPaymentAudit('card_present');
       toast.success('Card payment completed');
       onPaymentComplete();
     } catch (error: any) {
@@ -396,6 +434,7 @@ export const PaymentMethodSelector = ({
                   .update({ payment_status: 'paid', payment_method: 'cash', status: 'completed' })
                   .eq('id', appointmentId);
                 if (error) throw error;
+                await recordPaymentAudit('cash');
                 toast.success('Cash payment recorded');
                 onPaymentComplete();
               } catch (err: any) {

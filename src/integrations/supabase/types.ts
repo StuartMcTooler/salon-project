@@ -1412,6 +1412,7 @@ export type Database = {
           notes: string | null
           original_requested_staff_id: string | null
           payment_method: string | null
+          payment_processed_by: string | null
           payment_status: string | null
           price: number
           remaining_balance: number | null
@@ -1438,6 +1439,7 @@ export type Database = {
           notes?: string | null
           original_requested_staff_id?: string | null
           payment_method?: string | null
+          payment_processed_by?: string | null
           payment_status?: string | null
           price: number
           remaining_balance?: number | null
@@ -1464,6 +1466,7 @@ export type Database = {
           notes?: string | null
           original_requested_staff_id?: string | null
           payment_method?: string | null
+          payment_processed_by?: string | null
           payment_status?: string | null
           price?: number
           remaining_balance?: number | null
@@ -1491,6 +1494,20 @@ export type Database = {
           {
             foreignKeyName: "salon_appointments_original_requested_staff_id_fkey"
             columns: ["original_requested_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salon_appointments_payment_processed_by_fkey"
+            columns: ["payment_processed_by"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salon_appointments_payment_processed_by_fkey"
+            columns: ["payment_processed_by"]
             isOneToOne: false
             referencedRelation: "staff_members_public"
             referencedColumns: ["id"]
@@ -1645,6 +1662,7 @@ export type Database = {
       }
       staff_members: {
         Row: {
+          allowed_terminal_types: string[] | null
           area: string | null
           availability_test_days_from_now: number | null
           average_rating: number | null
@@ -1681,6 +1699,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          allowed_terminal_types?: string[] | null
           area?: string | null
           availability_test_days_from_now?: number | null
           average_rating?: number | null
@@ -1717,6 +1736,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          allowed_terminal_types?: string[] | null
           area?: string | null
           availability_test_days_from_now?: number | null
           average_rating?: number | null

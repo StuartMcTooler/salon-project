@@ -357,7 +357,7 @@ export const PaymentMethodSelector = ({
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Select Payment Method</CardTitle>
+            <CardTitle>Select Payment Method [DEBUG V2]</CardTitle>
             <CardDescription>
               {depositPaid ? (
                 <div className="space-y-1">
@@ -371,6 +371,9 @@ export const PaymentMethodSelector = ({
                 `Choose how the customer wants to pay for ${serviceName}`
               )}
             </CardDescription>
+            <div className="mt-2 text-xs font-mono text-destructive">
+              Platform debug → isNativeApp(): {isNativeApp() ? 'TRUE' : 'FALSE'} • getPlatform(): {getPlatform() || 'unknown'}
+            </div>
           </div>
           <Button
             variant="ghost"

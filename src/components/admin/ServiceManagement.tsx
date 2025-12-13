@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 interface Service {
@@ -17,6 +17,7 @@ interface Service {
   suggested_price: number | null;
   duration_minutes: number;
   is_active: boolean;
+  sort_order: number | null;
 }
 
 export function ServiceManagement() {
@@ -40,7 +41,7 @@ export function ServiceManagement() {
       const { data, error } = await supabase
         .from("services")
         .select("*")
-        .order("name");
+        .order("sort_order", { nullsFirst: false });
 
       if (error) throw error;
       setServices(data || []);
@@ -78,9 +79,19 @@ export function ServiceManagement() {
         if (error) throw error;
         toast.success("Service updated successfully");
       } else {
+        // Get the max sort_order to place new service at the end
+        const { data: maxOrderData } = await supabase
+          .from("services")
+          .select("sort_order")
+          .order("sort_order", { ascending: false })
+          .limit(1)
+          .single();
+        
+        const newSortOrder = (maxOrderData?.sort_order ?? 0) + 1;
+
         const { error } = await supabase
           .from("services")
-          .insert([serviceData]);
+          .insert([{ ...serviceData, sort_order: newSortOrder }]);
 
         if (error) throw error;
         toast.success("Service added successfully");
@@ -129,6 +140,46 @@ export function ServiceManagement() {
     setDialogOpen(false);
     setEditingService(null);
     setFormData({ name: "", description: "", suggested_price: "", duration_minutes: "" });
+  };
+
+  const handleMoveUp = async (index: number) => {
+    if (index === 0) return;
+    
+    const currentService = services[index];
+    const aboveService = services[index - 1];
+    
+    try {
+      // Swap sort_order values
+      await Promise.all([
+        supabase.from("services").update({ sort_order: aboveService.sort_order }).eq("id", currentService.id),
+        supabase.from("services").update({ sort_order: currentService.sort_order }).eq("id", aboveService.id),
+      ]);
+      
+      loadServices();
+    } catch (error) {
+      console.error("Error reordering:", error);
+      toast.error("Failed to reorder services");
+    }
+  };
+
+  const handleMoveDown = async (index: number) => {
+    if (index === services.length - 1) return;
+    
+    const currentService = services[index];
+    const belowService = services[index + 1];
+    
+    try {
+      // Swap sort_order values
+      await Promise.all([
+        supabase.from("services").update({ sort_order: belowService.sort_order }).eq("id", currentService.id),
+        supabase.from("services").update({ sort_order: currentService.sort_order }).eq("id", belowService.id),
+      ]);
+      
+      loadServices();
+    } catch (error) {
+      console.error("Error reordering:", error);
+      toast.error("Failed to reorder services");
+    }
   };
 
   if (loading) {
@@ -217,6 +268,7 @@ export function ServiceManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-20">Order</TableHead>
                   <TableHead>Service Name</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Suggested Price</TableHead>
@@ -226,8 +278,30 @@ export function ServiceManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {services.map((service) => (
+                {services.map((service, index) => (
                   <TableRow key={service.id}>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => handleMoveUp(index)}
+                          disabled={index === 0}
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => handleMoveDown(index)}
+                          disabled={index === services.length - 1}
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                     <TableCell className="font-medium">{service.name}</TableCell>
                     <TableCell className="text-muted-foreground">{service.description || "-"}</TableCell>
                     <TableCell>{service.suggested_price ? `€${service.suggested_price}` : "-"}</TableCell>

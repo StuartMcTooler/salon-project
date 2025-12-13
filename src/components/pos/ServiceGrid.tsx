@@ -23,7 +23,10 @@ export const ServiceGrid = ({ staffId, onServiceSelect }: ServiceGridProps) => {
         .eq('is_available', true);
       
       if (error) throw error;
-      return data;
+      // Sort by service sort_order
+      return (data || []).sort((a: any, b: any) => 
+        (a.service?.sort_order ?? 999) - (b.service?.sort_order ?? 999)
+      );
     },
   });
 

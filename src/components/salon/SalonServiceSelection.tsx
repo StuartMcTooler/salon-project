@@ -46,7 +46,10 @@ export const SalonServiceSelection = ({
           .eq('is_available', true);
         
         if (error) throw error;
-        return data;
+        // Sort by service sort_order
+        return (data || []).sort((a: any, b: any) => 
+          (a.service?.sort_order ?? 999) - (b.service?.sort_order ?? 999)
+        );
       } else {
         // Service-first mode: Show all services
         const { data, error } = await supabase

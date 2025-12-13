@@ -509,11 +509,9 @@ export const PaymentMethodSelector = ({
           */}
         </div>
 
-        {debugInfo && (
-          <div className="pt-2 text-center text-[10px] text-muted-foreground">
-            Debug: isNativeApp() = {debugInfo.isNative ? 'TRUE' : 'FALSE'}  b7 Platform: {debugInfo.platform || 'unknown'}
-          </div>
-        )}
+        <div className="pt-2 text-center text-[10px] text-muted-foreground">
+          Debug: isNativeApp() = {isNativeApp() ? 'TRUE' : 'FALSE'} • Platform: {getPlatform() || 'unknown'}
+        </div>
 
         <div className="text-center pt-4 border-t">
           {depositPaid && depositAmount ? (

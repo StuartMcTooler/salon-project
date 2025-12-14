@@ -1409,6 +1409,7 @@ export type Database = {
           duration_minutes: number
           id: string
           is_blocked: boolean | null
+          list_price: number | null
           notes: string | null
           original_requested_staff_id: string | null
           payment_method: string | null
@@ -1436,6 +1437,7 @@ export type Database = {
           duration_minutes: number
           id?: string
           is_blocked?: boolean | null
+          list_price?: number | null
           notes?: string | null
           original_requested_staff_id?: string | null
           payment_method?: string | null
@@ -1463,6 +1465,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           is_blocked?: boolean | null
+          list_price?: number | null
           notes?: string | null
           original_requested_staff_id?: string | null
           payment_method?: string | null
@@ -1608,6 +1611,72 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "service_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      smart_slot_rules: {
+        Row: {
+          created_at: string | null
+          day_of_week: number
+          deposit_amount: number | null
+          end_time: string
+          id: string
+          is_active: boolean | null
+          label: string | null
+          modifier_percentage: number
+          priority: number
+          require_deposit: boolean | null
+          rule_type: string
+          staff_id: string
+          start_time: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          day_of_week: number
+          deposit_amount?: number | null
+          end_time: string
+          id?: string
+          is_active?: boolean | null
+          label?: string | null
+          modifier_percentage: number
+          priority?: number
+          require_deposit?: boolean | null
+          rule_type: string
+          staff_id: string
+          start_time: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          day_of_week?: number
+          deposit_amount?: number | null
+          end_time?: string
+          id?: string
+          is_active?: boolean | null
+          label?: string | null
+          modifier_percentage?: number
+          priority?: number
+          require_deposit?: boolean | null
+          rule_type?: string
+          staff_id?: string
+          start_time?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "smart_slot_rules_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "smart_slot_rules_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
             referencedColumns: ["id"]
           },
         ]

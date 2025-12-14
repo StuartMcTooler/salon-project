@@ -1,14 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Clock } from "lucide-react";
-
-interface TimeSlot {
-  time: string;
-  endTime: string;
-}
+import type { EnrichedTimeSlot } from "@/lib/smartPricing";
 
 interface TimeSlotGridProps {
-  slots: TimeSlot[];
+  slots: EnrichedTimeSlot[];
   selectedTime?: string;
   onTimeSelect: (time: string) => void;
   isLoading?: boolean;
@@ -55,6 +51,9 @@ export const TimeSlotGrid = ({
     >
       {slots.map((slot) => {
         const isSelected = selectedTime === slot.time;
+        const hasDiscount = slot.hasDiscount;
+        const hasSurge = slot.hasSurge;
+        const requiresDeposit = slot.requiresDeposit;
         
         return (
           <Button
@@ -63,11 +62,38 @@ export const TimeSlotGrid = ({
             size="sm"
             onClick={() => onTimeSelect(slot.time)}
             className={cn(
-              "min-h-[44px] min-w-[72px] text-sm font-medium transition-all",
-              isSelected && "shadow-md"
+              "min-h-[52px] min-w-[72px] text-sm font-medium transition-all flex flex-col gap-0.5 p-1",
+              isSelected && "shadow-md",
+              // Smart pricing visual indicators
+              !isSelected && hasDiscount && "border-green-500 bg-green-50 hover:bg-green-100 dark:bg-green-950/30 dark:hover:bg-green-950/50",
+              !isSelected && (hasSurge || requiresDeposit) && "border-amber-500 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
             )}
           >
-            {slot.time}
+            <span>{slot.time}</span>
+            {hasDiscount && slot.modifierPercent && (
+              <span className={cn(
+                "text-[10px] font-semibold",
+                isSelected ? "text-primary-foreground" : "text-green-600"
+              )}>
+                {Math.abs(slot.modifierPercent)}% OFF
+              </span>
+            )}
+            {hasSurge && slot.modifierPercent && slot.modifierPercent > 0 && (
+              <span className={cn(
+                "text-[10px] font-semibold",
+                isSelected ? "text-primary-foreground" : "text-amber-600"
+              )}>
+                +{slot.modifierPercent}%
+              </span>
+            )}
+            {requiresDeposit && !hasSurge && slot.depositAmount && (
+              <span className={cn(
+                "text-[10px] font-semibold",
+                isSelected ? "text-primary-foreground" : "text-amber-600"
+              )}>
+                €{slot.depositAmount} dep
+              </span>
+            )}
           </Button>
         );
       })}

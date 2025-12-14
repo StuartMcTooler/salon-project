@@ -16,6 +16,8 @@ import { getAvailableSlots } from "@/lib/timeSlotUtils";
 import { normalizePhoneNumber } from "@/lib/utils";
 import { findOrCreateClient } from "@/lib/clientUtils";
 import { CoverRecommendationCard } from "@/components/booking/CoverRecommendationCard";
+import { usePublicSmartSlotRules } from "@/hooks/useSmartSlotRules";
+import { enrichSlotsWithPricing, applySmartPricing, type EnrichedTimeSlot } from "@/lib/smartPricing";
 
 interface SalonCheckoutProps {
   service: any;
@@ -39,13 +41,21 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   const [customerPhone, setCustomerPhone] = useState("");
   const [discountApplied, setDiscountApplied] = useState(false);
   const [finalPrice, setFinalPrice] = useState(pricing.custom_price);
+  const [listPrice, setListPrice] = useState(pricing.custom_price); // Original price for analytics
   const [requiresDeposit, setRequiresDeposit] = useState(false);
   const [depositAmount, setDepositAmount] = useState(0);
+  
+  // Smart slot pricing state
+  const [smartPricingApplied, setSmartPricingApplied] = useState(false);
+  const [smartPricingLabel, setSmartPricingLabel] = useState<string | null>(null);
   
   // Credit management
   const [availableCredits, setAvailableCredits] = useState<any[]>([]);
   const [applyCreditOptOut, setApplyCreditOptOut] = useState(false);
   const [creditApplied, setCreditApplied] = useState<any>(null);
+
+  // Fetch smart slot rules for this staff member
+  const { rules: smartSlotRules } = usePublicSmartSlotRules(staff.id);
 
   // Overflow/Cover booking state
   const [overflowState, setOverflowState] = useState<{
@@ -244,7 +254,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   }, [staff.id, dateKey, queryClient]);
 
   // Calculate available time slots dynamically based on service duration
-  const availableSlots = useMemo(() => {
+  const baseSlots = useMemo(() => {
     if (!date || !service || !existingAppointments) {
       return [];
     }
@@ -263,6 +273,39 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       staffHours
     );
   }, [date, service, existingAppointments, businessHours, staffHours, staff.simulate_fully_booked]);
+
+  // Enrich slots with smart pricing data
+  const availableSlots: EnrichedTimeSlot[] = useMemo(() => {
+    if (!date || baseSlots.length === 0) return baseSlots;
+    
+    return enrichSlotsWithPricing(baseSlots, pricing.custom_price, date, smartSlotRules);
+  }, [baseSlots, pricing.custom_price, date, smartSlotRules]);
+
+  // Apply smart pricing when time is selected
+  useEffect(() => {
+    if (!time || !date) {
+      setSmartPricingApplied(false);
+      setSmartPricingLabel(null);
+      return;
+    }
+
+    const smartPricing = applySmartPricing(pricing.custom_price, time, date, smartSlotRules);
+    setListPrice(smartPricing.listPrice);
+    
+    // Only apply smart pricing if no referral discount or credit is active
+    if (!discountApplied && !creditApplied) {
+      setFinalPrice(smartPricing.finalPrice);
+    }
+    
+    setSmartPricingApplied(smartPricing.hasDiscount || smartPricing.hasSurge);
+    setSmartPricingLabel(smartPricing.label);
+    
+    // Handle smart pricing deposit requirement (in addition to customer/staff deposit)
+    if (smartPricing.requiresDeposit && smartPricing.depositAmount > 0) {
+      setRequiresDeposit(true);
+      setDepositAmount(prev => Math.max(prev, smartPricing.depositAmount));
+    }
+  }, [time, date, pricing.custom_price, smartSlotRules, discountApplied, creditApplied]);
 
   // Check for overflow when date changes
   useEffect(() => {
@@ -456,6 +499,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
         appointment_date: appointmentDateTime.toISOString(),
         duration_minutes: service.duration_minutes,
         price: finalPrice,
+        list_price: listPrice, // Original price before smart pricing (for analytics)
         notes,
       };
       // Add deposit info if required

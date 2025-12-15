@@ -13,7 +13,7 @@ import { format } from "date-fns";
 import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { checkTimeSlotAvailability } from "@/lib/appointmentUtils";
-import { getAvailableSlots } from "@/lib/timeSlotUtils";
+import { getAvailableSlots, AvailabilityOverride } from "@/lib/timeSlotUtils";
 
 interface AppointmentEditFormProps {
   appointment: any;
@@ -55,6 +55,8 @@ export const AppointmentEditForm = ({
 
   const selectedService = services?.find((s) => s.id === selectedServiceId);
 
+  const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : null;
+  
   const { data: availableSlots } = useQuery({
     queryKey: ["available-slots", appointment.staff_id, selectedDate, selectedServiceId],
     queryFn: async () => {
@@ -72,12 +74,23 @@ export const AppointmentEditForm = ({
           new Date(selectedDate.getTime() + 24 * 60 * 60000).toISOString()
         );
 
+      // Fetch availability override
+      const { data: override } = await supabase
+        .from("staff_availability_overrides")
+        .select("*")
+        .eq("staff_id", appointment.staff_id)
+        .eq("override_date", dateStr)
+        .maybeSingle();
+
       return getAvailableSlots(
         selectedService.duration_minutes,
         existingAppointments || [],
         selectedDate,
         null,
-        null
+        null,
+        9,
+        18,
+        override as AvailabilityOverride | null
       );
     },
     enabled: !!selectedService && !!selectedDate,

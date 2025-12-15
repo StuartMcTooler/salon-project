@@ -10,7 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { ArrowLeft } from "lucide-react";
 import { ServiceGrid } from "./ServiceGrid";
-import { getAvailableSlots } from "@/lib/timeSlotUtils";
+import { getAvailableSlots, AvailabilityOverride } from "@/lib/timeSlotUtils";
+import { format } from "date-fns";
 
 interface StaffBookingInterfaceProps {
   staffId: string;
@@ -101,6 +102,26 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
     enabled: !!date && !!staffId,
   });
 
+  // Fetch availability override for the selected date
+  const dateStr = date ? format(date, "yyyy-MM-dd") : null;
+  const { data: availabilityOverride } = useQuery({
+    queryKey: ['staff-availability-override', staffId, dateStr],
+    queryFn: async () => {
+      if (!date || !staffId) return null;
+      
+      const { data, error } = await supabase
+        .from('staff_availability_overrides')
+        .select('*')
+        .eq('staff_id', staffId)
+        .eq('override_date', dateStr)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as AvailabilityOverride | null;
+    },
+    enabled: !!date && !!staffId,
+  });
+
   // Realtime subscription - refetch when any appointment changes for this staff
   useEffect(() => {
     if (!staffId || !dateKey) return;
@@ -167,9 +188,12 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
       existingAppointments,
       date,
       businessHours,
-      staffHours
+      staffHours,
+      9,
+      18,
+      availabilityOverride
     );
-  }, [date, selectedService, existingAppointments, businessHours, staffHours]);
+  }, [date, selectedService, existingAppointments, businessHours, staffHours, availabilityOverride]);
 
   const createAppointment = useMutation({
     mutationFn: async () => {

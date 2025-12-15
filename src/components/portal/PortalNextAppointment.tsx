@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { getAvailableSlots } from "@/lib/timeSlotUtils";
+import { getAvailableSlots, AvailabilityOverride } from "@/lib/timeSlotUtils";
 
 interface PortalNextAppointmentProps {
   clientId: string;
@@ -70,11 +70,36 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
     enabled: !!appointment?.staff_id && !!selectedDate,
   });
 
+  // Fetch availability override for selected date
+  const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : null;
+  const { data: availabilityOverride } = useQuery({
+    queryKey: ["staff-availability-override", appointment?.staff_id, dateStr],
+    queryFn: async () => {
+      if (!appointment?.staff_id || !dateStr) return null;
+      
+      const { data, error } = await supabase
+        .from("staff_availability_overrides")
+        .select("*")
+        .eq("staff_id", appointment.staff_id)
+        .eq("override_date", dateStr)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as AvailabilityOverride | null;
+    },
+    enabled: !!appointment?.staff_id && !!dateStr,
+  });
+
   const availableSlots = selectedDate && appointment
     ? getAvailableSlots(
         appointment.duration_minutes,
         existingAppointments,
-        selectedDate
+        selectedDate,
+        undefined,
+        undefined,
+        9,
+        18,
+        availabilityOverride
       )
     : [];
 

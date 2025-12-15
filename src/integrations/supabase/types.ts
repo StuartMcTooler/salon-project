@@ -1694,6 +1694,57 @@ export type Database = {
           },
         ]
       }
+      staff_availability_overrides: {
+        Row: {
+          created_at: string
+          end_time: string | null
+          id: string
+          is_available: boolean
+          notes: string | null
+          override_date: string
+          staff_id: string
+          start_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          is_available?: boolean
+          notes?: string | null
+          override_date: string
+          staff_id: string
+          start_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          is_available?: boolean
+          notes?: string | null
+          override_date?: string
+          staff_id?: string
+          start_time?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_availability_overrides_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_availability_overrides_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_invites: {
         Row: {
           created_at: string | null

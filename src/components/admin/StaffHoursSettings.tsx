@@ -28,6 +28,7 @@ const DAYS = [
 export const StaffHoursSettings = () => {
   const queryClient = useQueryClient();
   const [selectedStaffId, setSelectedStaffId] = useState<string>("");
+  const [pendingEdits, setPendingEdits] = useState<Record<number, { start?: string; end?: string }>>({});
 
   const { data: businessAccount } = useQuery({
     queryKey: ["business-account"],
@@ -189,8 +190,10 @@ export const StaffHoursSettings = () => {
           {DAYS.map((day) => {
             const hours = staffHours?.find(h => h.day_of_week === day.value);
             const isActive = hours?.is_active ?? false;
-            const startTime = hours?.start_time || "09:00";
-            const endTime = hours?.end_time || "18:00";
+            const dbStartTime = hours?.start_time || "09:00";
+            const dbEndTime = hours?.end_time || "18:00";
+            const startTime = pendingEdits[day.value]?.start ?? dbStartTime;
+            const endTime = pendingEdits[day.value]?.end ?? dbEndTime;
 
             return (
               <div key={day.value} className="grid grid-cols-5 gap-4 items-center">
@@ -200,7 +203,7 @@ export const StaffHoursSettings = () => {
                   <Switch
                     checked={isActive}
                     onCheckedChange={(checked) => 
-                      handleSave(day.value, startTime, endTime, checked)
+                      handleSave(day.value, dbStartTime, dbEndTime, checked)
                     }
                   />
                   <span className="text-sm text-muted-foreground">
@@ -214,8 +217,21 @@ export const StaffHoursSettings = () => {
                     value={startTime}
                     disabled={!isActive}
                     onChange={(e) => 
-                      handleSave(day.value, e.target.value, endTime, isActive)
+                      setPendingEdits(prev => ({
+                        ...prev,
+                        [day.value]: { ...prev[day.value], start: e.target.value }
+                      }))
                     }
+                    onBlur={() => {
+                      if (pendingEdits[day.value]?.start) {
+                        handleSave(day.value, pendingEdits[day.value].start!, endTime, isActive);
+                        setPendingEdits(prev => {
+                          const updated = { ...prev };
+                          if (updated[day.value]) delete updated[day.value].start;
+                          return updated;
+                        });
+                      }
+                    }}
                   />
                 </div>
 
@@ -225,8 +241,21 @@ export const StaffHoursSettings = () => {
                     value={endTime}
                     disabled={!isActive}
                     onChange={(e) => 
-                      handleSave(day.value, startTime, e.target.value, isActive)
+                      setPendingEdits(prev => ({
+                        ...prev,
+                        [day.value]: { ...prev[day.value], end: e.target.value }
+                      }))
                     }
+                    onBlur={() => {
+                      if (pendingEdits[day.value]?.end) {
+                        handleSave(day.value, startTime, pendingEdits[day.value].end!, isActive);
+                        setPendingEdits(prev => {
+                          const updated = { ...prev };
+                          if (updated[day.value]) delete updated[day.value].end;
+                          return updated;
+                        });
+                      }
+                    }}
                   />
                 </div>
               </div>

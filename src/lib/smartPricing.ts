@@ -1,12 +1,14 @@
 // Smart Slots Pricing Utility
 // Calculates dynamic pricing based on time-based rules
+// Supports both staff-specific rules and shop-wide (business) rules
 
 export interface SmartSlotRule {
   id: string;
-  staff_id: string;
-  day_of_week: number; // 0=Sunday, 6=Saturday
-  start_time: string;  // "09:00"
-  end_time: string;    // "11:00"
+  staff_id: string | null;      // Nullable for shop-wide rules
+  business_id: string | null;   // For shop-wide rules (when staff_id is null)
+  day_of_week: number;          // 0=Sunday, 6=Saturday
+  start_time: string;           // "09:00"
+  end_time: string;             // "11:00"
   rule_type: 'discount' | 'premium';
   modifier_percentage: number;
   require_deposit: boolean;
@@ -20,7 +22,7 @@ export interface SmartPricingResult {
   finalPrice: number;      // What customer pays
   listPrice: number;       // Original base price (for analytics)
   hasDiscount: boolean;    // True if discount applied
-  hasSurge: boolean;       // True if premium surge applied
+  hasSurge: boolean;       // True if premium surge applied (modifier_percentage > 0)
   modifierPercent: number; // The % applied (positive for surge, negative for discount)
   requiresDeposit: boolean;
   depositAmount: number;

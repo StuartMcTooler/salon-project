@@ -27,6 +27,8 @@ import { AvailabilityTestingTool } from "@/components/admin/AvailabilityTestingT
 import { BusinessSettings } from "@/components/admin/BusinessSettings";
 import { TestUserManagement } from "@/components/admin/TestUserManagement";
 import { SimulatedMessagesLog } from "@/components/admin/SimulatedMessagesLog";
+import { SmartSlotsBusinessSettings } from "@/components/admin/SmartSlotsBusinessSettings";
+import { DemandHeatmap } from "@/components/admin/DemandHeatmap";
 import { toast } from "sonner";
 import { useBusinessConfig } from "@/hooks/useBusinessConfig";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -114,6 +116,7 @@ export default function Admin() {
                 <DropdownMenuContent align="start">
                   <DropdownMenuItem onClick={() => setSearchParams({ tab: 'business' })}>Business Info</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setSearchParams({ tab: 'branding' })}>Logo & Branding</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSearchParams({ tab: 'smart-slots' })}>Smart Slots</DropdownMenuItem>
                   {features.staffManagement && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'staff' })}>Staff</DropdownMenuItem>}
                   {features.staffManagement && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'tiers' })}>Tiers</DropdownMenuItem>}
                   {features.staffManagement && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'overflow' })}>Overflow Test</DropdownMenuItem>}
@@ -154,6 +157,10 @@ export default function Admin() {
 
               <TabsContent value="branding">
                 <BusinessSettings />
+              </TabsContent>
+
+              <TabsContent value="smart-slots">
+                <SmartSlotsBusinessSettings businessId={businessId} />
               </TabsContent>
 
               {features.staffManagement && (

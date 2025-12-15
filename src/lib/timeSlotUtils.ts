@@ -14,6 +14,13 @@ export interface BusinessHours {
   is_active: boolean;
 }
 
+export interface AvailabilityOverride {
+  override_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  is_available: boolean;
+}
+
 /**
  * Generate time slots starting from a specific time, every 30 minutes
  * @param startHour - Starting hour (can be decimal, e.g., 9.5 = 9:30, 9.75 = 9:45)
@@ -129,11 +136,46 @@ export const getAvailableSlots = (
   businessHours?: BusinessHours | null,
   staffHours?: BusinessHours | null,
   startHour: number = 9,
-  endHour: number = 18
+  endHour: number = 18,
+  availabilityOverride?: AvailabilityOverride | null
 ): Array<{ time: string; endTime: string }> => {
   const dayOfWeek = selectedDate.getDay();
   
-  // Determine actual working hours based on business and staff hours
+  // STEP 1: Check for date-specific override first (highest priority)
+  if (availabilityOverride) {
+    if (!availabilityOverride.is_available) {
+      console.log('[TimeSlots] Override: Staff is OFF for this date');
+      return []; // Staff is off this specific day
+    }
+    
+    // Use override hours
+    if (availabilityOverride.start_time && availabilityOverride.end_time) {
+      const [oStartHour, oStartMin] = availabilityOverride.start_time.split(':').map(Number);
+      const [oEndHour, oEndMin] = availabilityOverride.end_time.split(':').map(Number);
+      const overrideStartHour = oStartHour + (oStartMin / 60);
+      let overrideEndHour = oEndHour + (oEndMin / 60);
+      
+      if (overrideEndHour < overrideStartHour) {
+        overrideEndHour += 24;
+      }
+      
+      console.log('[TimeSlots] Using override hours:', {
+        start: availabilityOverride.start_time,
+        end: availabilityOverride.end_time
+      });
+      
+      // Generate slots using override hours (skip to slot generation below)
+      return generateSlotsForTimeRange(
+        overrideStartHour,
+        overrideEndHour,
+        serviceDuration,
+        appointments,
+        selectedDate
+      );
+    }
+  }
+  
+  // STEP 2: Fall back to regular business/staff hours logic
   let actualStartHour = startHour;
   let actualEndHour = endHour;
   let hoursFound = false;
@@ -181,6 +223,26 @@ export const getAvailableSlots = (
   if (!hoursFound) {
     return [];
   }
+  
+  return generateSlotsForTimeRange(
+    actualStartHour,
+    actualEndHour,
+    serviceDuration,
+    appointments,
+    selectedDate
+  );
+};
+
+/**
+ * Helper function to generate time slots for a given time range
+ */
+const generateSlotsForTimeRange = (
+  actualStartHour: number,
+  actualEndHour: number,
+  serviceDuration: number,
+  appointments: Appointment[],
+  selectedDate: Date
+): Array<{ time: string; endTime: string }> => {
   
   const availableSlots: Array<{ time: string; endTime: string }> = [];
   

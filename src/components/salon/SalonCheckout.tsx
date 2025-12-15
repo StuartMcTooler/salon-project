@@ -12,12 +12,13 @@ import { TimeSlotGrid } from "./TimeSlotGrid";
 import { CompactCustomerForm } from "./CompactCustomerForm";
 import { ExpandableNotesField } from "./ExpandableNotesField";
 import { BookingStickyFooter } from "./BookingStickyFooter";
-import { getAvailableSlots } from "@/lib/timeSlotUtils";
+import { getAvailableSlots, AvailabilityOverride } from "@/lib/timeSlotUtils";
 import { normalizePhoneNumber } from "@/lib/utils";
 import { findOrCreateClient } from "@/lib/clientUtils";
 import { CoverRecommendationCard } from "@/components/booking/CoverRecommendationCard";
 import { usePublicSmartSlotRules } from "@/hooks/useSmartSlotRules";
 import { enrichSlotsWithPricing, applySmartPricing, type EnrichedTimeSlot } from "@/lib/smartPricing";
+import { format } from "date-fns";
 
 interface SalonCheckoutProps {
   service: any;
@@ -226,6 +227,26 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
     enabled: !!staff.id,
   });
 
+  // Fetch availability override for the selected date
+  const dateStr = date ? format(date, "yyyy-MM-dd") : null;
+  const { data: availabilityOverride } = useQuery({
+    queryKey: ['staff-availability-override', staff.id, dateStr],
+    queryFn: async () => {
+      if (!date || !staff.id) return null;
+      
+      const { data, error } = await supabase
+        .from('staff_availability_overrides')
+        .select('*')
+        .eq('staff_id', staff.id)
+        .eq('override_date', dateStr)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as AvailabilityOverride | null;
+    },
+    enabled: !!date && !!staff.id,
+  });
+
   // Realtime subscription
   useEffect(() => {
     if (!staff.id || !dateKey) return;
@@ -270,9 +291,12 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       existingAppointments,
       date,
       businessHours,
-      staffHours
+      staffHours,
+      9, // default start hour
+      18, // default end hour
+      availabilityOverride
     );
-  }, [date, service, existingAppointments, businessHours, staffHours, staff.simulate_fully_booked]);
+  }, [date, service, existingAppointments, businessHours, staffHours, staff.simulate_fully_booked, availabilityOverride]);
 
   // Enrich slots with smart pricing data
   const availableSlots: EnrichedTimeSlot[] = useMemo(() => {

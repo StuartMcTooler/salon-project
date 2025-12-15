@@ -15,6 +15,8 @@ import { ContentHub } from "@/components/dashboard/ContentHub";
 import { ProfilePictureSettings } from "@/components/dashboard/ProfilePictureSettings";
 import { ReferralIncomeCard } from "@/components/dashboard/ReferralIncomeCard";
 import { SmartWaitlistToggle } from "@/components/dashboard/SmartWaitlistToggle";
+import { SmartSlotSettings } from "@/components/admin/SmartSlotSettings";
+import { DemandHeatmap } from "@/components/admin/DemandHeatmap";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -161,6 +163,8 @@ const Dashboard = () => {
                   <ServiceManager staffId={staffId} />
                   <WalkInToggle businessId={businessId} />
                   <MyLoyaltySettings staffId={staffId} businessId={businessId} />
+                  <SmartSlotSettings staffId={staffId} />
+                  <DemandHeatmap staffId={staffId} />
                 </div>
               </div>
             </div>

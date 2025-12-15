@@ -72,6 +72,7 @@ export type Database = {
             | Database["public"]["Enums"]["discount_type"]
             | null
           referral_discount_value: number | null
+          smart_slots_enabled: boolean | null
           updated_at: string | null
         }
         Insert: {
@@ -90,6 +91,7 @@ export type Database = {
             | Database["public"]["Enums"]["discount_type"]
             | null
           referral_discount_value?: number | null
+          smart_slots_enabled?: boolean | null
           updated_at?: string | null
         }
         Update: {
@@ -108,6 +110,7 @@ export type Database = {
             | Database["public"]["Enums"]["discount_type"]
             | null
           referral_discount_value?: number | null
+          smart_slots_enabled?: boolean | null
           updated_at?: string | null
         }
         Relationships: []
@@ -1617,6 +1620,7 @@ export type Database = {
       }
       smart_slot_rules: {
         Row: {
+          business_id: string | null
           created_at: string | null
           day_of_week: number
           deposit_amount: number | null
@@ -1628,11 +1632,12 @@ export type Database = {
           priority: number
           require_deposit: boolean | null
           rule_type: string
-          staff_id: string
+          staff_id: string | null
           start_time: string
           updated_at: string | null
         }
         Insert: {
+          business_id?: string | null
           created_at?: string | null
           day_of_week: number
           deposit_amount?: number | null
@@ -1644,11 +1649,12 @@ export type Database = {
           priority?: number
           require_deposit?: boolean | null
           rule_type: string
-          staff_id: string
+          staff_id?: string | null
           start_time: string
           updated_at?: string | null
         }
         Update: {
+          business_id?: string | null
           created_at?: string | null
           day_of_week?: number
           deposit_amount?: number | null
@@ -1660,11 +1666,18 @@ export type Database = {
           priority?: number
           require_deposit?: boolean | null
           rule_type?: string
-          staff_id?: string
+          staff_id?: string | null
           start_time?: string
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "smart_slot_rules_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "smart_slot_rules_staff_id_fkey"
             columns: ["staff_id"]

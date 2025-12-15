@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { BookingLinkCard } from "@/components/profile/BookingLinkCard";
 import { ProfileCompletionCard } from "@/components/profile/ProfileCompletionCard";
 import { StaffTerminalSettings } from "@/components/profile/StaffTerminalSettings";
+import { SmartSlotSettings } from "@/components/admin/SmartSlotSettings";
 
 const MyProfile = () => {
   const navigate = useNavigate();
@@ -205,6 +206,7 @@ const MyProfile = () => {
 
           <TabsContent value="settings" className="space-y-6">
             <StaffTerminalSettings staffId={staffMember.id} />
+            <SmartSlotSettings staffId={staffMember.id} />
           </TabsContent>
         </Tabs>
       </div>

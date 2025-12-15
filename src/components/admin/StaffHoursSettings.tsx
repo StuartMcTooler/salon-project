@@ -99,20 +99,41 @@ export const StaffHoursSettings = () => {
         }
       }
 
-      const { error } = await supabase
+      // Check if record already exists (avoids partial index ON CONFLICT issue)
+      const { data: existing, error: checkErr } = await supabase
         .from("business_hours")
-        .upsert({
-          staff_id: selectedStaffId,
-          business_id: null, // staff-specific row (required by CHECK constraint)
-          day_of_week: hours.day_of_week,
-          start_time: hours.start_time,
-          end_time: hours.end_time,
-          is_active: hours.is_active,
-        }, {
-          onConflict: 'staff_id,day_of_week'
-        });
+        .select("id")
+        .eq("staff_id", selectedStaffId)
+        .eq("day_of_week", hours.day_of_week)
+        .maybeSingle();
 
-      if (error) throw error;
+      if (checkErr) throw checkErr;
+
+      if (existing) {
+        // UPDATE existing record
+        const { error } = await supabase
+          .from("business_hours")
+          .update({
+            start_time: hours.start_time,
+            end_time: hours.end_time,
+            is_active: hours.is_active,
+          })
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        // INSERT new record
+        const { error } = await supabase
+          .from("business_hours")
+          .insert({
+            staff_id: selectedStaffId,
+            business_id: null,
+            day_of_week: hours.day_of_week,
+            start_time: hours.start_time,
+            end_time: hours.end_time,
+            is_active: hours.is_active,
+          });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff-hours", selectedStaffId] });

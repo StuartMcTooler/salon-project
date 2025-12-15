@@ -849,11 +849,12 @@ function StaffForm({ staff, onSave }: { staff: StaffMember | null; onSave: (data
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="phone">Phone</Label>
+          <Label htmlFor="phone">Phone *</Label>
           <Input
             id="phone"
             name="phone"
             defaultValue={staff?.phone || ""}
+            required
           />
         </div>
 

@@ -36,7 +36,8 @@ export function QuickBookingLinkModal({
   const [name, setName] = useState("");
   const [sending, setSending] = useState(false);
 
-  const APP_URL = window.location.origin;
+  // Use production URL for booking links sent via SMS/WhatsApp
+  const APP_URL = "https://bookd.ie";
 
   const handleSend = async () => {
     if (!phone.trim()) {

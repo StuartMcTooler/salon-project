@@ -16,6 +16,7 @@ interface Creative {
   tier: 'founder' | 'pro' | 'standard';
   average_rating: number;
   total_bookings: number;
+  total_reviews: number;
   bio: string | null;
   city: string | null;
   area: string | null;
@@ -77,6 +78,7 @@ export const useCreativeDiscovery = (filters: Filters) => {
           tier,
           average_rating,
           total_bookings,
+          total_reviews,
           bio,
           city,
           area,

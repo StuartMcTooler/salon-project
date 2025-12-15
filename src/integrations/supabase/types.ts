@@ -1828,6 +1828,7 @@ export type Database = {
           tier: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at: string | null
           total_bookings: number | null
+          total_reviews: number | null
           updated_at: string
           user_id: string | null
         }
@@ -1865,6 +1866,7 @@ export type Database = {
           tier?: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at?: string | null
           total_bookings?: number | null
+          total_reviews?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -1902,6 +1904,7 @@ export type Database = {
           tier?: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at?: string | null
           total_bookings?: number | null
+          total_reviews?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -2188,81 +2191,48 @@ export type Database = {
       staff_members_public: {
         Row: {
           area: string | null
-          availability_test_days_from_now: number | null
           average_rating: number | null
           bio: string | null
           business_id: string | null
           city: string | null
-          deposit_fixed_amount: number | null
-          deposit_percentage: number | null
-          deposit_type: string | null
           display_name: string | null
           id: string | null
-          is_accepting_referrals: boolean | null
           is_active: boolean | null
           profile_image_url: string | null
-          referral_discount_type:
-            | Database["public"]["Enums"]["discount_type"]
-            | null
-          referral_discount_value: number | null
-          require_booking_deposit: boolean | null
-          simulate_fully_booked: boolean | null
-          skill_level: string | null
           specialties: string[] | null
           tier: Database["public"]["Enums"]["creative_tier"] | null
           total_bookings: number | null
+          total_reviews: number | null
         }
         Insert: {
           area?: string | null
-          availability_test_days_from_now?: number | null
           average_rating?: number | null
           bio?: string | null
           business_id?: string | null
           city?: string | null
-          deposit_fixed_amount?: number | null
-          deposit_percentage?: number | null
-          deposit_type?: string | null
           display_name?: string | null
           id?: string | null
-          is_accepting_referrals?: boolean | null
           is_active?: boolean | null
           profile_image_url?: string | null
-          referral_discount_type?:
-            | Database["public"]["Enums"]["discount_type"]
-            | null
-          referral_discount_value?: number | null
-          require_booking_deposit?: boolean | null
-          simulate_fully_booked?: boolean | null
-          skill_level?: string | null
           specialties?: string[] | null
           tier?: Database["public"]["Enums"]["creative_tier"] | null
           total_bookings?: number | null
+          total_reviews?: number | null
         }
         Update: {
           area?: string | null
-          availability_test_days_from_now?: number | null
           average_rating?: number | null
           bio?: string | null
           business_id?: string | null
           city?: string | null
-          deposit_fixed_amount?: number | null
-          deposit_percentage?: number | null
-          deposit_type?: string | null
           display_name?: string | null
           id?: string | null
-          is_accepting_referrals?: boolean | null
           is_active?: boolean | null
           profile_image_url?: string | null
-          referral_discount_type?:
-            | Database["public"]["Enums"]["discount_type"]
-            | null
-          referral_discount_value?: number | null
-          require_booking_deposit?: boolean | null
-          simulate_fully_booked?: boolean | null
-          skill_level?: string | null
           specialties?: string[] | null
           tier?: Database["public"]["Enums"]["creative_tier"] | null
           total_bookings?: number | null
+          total_reviews?: number | null
         }
         Relationships: [
           {

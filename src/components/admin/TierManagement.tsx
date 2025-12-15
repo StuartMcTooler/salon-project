@@ -101,7 +101,7 @@ export const TierManagement = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Standard Creatives</CardTitle>
+            <CardTitle className="text-sm font-medium">Verified Creatives</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -185,11 +185,11 @@ export const TierManagement = () => {
         </div>
 
         <div>
-          <h3 className="text-lg font-semibold mb-4">Standard Creatives</h3>
+          <h3 className="text-lg font-semibold mb-4">Verified Creatives</h3>
           {standardStaff.length === 0 ? (
             <Card>
               <CardContent className="pt-6">
-                <p className="text-sm text-muted-foreground text-center">No Standard creatives</p>
+                <p className="text-sm text-muted-foreground text-center">No Verified creatives</p>
               </CardContent>
             </Card>
           ) : (

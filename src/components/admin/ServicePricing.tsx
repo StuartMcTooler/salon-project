@@ -45,7 +45,7 @@ export function ServicePricing() {
     if (selectedStaff) {
       loadStaffPricing(selectedStaff);
     }
-  }, [selectedStaff, pricing]);
+  }, [selectedStaff]);
 
   const loadData = async () => {
     try {
@@ -188,7 +188,12 @@ export function ServicePricing() {
                     type="number"
                     step="0.01"
                     value={pricingData[service.id]?.price || ""}
-                    onChange={(e) => updatePrice(service.id, parseFloat(e.target.value))}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) {
+                        updatePrice(service.id, Math.round(value * 100) / 100);
+                      }
+                    }}
                     className="w-32"
                     required
                   />

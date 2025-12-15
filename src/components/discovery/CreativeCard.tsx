@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
-import { Star } from "lucide-react";
+import { Star, Sparkles } from "lucide-react";
 import { TierBadge } from "@/components/referral/TierBadge";
 import { UrgencyBar } from "./UrgencyBar";
 import { InitialsAvatar } from "./InitialsAvatar";
@@ -13,16 +13,18 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface CreativeCardProps {
   creative: {
     id: string;
     display_name: string;
-    full_name: string;
+    full_name?: string;
     profile_image_url: string | null;
     tier: 'founder' | 'pro' | 'standard';
     average_rating: number;
     total_bookings: number;
+    total_reviews?: number;
     specialties: string[];
     lookbook: Array<{
       id: string;
@@ -138,11 +140,18 @@ export const CreativeCard = ({ creative, availability }: CreativeCardProps) => {
           <h3 className="font-semibold text-sm truncate">{creative.display_name}</h3>
           <div className="flex items-center gap-2 shrink-0">
             <TierBadge tier={creative.tier} />
-            <div className="flex items-center gap-1 text-xs">
-              <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
-              <span className="font-medium">{creative.average_rating.toFixed(1)}</span>
-              <span className="text-muted-foreground">({creative.total_bookings})</span>
-            </div>
+            {(creative.total_reviews ?? 0) === 0 ? (
+              <Badge variant="secondary" className="text-xs">
+                <Sparkles className="w-3 h-3 mr-1" />
+                New
+              </Badge>
+            ) : (
+              <div className="flex items-center gap-1 text-xs">
+                <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
+                <span className="font-medium">{creative.average_rating.toFixed(1)}</span>
+                <span className="text-muted-foreground">({creative.total_reviews})</span>
+              </div>
+            )}
           </div>
         </div>
 

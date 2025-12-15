@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { Crown } from "lucide-react";
+import { Crown, CheckCircle } from "lucide-react";
 
 interface TierBadgeProps {
   tier: 'founder' | 'pro' | 'standard';
@@ -26,7 +26,8 @@ export const TierBadge = ({ tier }: TierBadgeProps) => {
   
   return (
     <Badge variant="secondary">
-      Standard
+      <CheckCircle className="h-3 w-3 mr-1" />
+      Verified
     </Badge>
   );
 };

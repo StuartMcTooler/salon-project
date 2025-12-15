@@ -28,8 +28,97 @@ const PublicBooking = () => {
   const [contentRef, setContentRef] = useState<string | null>(null);
   const [preSelectedServiceId, setPreSelectedServiceId] = useState<string | null>(null);
 
+  // JSON-LD Schema data
+  const [businessName, setBusinessName] = useState<string | null>(null);
+  const [businessAddress, setBusinessAddress] = useState<string | null>(null);
+  const [businessLogo, setBusinessLogo] = useState<string | null>(null);
+  const [servicesForSchema, setServicesForSchema] = useState<any[]>([]);
+
   const serviceListRef = useRef<HTMLDivElement>(null);
   const referralCode = searchParams.get('ref');
+
+  // Generate JSON-LD Schema.org structured data
+  const generateJsonLd = () => {
+    if (!selectedStaff || !businessName || servicesForSchema.length === 0) return null;
+
+    // Build offers catalog
+    const offers = servicesForSchema.map((item: any) => ({
+      "@type": "Offer",
+      "itemOffered": {
+        "@type": "Service",
+        "name": item.service?.name || item.name,
+        "description": item.service?.description || item.description || undefined,
+      },
+      "price": (item.custom_price || item.service?.price || item.price || 0).toFixed(2),
+      "priceCurrency": "EUR",
+      "availability": "https://schema.org/InStock"
+    }));
+
+    // Build address object
+    const addressObj: any = {
+      "@type": "PostalAddress",
+      "addressCountry": "IE"
+    };
+    
+    if (businessAddress) {
+      addressObj.streetAddress = businessAddress;
+      // Attempt to extract city if address contains comma-separated parts
+      const parts = businessAddress.split(',').map(p => p.trim());
+      if (parts.length >= 2) {
+        addressObj.addressLocality = parts[parts.length - 1];
+      }
+    }
+
+    const jsonLd: any = {
+      "@context": "https://schema.org",
+      "@type": "BarberShop",
+      "name": businessName,
+      "address": addressObj,
+      "employee": {
+        "@type": "Person",
+        "name": selectedStaff.display_name
+      },
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Services",
+        "itemListElement": offers
+      }
+    };
+
+    // Add logo/image if available
+    if (businessLogo) {
+      jsonLd.image = businessLogo;
+    }
+
+    return jsonLd;
+  };
+
+  // Inject JSON-LD script into document head
+  useEffect(() => {
+    const jsonLd = generateJsonLd();
+    if (!jsonLd) return;
+
+    // Remove any existing JSON-LD script from this page
+    const existingScript = document.querySelector('script[data-json-ld="booking"]');
+    if (existingScript) {
+      existingScript.remove();
+    }
+
+    // Create and inject new script
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.setAttribute('data-json-ld', 'booking');
+    script.textContent = JSON.stringify(jsonLd);
+    document.head.appendChild(script);
+
+    // Cleanup on unmount
+    return () => {
+      const scriptToRemove = document.querySelector('script[data-json-ld="booking"]');
+      if (scriptToRemove) {
+        scriptToRemove.remove();
+      }
+    };
+  }, [selectedStaff, businessName, businessAddress, businessLogo, servicesForSchema]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -56,15 +145,32 @@ const PublicBooking = () => {
           setSelectedStaff(staff);
           setBusinessId(staff.business_id);
 
-          // Load business info
+          // Load business info including name, address, and logo for JSON-LD
           const { data: business } = await supabase
             .from("business_accounts")
-            .select("business_type")
+            .select("business_name, business_type, address, logo_url")
             .eq("id", staff.business_id)
             .single();
 
           if (business) {
             setBusinessType(business.business_type);
+            setBusinessName(business.business_name);
+            setBusinessAddress(business.address);
+            setBusinessLogo(business.logo_url);
+          }
+
+          // Fetch services for JSON-LD schema
+          const { data: staffServices } = await supabase
+            .from('staff_service_pricing')
+            .select(`
+              custom_price,
+              service:services(id, name, description, price, duration_minutes)
+            `)
+            .eq('staff_id', staffId)
+            .eq('is_available', true);
+
+          if (staffServices && staffServices.length > 0) {
+            setServicesForSchema(staffServices);
           }
         }
 

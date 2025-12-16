@@ -31,8 +31,9 @@ import { QuickBookingLinkModal } from "@/components/pos/QuickBookingLinkModal";
 import { isNativeApp, getPlatform } from "@/lib/platform";
 import { Capacitor } from "@capacitor/core";
 
-// Build timestamp for version verification
-const BUILD_TIMESTAMP = "Dec 16, 14:10 UTC";
+// Build timestamp - injected at build time by Vite
+declare const __BUILD_TIMESTAMP__: string;
+const BUILD_TIMESTAMP = typeof __BUILD_TIMESTAMP__ !== 'undefined' ? __BUILD_TIMESTAMP__ : 'dev';
 
 const POS = () => {
   const navigate = useNavigate();

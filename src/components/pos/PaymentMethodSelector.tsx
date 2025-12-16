@@ -41,6 +41,7 @@ export const PaymentMethodSelector = ({
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"card_reader" | "payment_link" | "cash" | null>(null);
   const [showDebug, setShowDebug] = useState(false);
+  const [paymentDebugLog, setPaymentDebugLog] = useState<string[]>([]);
   const [debugInfo, setDebugInfo] = useState<{
     isNative: boolean;
     platform: string;
@@ -48,6 +49,11 @@ export const PaymentMethodSelector = ({
     staffTerminalError: any;
     allowedTypes: string[] | null;
   } | null>(null);
+  
+  const addDebugLog = (msg: string) => {
+    console.log('[PaymentDebug]', msg);
+    setPaymentDebugLog(prev => [...prev, `${new Date().toLocaleTimeString()}: ${msg}`]);
+  };
   
   // Native terminal payment hook
   const { processPayment, initializeNativeSDK, isProcessing } = useTerminalPayment();
@@ -147,17 +153,19 @@ export const PaymentMethodSelector = ({
   const handleCardReaderPayment = async () => {
     setLoading(true);
     setPaymentMethod("card_reader");
+    setPaymentDebugLog([]); // Clear previous logs
 
     // DEBUG: Log all key detection values
     const isNative = isNativeApp();
-    console.log('[Payment Debug] ===== PAYMENT FLOW START =====');
-    console.log('[Payment Debug] isNativeApp():', isNative);
-    console.log('[Payment Debug] staffId:', staffId);
-    console.log('[Payment Debug] businessId:', businessId);
-    console.log('[Payment Debug] User Agent:', navigator.userAgent);
+    addDebugLog(`===== PAYMENT FLOW START =====`);
+    addDebugLog(`isNativeApp(): ${isNative}`);
+    addDebugLog(`staffId: ${staffId || 'MISSING'}`);
+    addDebugLog(`businessId: ${businessId || 'none'}`);
+    addDebugLog(`TEST_MODE: ${TEST_MODE}`);
 
     try {
       if (TEST_MODE) {
+        addDebugLog(`Using TEST MODE - skipping terminal`);
         // TEST MODE: Skip terminal processing, just record as card payment
         const { error } = await supabase
           .from('salon_appointments')
@@ -176,7 +184,7 @@ export const PaymentMethodSelector = ({
 
       // Check for staff-level terminal settings first (for Tap to Pay / Bluetooth)
       if (staffId) {
-        console.log('[Payment Debug] Querying staff terminal settings for staffId:', staffId);
+        addDebugLog(`Querying staff terminal settings...`);
         
         // Fetch both terminal settings and allowed permissions
         const [terminalResult, permissionsResult] = await Promise.all([
@@ -199,10 +207,10 @@ export const PaymentMethodSelector = ({
         const allowedTypes = permissionsResult.data?.allowed_terminal_types
           ?? (staffTerminal?.connection_type === 'tap_to_pay' ? ['tap_to_pay'] : ['business_reader']);
 
-        console.log('[Payment Debug] Staff terminal query result:', staffTerminal);
-        console.log('[Payment Debug] Staff terminal query error:', staffTerminalError);
-        console.log('[Payment Debug] Allowed terminal types:', allowedTypes);
-        console.log('[Payment Debug] Permissions query error:', permissionsError);
+        addDebugLog(`Staff terminal: ${JSON.stringify(staffTerminal)}`);
+        addDebugLog(`Allowed types: ${JSON.stringify(allowedTypes)}`);
+        if (staffTerminalError) addDebugLog(`⚠️ Terminal error: ${staffTerminalError.message}`);
+        if (permissionsError) addDebugLog(`⚠️ Permissions error: ${permissionsError.message}`);
 
         // If staff has Tap to Pay or Bluetooth configured and we're on native app
         const isTapOrBluetooth = staffTerminal?.connection_type === 'tap_to_pay' || staffTerminal?.connection_type === 'bluetooth';
@@ -221,12 +229,11 @@ export const PaymentMethodSelector = ({
         // Safety: if a personal tap_to_pay terminal is configured on native, prefer native path
         const isConfiguredTapToPayOnNative = isNative && staffTerminal?.connection_type === 'tap_to_pay';
         
-        console.log('[Payment Debug] Is Tap to Pay or Bluetooth:', isTapOrBluetooth);
-        console.log('[Payment Debug] Has permission for configured:', !!hasPermissionForConfigured);
-        console.log('[Payment Debug] Can use Tap to Pay (permission only):', canUseTapToPayPermission);
-        console.log('[Payment Debug] Should use native Tap to Pay (fallback):', shouldUseNativeTapToPay);
-        console.log('[Payment Debug] Is configured tap_to_pay on native:', isConfiguredTapToPayOnNative);
-        console.log('[Payment Debug] Should use native SDK (configured):', isTapOrBluetooth && isNative && !!hasPermissionForConfigured);
+        addDebugLog(`isTapOrBluetooth: ${isTapOrBluetooth}`);
+        addDebugLog(`hasPermission: ${!!hasPermissionForConfigured}`);
+        addDebugLog(`canUseTapToPay: ${canUseTapToPayPermission}`);
+        addDebugLog(`shouldUseNativeTapToPay: ${shouldUseNativeTapToPay}`);
+        addDebugLog(`isConfiguredTapToPayOnNative: ${isConfiguredTapToPayOnNative}`);
 
         if (
           shouldUseNativeTapToPay ||
@@ -235,18 +242,28 @@ export const PaymentMethodSelector = ({
         ) {
           const connectionType = 'tap_to_pay';
 
-          console.log('[Payment Debug] ✅ Using native SDK for:', connectionType);
+          addDebugLog(`✅ USING NATIVE SDK for: ${connectionType}`);
           
-          // Initialize native SDK if needed
-          await initializeNativeSDK();
+          try {
+            // Initialize native SDK if needed
+            addDebugLog(`Calling initializeNativeSDK()...`);
+            await initializeNativeSDK();
+            addDebugLog(`SDK initialized ✅`);
+          } catch (initErr: any) {
+            addDebugLog(`❌ SDK INIT FAILED: ${initErr.message}`);
+            throw initErr;
+          }
           
           // Process payment via native SDK
+          addDebugLog(`Calling processPayment(${amountToCharge})...`);
           const result = await processPayment(
             amountToCharge,
             { connectionType },
             appointmentId,
             customerEmail
           );
+          
+          addDebugLog(`Payment result: success=${result.success}, error=${result.error}`);
           
           if (result.success) {
             await recordPaymentAudit('card_present');
@@ -257,13 +274,13 @@ export const PaymentMethodSelector = ({
           }
           return;
         } else {
-          console.log('[Payment Debug] ❌ NOT using native SDK - falling through to WiFi reader');
+          addDebugLog(`❌ NOT using native SDK - falling through to WiFi reader`);
           if (!hasPermissionForConfigured && staffTerminal?.connection_type) {
-            console.log('[Payment Debug] ⚠️ Staff does not have permission for', staffTerminal.connection_type);
+            addDebugLog(`⚠️ No permission for ${staffTerminal.connection_type}`);
           }
         }
       } else {
-        console.log('[Payment Debug] ❌ No staffId provided - skipping staff terminal check');
+        addDebugLog(`❌ No staffId provided - skipping staff terminal check`);
       }
 
       // Fall back to business-level WiFi reader (server-driven)
@@ -304,6 +321,7 @@ export const PaymentMethodSelector = ({
       toast.success('Card payment completed');
       onPaymentComplete();
     } catch (error: any) {
+      addDebugLog(`❌ PAYMENT ERROR: ${error.message}`);
       console.error('Card reader payment error:', error);
       toast.error(error.message || 'Failed to process card payment');
     } finally {
@@ -458,6 +476,15 @@ export const PaymentMethodSelector = ({
           </div>
         )}
         
+        {/* LIVE Payment Debug Log - Shows when payment is in progress */}
+        {paymentDebugLog.length > 0 && (
+          <div className="p-3 bg-black text-green-400 rounded-lg text-xs font-mono space-y-1 max-h-48 overflow-y-auto border-2 border-green-500">
+            <div className="font-bold text-sm text-white">📡 LIVE Payment Log:</div>
+            {paymentDebugLog.map((log, i) => (
+              <div key={i} className="break-all">{log}</div>
+            ))}
+          </div>
+        )}
         <div className="space-y-3">
           <Button
             onClick={handleCardReaderPayment}

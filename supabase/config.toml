@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.get-portal-appointments]
 verify_jwt = false
+
+[functions.create-terminal-location]
+verify_jwt = true

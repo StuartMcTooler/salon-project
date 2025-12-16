@@ -1,0 +1,105 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@18.5.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { staffId, displayName, stripeAccountId } = await req.json();
+    
+    console.log("[create-terminal-location] Starting...");
+    console.log("[create-terminal-location] staffId:", staffId);
+    console.log("[create-terminal-location] displayName:", displayName);
+    console.log("[create-terminal-location] stripeAccountId:", stripeAccountId || "platform (no connected account)");
+
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+      apiVersion: "2025-08-27.basil",
+    });
+
+    // Create location options
+    const locationOptions = {
+      display_name: displayName || "Mobile Payment Location",
+      address: {
+        line1: "Mobile Location",
+        city: "Dublin",
+        country: "IE",
+        postal_code: "D01",
+      },
+    };
+
+    // If connected account ID is provided, create on connected account
+    const stripeOptions = stripeAccountId 
+      ? { stripeAccount: stripeAccountId }
+      : {};
+
+    console.log("[create-terminal-location] Creating Stripe Terminal Location...");
+    console.log("[create-terminal-location] Options:", JSON.stringify(locationOptions));
+    
+    const location = await stripe.terminal.locations.create(locationOptions, stripeOptions);
+    
+    console.log("[create-terminal-location] ✅ Location created:", location.id);
+
+    // If staffId is provided, update terminal_settings with the location ID
+    if (staffId) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+      // Update existing terminal settings OR create new one with location ID
+      const { data: existing } = await supabase
+        .from("terminal_settings")
+        .select("id")
+        .eq("staff_id", staffId)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (existing) {
+        console.log("[create-terminal-location] Updating existing terminal_settings with location ID");
+        await supabase
+          .from("terminal_settings")
+          .update({ stripe_location_id: location.id })
+          .eq("id", existing.id);
+      } else {
+        console.log("[create-terminal-location] Creating new terminal_settings with location ID");
+        await supabase
+          .from("terminal_settings")
+          .insert({
+            staff_id: staffId,
+            stripe_location_id: location.id,
+            connection_type: "tap_to_pay",
+            is_active: true,
+          });
+      }
+      
+      console.log("[create-terminal-location] ✅ Database updated");
+    }
+
+    return new Response(
+      JSON.stringify({ 
+        locationId: location.id,
+        displayName: location.display_name,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      }
+    );
+  } catch (error: any) {
+    console.error("[create-terminal-location] ❌ Error:", error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      }
+    );
+  }
+});

@@ -190,7 +190,7 @@ export const PaymentMethodSelector = ({
         const [terminalResult, permissionsResult] = await Promise.all([
           supabase
             .from('terminal_settings')
-            .select('connection_type, reader_id')
+            .select('connection_type, reader_id, stripe_location_id')
             .eq('staff_id', staffId)
             .eq('is_active', true)
             .maybeSingle(),
@@ -209,6 +209,7 @@ export const PaymentMethodSelector = ({
 
         addDebugLog(`Staff terminal: ${JSON.stringify(staffTerminal)}`);
         addDebugLog(`Allowed types: ${JSON.stringify(allowedTypes)}`);
+        addDebugLog(`stripe_location_id: ${staffTerminal?.stripe_location_id || 'NOT SET'}`);
         if (staffTerminalError) addDebugLog(`⚠️ Terminal error: ${staffTerminalError.message}`);
         if (permissionsError) addDebugLog(`⚠️ Permissions error: ${permissionsError.message}`);
 
@@ -254,11 +255,12 @@ export const PaymentMethodSelector = ({
             throw initErr;
           }
           
-          // Process payment via native SDK
-          addDebugLog(`Calling processPayment(${amountToCharge})...`);
+          // Process payment via native SDK with locationId
+          const locationId = staffTerminal?.stripe_location_id;
+          addDebugLog(`Calling processPayment(${amountToCharge}, locationId=${locationId || 'NONE'})...`);
           const result = await processPayment(
             amountToCharge,
-            { connectionType },
+            { connectionType, locationId },
             appointmentId,
             customerEmail
           );

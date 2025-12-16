@@ -28,6 +28,11 @@ import { CustomerDepositManager } from "@/components/pos/CustomerDepositManager"
 import { SalonServiceSelection } from "@/components/salon/SalonServiceSelection";
 import { SalonCheckout } from "@/components/salon/SalonCheckout";
 import { QuickBookingLinkModal } from "@/components/pos/QuickBookingLinkModal";
+import { isNativeApp, getPlatform } from "@/lib/platform";
+import { Capacitor } from "@capacitor/core";
+
+// Build timestamp for version verification
+const BUILD_TIMESTAMP = "Dec 16, 10:15 UTC";
 
 const POS = () => {
   const navigate = useNavigate();
@@ -269,6 +274,10 @@ const POS = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* DIAGNOSTIC BANNER - Remove after debugging */}
+      <div className="bg-yellow-500 text-black text-xs p-2 text-center font-mono">
+        Build: {BUILD_TIMESTAMP} | Native: {String(isNativeApp())} | Platform: {getPlatform()} | Capacitor: {String(Capacitor.isNativePlatform())}
+      </div>
       <div className="border-b bg-card">
         <div className="max-w-6xl mx-auto px-3 md:px-6 py-3 md:py-4">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">

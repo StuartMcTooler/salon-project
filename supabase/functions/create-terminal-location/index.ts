@@ -24,14 +24,13 @@ serve(async (req) => {
       apiVersion: "2025-08-27.basil",
     });
 
-    // Create location options
+    // Create location options - Ireland doesn't require postal codes for Terminal locations
     const locationOptions = {
       display_name: displayName || "Mobile Payment Location",
       address: {
         line1: "Mobile Location",
         city: "Dublin",
         country: "IE",
-        postal_code: "D01",
       },
     };
 

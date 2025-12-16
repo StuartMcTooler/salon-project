@@ -276,8 +276,8 @@ const POS = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* DIAGNOSTIC BANNER - Remove after debugging */}
-      <div className="bg-yellow-500 text-black text-xs p-2 text-center font-mono">
-        Build: {BUILD_TIMESTAMP} | Native: {String(isNativeApp())} | Platform: {getPlatform()} | Capacitor: {String(Capacitor.isNativePlatform())}
+      <div className="bg-red-600 text-white text-sm p-3 text-center font-bold border-4 border-yellow-400">
+        🔧 DEBUG v2 🔧 Build: {BUILD_TIMESTAMP} | Native: {String(isNativeApp())} | Platform: {getPlatform()}
       </div>
       <div className="border-b bg-card">
         <div className="max-w-6xl mx-auto px-3 md:px-6 py-3 md:py-4">

@@ -9,7 +9,7 @@ interface BookingLinkCardProps {
 
 export const BookingLinkCard = ({ staffId }: BookingLinkCardProps) => {
   const { toast } = useToast();
-  const bookingUrl = `${window.location.origin}/book/${staffId}`;
+  const bookingUrl = `https://bookd.ie/book/${staffId}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(bookingUrl);

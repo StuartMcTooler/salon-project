@@ -32,7 +32,7 @@ import { isNativeApp, getPlatform } from "@/lib/platform";
 import { Capacitor } from "@capacitor/core";
 
 // Build timestamp for version verification
-const BUILD_TIMESTAMP = "Dec 16, 10:15 UTC";
+const BUILD_TIMESTAMP = "Dec 16, 14:10 UTC";
 
 const POS = () => {
   const navigate = useNavigate();

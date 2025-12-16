@@ -46,6 +46,7 @@ export const PaymentMethodSelector = ({
     platform: string;
     staffTerminal: any;
     staffTerminalError: any;
+    allowedTypes: string[] | null;
   } | null>(null);
   
   // Native terminal payment hook
@@ -64,16 +65,25 @@ export const PaymentMethodSelector = ({
       
       let staffTerminal = null;
       let staffTerminalError = null;
+      let allowedTypes: string[] | null = null;
       
       if (staffId) {
-        const { data, error } = await supabase
-          .from('terminal_settings')
-          .select('*')
-          .eq('staff_id', staffId)
-          .eq('is_active', true)
-          .maybeSingle();
-        staffTerminal = data;
-        staffTerminalError = error;
+        const [terminalRes, permRes] = await Promise.all([
+          supabase
+            .from('terminal_settings')
+            .select('*')
+            .eq('staff_id', staffId)
+            .eq('is_active', true)
+            .maybeSingle(),
+          supabase
+            .from('staff_members')
+            .select('allowed_terminal_types')
+            .eq('id', staffId)
+            .single()
+        ]);
+        staffTerminal = terminalRes.data;
+        staffTerminalError = terminalRes.error;
+        allowedTypes = permRes.data?.allowed_terminal_types ?? null;
       }
       
       setDebugInfo({
@@ -81,6 +91,7 @@ export const PaymentMethodSelector = ({
         platform,
         staffTerminal,
         staffTerminalError,
+        allowedTypes,
       });
     };
     
@@ -418,6 +429,26 @@ export const PaymentMethodSelector = ({
                 </div>
               ) : (
                 <div className="text-amber-600">No staff terminal settings found</div>
+              )}
+            </div>
+            
+            <div className="border-t pt-2 mt-2">
+              <div className="font-bold mb-1">Allowed Terminal Types:</div>
+              {debugInfo?.allowedTypes && debugInfo.allowedTypes.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {debugInfo.allowedTypes.map((type) => (
+                    <span 
+                      key={type} 
+                      className={`px-2 py-0.5 rounded text-xs ${
+                        type === 'tap_to_pay' ? 'bg-green-100 text-green-800 font-bold' : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      {type}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-amber-600">❌ No permissions (defaults to business_reader)</div>
               )}
             </div>
             

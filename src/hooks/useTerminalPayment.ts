@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 
 // Type definitions
 type ConnectionType = 'internet' | 'bluetooth' | 'tap_to_pay';
-type DiscoveryMethod = 'localMobile' | 'bluetoothScan' | 'internet';
 
 interface TerminalConfig {
   connectionType: ConnectionType;
@@ -21,6 +20,7 @@ interface PaymentResult {
 
 // Lazy load the Capacitor plugin only in native context
 let StripeTerminalPlugin: any = null;
+let TerminalConnectTypesEnum: any = null;
 
 const loadStripeTerminal = async () => {
   if (!isNativeApp()) return null;
@@ -28,6 +28,7 @@ const loadStripeTerminal = async () => {
   
   const module = await import('@capacitor-community/stripe-terminal');
   StripeTerminalPlugin = module.StripeTerminal;
+  TerminalConnectTypesEnum = module.TerminalConnectTypes;
   return StripeTerminalPlugin;
 };
 
@@ -42,36 +43,59 @@ export const useTerminalPayment = () => {
 
   // Fetch connection token for native SDK
   const fetchConnectionToken = useCallback(async (): Promise<string> => {
+    console.log('[TerminalPayment] Fetching connection token...');
     const { data, error } = await supabase.functions.invoke('create-terminal-connection-token');
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error('[TerminalPayment] Token fetch error:', error);
+      throw new Error(error.message);
+    }
+    console.log('[TerminalPayment] Token received');
     return data.secret;
   }, []);
 
   // Initialize native SDK
   const initializeNativeSDK = useCallback(async () => {
-    if (!isNativeApp() || isInitialized) return;
+    if (!isNativeApp()) {
+      console.log('[TerminalPayment] Not native app, skipping SDK init');
+      return;
+    }
+    if (isInitialized) {
+      console.log('[TerminalPayment] Already initialized');
+      return;
+    }
     
     try {
+      console.log('[TerminalPayment] Loading Stripe Terminal plugin...');
       const StripeTerminal = await loadStripeTerminal();
       if (!StripeTerminal) throw new Error('Failed to load Stripe Terminal plugin');
       
       terminalRef.current = StripeTerminal;
       
-      // Initialize with token provider
+      // Set up connection token listener BEFORE initialize
+      console.log('[TerminalPayment] Setting up token listener...');
+      StripeTerminal.addListener('requestedConnectionToken', async () => {
+        console.log('[TerminalPayment] Token requested by SDK');
+        try {
+          const token = await fetchConnectionToken();
+          await StripeTerminal.setConnectionToken({ token });
+          console.log('[TerminalPayment] Token provided to SDK');
+        } catch (err) {
+          console.error('[TerminalPayment] Failed to provide token:', err);
+        }
+      });
+      
+      // Initialize without tokenProviderEndpoint (we provide tokens manually)
+      console.log('[TerminalPayment] Initializing SDK...');
       await StripeTerminal.initialize({
-        tokenProviderEndpoint: '', // We'll provide tokens manually
         isTest: false, // Set based on your Stripe mode
       });
       
-      // Set initial connection token
-      const token = await fetchConnectionToken();
-      await StripeTerminal.setConnectionToken({ token });
-      
       setIsInitialized(true);
-      console.log('[TerminalPayment] Native SDK initialized');
+      console.log('[TerminalPayment] ✅ Native SDK initialized successfully');
     } catch (err: any) {
-      console.error('[TerminalPayment] Init error:', err);
+      console.error('[TerminalPayment] ❌ Init error:', err);
       setError(err.message);
+      throw err;
     }
   }, [isInitialized, fetchConnectionToken]);
 
@@ -80,40 +104,57 @@ export const useTerminalPayment = () => {
     setError(null);
     
     if (!isNativeApp()) {
-      // For web, we don't "discover" - we use configured reader ID
+      console.log('[TerminalPayment] Not native, skipping discovery');
       return [];
     }
     
     try {
-      if (!isInitialized) await initializeNativeSDK();
+      if (!isInitialized) {
+        console.log('[TerminalPayment] SDK not initialized, initializing now...');
+        await initializeNativeSDK();
+      }
       
       const StripeTerminal = terminalRef.current;
       if (!StripeTerminal) throw new Error('Terminal not initialized');
       
-      let discoveryMethod: DiscoveryMethod;
+      // Map our connection type to plugin's TerminalConnectTypes
+      // CRITICAL: Plugin uses 'type' parameter with specific enum values
+      let terminalType: string;
       
       switch (connectionType) {
         case 'tap_to_pay':
-          discoveryMethod = 'localMobile'; // Uses phone's NFC
+          // This is "tap-to-pay" - uses phone's internal NFC for Android/iOS
+          terminalType = TerminalConnectTypesEnum?.TapToPay || 'tap-to-pay';
           break;
         case 'bluetooth':
-          discoveryMethod = 'bluetoothScan';
+          terminalType = TerminalConnectTypesEnum?.Bluetooth || 'bluetooth';
           break;
         default:
-          discoveryMethod = 'internet';
+          terminalType = TerminalConnectTypesEnum?.Internet || 'internet';
       }
       
-      console.log(`[TerminalPayment] Discovering readers: ${discoveryMethod}`);
+      console.log(`[TerminalPayment] 🔍 Discovering readers with type: "${terminalType}"`);
+      console.log(`[TerminalPayment] Platform: ${getPlatform()}, ConnectionType: ${connectionType}`);
       
+      // Use correct API: { type: TerminalConnectTypes.TapToPay }
       const result = await StripeTerminal.discoverReaders({
-        simulated: false,
-        discoveryMethod,
+        type: terminalType,
+        // locationId is optional for Tap to Pay
       });
+      
+      console.log(`[TerminalPayment] ✅ Discovery result:`, result);
+      console.log(`[TerminalPayment] Found ${result.readers?.length || 0} readers`);
+      
+      if (result.readers?.length > 0) {
+        result.readers.forEach((r: any, i: number) => {
+          console.log(`[TerminalPayment] Reader ${i}:`, r.serialNumber || r.label || 'unknown');
+        });
+      }
       
       setDiscoveredReaders(result.readers || []);
       return result.readers || [];
     } catch (err: any) {
-      console.error('[TerminalPayment] Discovery error:', err);
+      console.error('[TerminalPayment] ❌ Discovery error:', err);
       setError(err.message);
       return [];
     }
@@ -127,11 +168,12 @@ export const useTerminalPayment = () => {
       const StripeTerminal = terminalRef.current;
       if (!StripeTerminal) throw new Error('Terminal not initialized');
       
+      console.log('[TerminalPayment] Connecting to reader:', reader.serialNumber || reader.label);
       await StripeTerminal.connectReader({ reader });
       setConnectedReader(reader);
-      console.log('[TerminalPayment] Connected to reader:', reader.serialNumber || reader.id);
+      console.log('[TerminalPayment] ✅ Connected to reader');
     } catch (err: any) {
-      console.error('[TerminalPayment] Connect error:', err);
+      console.error('[TerminalPayment] ❌ Connect error:', err);
       setError(err.message);
       throw err;
     }
@@ -150,12 +192,15 @@ export const useTerminalPayment = () => {
     try {
       if (isNativeApp() && (config.connectionType === 'tap_to_pay' || config.connectionType === 'bluetooth')) {
         // === NATIVE PATH: Use Stripe Terminal SDK ===
+        console.log('[TerminalPayment] Using NATIVE SDK path');
         return await processNativePayment(amount, config.connectionType, appointmentId, customerEmail);
       } else {
         // === WEB PATH: Use Server-Driven API ===
+        console.log('[TerminalPayment] Using SERVER-DRIVEN path');
         return await processServerDrivenPayment(amount, config.readerId!, appointmentId, customerEmail);
       }
     } catch (err: any) {
+      console.error('[TerminalPayment] Payment error:', err);
       setError(err.message);
       return { success: false, error: err.message };
     } finally {
@@ -171,53 +216,74 @@ export const useTerminalPayment = () => {
     customerEmail?: string
   ): Promise<PaymentResult> => {
     const StripeTerminal = terminalRef.current;
-    if (!StripeTerminal) throw new Error('Terminal not initialized');
+    if (!StripeTerminal) {
+      console.log('[TerminalPayment] SDK not ready, initializing...');
+      await initializeNativeSDK();
+      if (!terminalRef.current) {
+        throw new Error('Terminal not initialized');
+      }
+    }
 
     // Step 1: Ensure we have a connected reader
     if (!connectedReader) {
+      console.log('[TerminalPayment] No connected reader, discovering...');
       const readers = await discoverReaders(connectionType);
+      
       if (readers.length === 0) {
-        throw new Error(
-          connectionType === 'tap_to_pay' 
-            ? 'Tap to Pay is not available on this device' 
-            : 'No Bluetooth readers found nearby'
-        );
+        const errorMsg = connectionType === 'tap_to_pay' 
+          ? 'Tap to Pay is not available on this device. Make sure NFC is enabled.' 
+          : 'No Bluetooth readers found nearby';
+        console.error('[TerminalPayment] ' + errorMsg);
+        throw new Error(errorMsg);
       }
+      
+      console.log('[TerminalPayment] Auto-connecting to first reader...');
       await connectReader(readers[0]);
     }
 
     // Step 2: Create PaymentIntent on server
+    console.log('[TerminalPayment] Creating PaymentIntent on server...');
     const { data: intentData, error: intentError } = await supabase.functions.invoke(
       'create-terminal-payment-intent',
       { body: { amount, appointmentId, customerEmail } }
     );
     
-    if (intentError) throw new Error(intentError.message);
+    if (intentError) {
+      console.error('[TerminalPayment] PaymentIntent creation failed:', intentError);
+      throw new Error(intentError.message);
+    }
+    
+    console.log('[TerminalPayment] PaymentIntent created:', intentData.paymentIntentId);
 
-    // Step 3: Collect payment method (user taps card or phone presents NFC)
+    // Step 3: Collect payment method (user taps card)
     console.log('[TerminalPayment] Collecting payment method...');
     toast.info(connectionType === 'tap_to_pay' ? 'Ready - Tap card on phone' : 'Present card to reader');
     
-    await StripeTerminal.collectPaymentMethod({
-      paymentIntentClientSecret: intentData.clientSecret,
+    // CRITICAL: Plugin uses { paymentIntent: clientSecret }, not { paymentIntentClientSecret }
+    await terminalRef.current.collectPaymentMethod({
+      paymentIntent: intentData.clientSecret,
     });
+    
+    console.log('[TerminalPayment] Payment method collected');
 
-    // Step 4: Process the payment
-    console.log('[TerminalPayment] Processing payment...');
-    const processResult = await StripeTerminal.processPayment();
+    // Step 4: Confirm the payment (plugin uses confirmPaymentIntent, not processPayment)
+    console.log('[TerminalPayment] Confirming payment...');
+    await terminalRef.current.confirmPaymentIntent();
+    
+    console.log('[TerminalPayment] ✅ Payment confirmed!');
     
     // Step 5: Update appointment status
     if (appointmentId) {
       await supabase
         .from('salon_appointments')
-        .update({ payment_status: 'paid' })
+        .update({ payment_status: 'paid', payment_method: 'card_present' })
         .eq('id', appointmentId);
     }
 
     toast.success('Payment successful!');
     return {
       success: true,
-      paymentIntentId: processResult.paymentIntent?.id || intentData.paymentIntentId,
+      paymentIntentId: intentData.paymentIntentId,
     };
   };
 

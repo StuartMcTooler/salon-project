@@ -100,7 +100,7 @@ export const useTerminalPayment = () => {
   }, [isInitialized, fetchConnectionToken]);
 
   // Discover readers based on connection type
-  const discoverReaders = useCallback(async (connectionType: ConnectionType) => {
+  const discoverReaders = useCallback(async (connectionType: ConnectionType, locationId?: string) => {
     setError(null);
     
     if (!isNativeApp()) {
@@ -133,14 +133,23 @@ export const useTerminalPayment = () => {
           terminalType = TerminalConnectTypesEnum?.Internet || 'internet';
       }
       
-      console.log(`[TerminalPayment] 🔍 Discovering readers with type: "${terminalType}"`);
-      console.log(`[TerminalPayment] Platform: ${getPlatform()}, ConnectionType: ${connectionType}`);
-      
-      // Use correct API: { type: TerminalConnectTypes.TapToPay }
-      const result = await StripeTerminal.discoverReaders({
+      // Build discovery configuration
+      const discoveryConfig: any = {
         type: terminalType,
-        // locationId is optional for Tap to Pay
-      });
+      };
+      
+      // Add locationId if provided (CRITICAL for Tap to Pay discovery)
+      if (locationId) {
+        discoveryConfig.locationId = locationId;
+      }
+      
+      console.log(`[TerminalPayment] 🔍 Discovering readers with config:`);
+      console.log(`[TerminalPayment]   type: "${terminalType}"`);
+      console.log(`[TerminalPayment]   locationId: "${locationId || 'NOT PROVIDED'}"`);
+      console.log(`[TerminalPayment]   simulated: false (hardcoded for real hardware)`);
+      console.log(`[TerminalPayment]   Platform: ${getPlatform()}, ConnectionType: ${connectionType}`);
+      
+      const result = await StripeTerminal.discoverReaders(discoveryConfig);
       
       console.log(`[TerminalPayment] ✅ Discovery result:`, result);
       console.log(`[TerminalPayment] Found ${result.readers?.length || 0} readers`);
@@ -182,7 +191,7 @@ export const useTerminalPayment = () => {
   // Process payment - THE FORK
   const processPayment = useCallback(async (
     amount: number,
-    config: TerminalConfig,
+    config: TerminalConfig & { locationId?: string },
     appointmentId?: string,
     customerEmail?: string
   ): Promise<PaymentResult> => {
@@ -193,7 +202,8 @@ export const useTerminalPayment = () => {
       if (isNativeApp() && (config.connectionType === 'tap_to_pay' || config.connectionType === 'bluetooth')) {
         // === NATIVE PATH: Use Stripe Terminal SDK ===
         console.log('[TerminalPayment] Using NATIVE SDK path');
-        return await processNativePayment(amount, config.connectionType, appointmentId, customerEmail);
+        console.log(`[TerminalPayment] LocationId for discovery: "${config.locationId || 'NOT PROVIDED'}"`);
+        return await processNativePayment(amount, config.connectionType, appointmentId, customerEmail, config.locationId);
       } else {
         // === WEB PATH: Use Server-Driven API ===
         console.log('[TerminalPayment] Using SERVER-DRIVEN path');
@@ -213,7 +223,8 @@ export const useTerminalPayment = () => {
     amount: number,
     connectionType: ConnectionType,
     appointmentId?: string,
-    customerEmail?: string
+    customerEmail?: string,
+    locationId?: string
   ): Promise<PaymentResult> => {
     const StripeTerminal = terminalRef.current;
     if (!StripeTerminal) {
@@ -227,11 +238,14 @@ export const useTerminalPayment = () => {
     // Step 1: Ensure we have a connected reader
     if (!connectedReader) {
       console.log('[TerminalPayment] No connected reader, discovering...');
-      const readers = await discoverReaders(connectionType);
+      console.log(`[TerminalPayment] Using locationId for discovery: "${locationId || 'NOT PROVIDED'}"`);
+      
+      // Pass locationId to discovery (CRITICAL for Tap to Pay)
+      const readers = await discoverReaders(connectionType, locationId);
       
       if (readers.length === 0) {
         const errorMsg = connectionType === 'tap_to_pay' 
-          ? 'Tap to Pay is not available on this device. Make sure NFC is enabled.' 
+          ? `Tap to Pay is not available. Make sure NFC is enabled and location is configured. LocationId: ${locationId || 'MISSING'}` 
           : 'No Bluetooth readers found nearby';
         console.error('[TerminalPayment] ' + errorMsg);
         throw new Error(errorMsg);

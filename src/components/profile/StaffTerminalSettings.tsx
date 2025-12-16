@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Smartphone, Bluetooth, Loader2, CheckCircle, Search, CreditCard, Wifi, Lock } from 'lucide-react';
+import { Smartphone, Bluetooth, Loader2, CheckCircle, Search, CreditCard, Wifi, Lock, MapPin } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +27,7 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
   const [existingSettings, setExistingSettings] = useState<any>(null);
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [allowedTerminalTypes, setAllowedTerminalTypes] = useState<string[]>(['business_reader']);
+  const [isCreatingLocation, setIsCreatingLocation] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -44,7 +45,7 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
           .maybeSingle(),
         supabase
           .from('staff_members')
-          .select('allowed_terminal_types')
+          .select('allowed_terminal_types, display_name')
           .eq('id', staffId)
           .single()
       ]);
@@ -68,9 +69,68 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
     }
   };
 
+  // Create Stripe Terminal Location for Tap to Pay
+  const createTerminalLocation = async (): Promise<string | null> => {
+    setIsCreatingLocation(true);
+    try {
+      // Get staff display name for location
+      const { data: staffData } = await supabase
+        .from('staff_members')
+        .select('display_name')
+        .eq('id', staffId)
+        .single();
+
+      console.log('[StaffTerminalSettings] Creating Stripe Terminal Location...');
+      
+      const { data, error } = await supabase.functions.invoke('create-terminal-location', {
+        body: {
+          staffId,
+          displayName: `${staffData?.display_name || 'Staff'} - Tap to Pay`,
+        },
+      });
+
+      if (error) {
+        console.error('[StaffTerminalSettings] Location creation failed:', error);
+        throw error;
+      }
+
+      console.log('[StaffTerminalSettings] ✅ Location created:', data.locationId);
+      
+      toast({
+        title: "Tap to Pay configured",
+        description: "Your payment location has been set up successfully.",
+      });
+
+      return data.locationId;
+    } catch (error: any) {
+      console.error('[StaffTerminalSettings] Error creating location:', error);
+      toast({
+        title: "Setup failed",
+        description: error.message || "Could not configure Tap to Pay location",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setIsCreatingLocation(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
+      // If selecting Tap to Pay and no location exists, create one first
+      let stripeLocationId = existingSettings?.stripe_location_id;
+      
+      if (connectionType === 'tap_to_pay' && !stripeLocationId) {
+        console.log('[StaffTerminalSettings] No location ID, creating one...');
+        stripeLocationId = await createTerminalLocation();
+        if (!stripeLocationId) {
+          // Location creation failed, don't proceed
+          setSaving(false);
+          return;
+        }
+      }
+
       const getReaderInfo = () => {
         if (connectionType === 'bluetooth' && connectedReader) {
           return { reader_id: connectedReader.serialNumber, reader_name: connectedReader.label || 'Bluetooth Reader' };
@@ -82,13 +142,18 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
       };
 
       const readerInfo = getReaderInfo();
-      const settingsData = {
+      const settingsData: any = {
         staff_id: staffId,
         connection_type: connectionType,
         reader_id: readerInfo.reader_id,
         reader_name: readerInfo.reader_name,
         is_active: true,
       };
+
+      // Include stripe_location_id if we have one (for Tap to Pay)
+      if (stripeLocationId) {
+        settingsData.stripe_location_id = stripeLocationId;
+      }
 
       if (existingSettings) {
         const { error } = await supabase
@@ -105,7 +170,7 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
 
       toast({
         title: "Settings saved",
-        description: `${connectionType === 'tap_to_pay' ? 'Tap to Pay' : 'Bluetooth Reader'} configured successfully`,
+        description: `${connectionType === 'tap_to_pay' ? 'Tap to Pay' : connectionType === 'bluetooth' ? 'Bluetooth Reader' : 'WiFi Reader'} configured successfully`,
       });
 
       loadSettings();
@@ -385,21 +450,34 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
 
         {/* Current Status */}
         {existingSettings && (
-          <div className="flex items-center gap-2 text-sm">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            <span className="text-muted-foreground">
-              Currently using: {existingSettings.connection_type === 'tap_to_pay' ? 'Tap to Pay' : `Bluetooth (${existingSettings.reader_name || 'Reader'})`}
-            </span>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span className="text-muted-foreground">
+                Currently using: {existingSettings.connection_type === 'tap_to_pay' ? 'Tap to Pay' : existingSettings.connection_type === 'bluetooth' ? `Bluetooth (${existingSettings.reader_name || 'Reader'})` : 'WiFi Reader'}
+              </span>
+            </div>
+            {existingSettings.stripe_location_id && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <MapPin className="h-3 w-3" />
+                <span>Location: {existingSettings.stripe_location_id}</span>
+              </div>
+            )}
           </div>
         )}
 
         {/* Save Button */}
         <Button 
           onClick={handleSave} 
-          disabled={saving || (connectionType === 'bluetooth' && !connectedReader && !existingSettings?.reader_id) || (connectionType === 'internet' && !readerId)}
+          disabled={saving || isCreatingLocation || (connectionType === 'bluetooth' && !connectedReader && !existingSettings?.reader_id) || (connectionType === 'internet' && !readerId)}
           className="w-full"
         >
-          {saving ? (
+          {isCreatingLocation ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Setting up Tap to Pay...
+            </>
+          ) : saving ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Saving...

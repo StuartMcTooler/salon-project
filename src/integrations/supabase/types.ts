@@ -1980,6 +1980,7 @@ export type Database = {
           reader_id: string | null
           reader_name: string | null
           staff_id: string | null
+          stripe_location_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -1991,6 +1992,7 @@ export type Database = {
           reader_id?: string | null
           reader_name?: string | null
           staff_id?: string | null
+          stripe_location_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -2002,6 +2004,7 @@ export type Database = {
           reader_id?: string | null
           reader_name?: string | null
           staff_id?: string | null
+          stripe_location_id?: string | null
           updated_at?: string | null
         }
         Relationships: [

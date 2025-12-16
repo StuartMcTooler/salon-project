@@ -35,15 +35,13 @@ serve(async (req) => {
       },
     };
 
-    // If connected account ID is provided, create on connected account
-    const stripeOptions = stripeAccountId 
-      ? { stripeAccount: stripeAccountId }
-      : {};
-
     console.log("[create-terminal-location] Creating Stripe Terminal Location...");
     console.log("[create-terminal-location] Options:", JSON.stringify(locationOptions));
     
-    const location = await stripe.terminal.locations.create(locationOptions, stripeOptions);
+    // Create location - only pass stripeAccount option if connected account is provided
+    const location = stripeAccountId 
+      ? await stripe.terminal.locations.create(locationOptions, { stripeAccount: stripeAccountId })
+      : await stripe.terminal.locations.create(locationOptions);
     
     console.log("[create-terminal-location] ✅ Location created:", location.id);
 

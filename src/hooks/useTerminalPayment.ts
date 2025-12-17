@@ -27,7 +27,7 @@ const loadStripeTerminal = async () => {
   if (StripeTerminalPlugin) return StripeTerminalPlugin;
   
   try {
-    const module = await import('@capacitor-community/stripe-terminal');
+    const module = await import(/* @vite-ignore */ '@capacitor-community/stripe-terminal');
     StripeTerminalPlugin = module.StripeTerminal;
     TerminalConnectTypesEnum = module.TerminalConnectTypes;
     return StripeTerminalPlugin;

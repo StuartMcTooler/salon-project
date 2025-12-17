@@ -27,7 +27,9 @@ const loadStripeTerminal = async () => {
   if (StripeTerminalPlugin) return StripeTerminalPlugin;
   
   try {
-    const module = await import(/* @vite-ignore */ '@capacitor-community/stripe-terminal');
+    // Use variable to prevent Rollup from statically analyzing this import
+    const modulePath = '@capacitor-community/stripe-terminal';
+    const module = await import(/* @vite-ignore */ modulePath);
     StripeTerminalPlugin = module.StripeTerminal;
     TerminalConnectTypesEnum = module.TerminalConnectTypes;
     return StripeTerminalPlugin;

@@ -1,8 +1,9 @@
+// useTerminalPayment - Native/Web payment processing hook
+// Updated: Forces GitHub sync
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { isNativeApp, getPlatform } from '@/lib/platform';
 import { toast } from 'sonner';
-
 // Type definitions
 type ConnectionType = 'internet' | 'bluetooth' | 'tap_to_pay';
 

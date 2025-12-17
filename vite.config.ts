@@ -16,8 +16,6 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      // Redirect native-only Capacitor plugin to stub during build
-      "@capacitor-community/stripe-terminal": path.resolve(__dirname, "./src/lib/stripe-terminal-stub.ts"),
     },
   },
   define: {

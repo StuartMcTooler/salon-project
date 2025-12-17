@@ -16,14 +16,11 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Redirect native-only module to empty stub for web builds
+      "@capacitor-community/stripe-terminal": path.resolve(__dirname, "./src/lib/capacitor-stubs.ts"),
     },
   },
   define: {
     __BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),
-  },
-  build: {
-    rollupOptions: {
-      external: ['@capacitor-community/stripe-terminal'],
-    },
   },
 }));

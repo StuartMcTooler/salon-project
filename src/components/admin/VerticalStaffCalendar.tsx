@@ -51,6 +51,9 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
       if (error) throw error;
       return data;
     },
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: businessHours } = useQuery({

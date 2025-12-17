@@ -20,7 +20,8 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     rollupOptions: {
-      external: ["@capacitor-community/stripe-terminal"],
+      // Note: @capacitor-community/stripe-terminal removed from external
+      // as it needs to be bundled for dynamic import in Capacitor WebView
     },
   },
 }));

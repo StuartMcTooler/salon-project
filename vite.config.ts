@@ -19,16 +19,19 @@ export default defineConfig(({ mode }) => ({
     // Handle native-only Capacitor plugins that don't exist during web builds
     {
       name: 'capacitor-native-externals',
+      enforce: 'pre' as const,
       resolveId(id: string) {
         if (capacitorNativeExternals.includes(id)) {
-          return { id, external: true };
+          return '\0virtual:' + id;
         }
         return null;
       },
       load(id: string) {
-        if (capacitorNativeExternals.includes(id)) {
-          // Return empty module for native-only packages
-          return 'export default {}; export const StripeTerminal = {}; export const TerminalConnectTypes = {};';
+        if (id.startsWith('\0virtual:')) {
+          const originalId = id.slice('\0virtual:'.length);
+          if (capacitorNativeExternals.includes(originalId)) {
+            return 'export default {}; export const StripeTerminal = {}; export const TerminalConnectTypes = {};';
+          }
         }
         return null;
       },
@@ -41,10 +44,5 @@ export default defineConfig(({ mode }) => ({
   },
   define: {
     __BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),
-  },
-  build: {
-    rollupOptions: {
-      external: capacitorNativeExternals,
-    },
   },
 }));

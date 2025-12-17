@@ -29,7 +29,7 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
   const [showingOverflowFor, setShowingOverflowFor] = useState<string | null>(null);
   const navigate = useNavigate();
   
-  const { data: staffData, isLoading } = useQuery({
+  const { data: staffData, isLoading, error: staffError } = useQuery({
     queryKey: selectedService 
       ? ['staff-for-service', selectedService.id] 
       : ['all-staff', businessId],
@@ -37,6 +37,8 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
     gcTime: 0,
     refetchOnMount: 'always',
     queryFn: async () => {
+      console.log('SalonStaffSelection: Fetching staff, selectedService:', selectedService?.id, 'businessId:', businessId);
+      
       if (selectedService) {
         const { data, error } = await supabase
           .from('staff_service_pricing')
@@ -47,7 +49,11 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
           .eq('service_id', selectedService.id)
           .eq('is_available', true);
         
-        if (error) throw error;
+        if (error) {
+          console.error('SalonStaffSelection: Error fetching staff for service:', error);
+          throw error;
+        }
+        console.log('SalonStaffSelection: Staff for service result:', data);
         return data;
       } else {
         let query = supabase
@@ -61,12 +67,19 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
         
         const { data, error } = await query;
         
-        if (error) throw error;
+        if (error) {
+          console.error('SalonStaffSelection: Error fetching all staff:', error);
+          throw error;
+        }
+        console.log('SalonStaffSelection: All staff result:', data);
         return data?.map(staff => ({ staff, custom_price: null })) || [];
       }
     },
     enabled: true,
   });
+
+  // Log staff data and any errors
+  console.log('SalonStaffSelection: staffData:', staffData, 'isLoading:', isLoading, 'error:', staffError);
 
   // Fetch availability for each staff member
   const staffWithAvailability = useQuery({
@@ -207,7 +220,10 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
     );
   }
 
-  const displayData = staffWithAvailability.data || staffData;
+  // Use availability data if available and non-empty, otherwise fall back to staff data
+  const displayData = (staffWithAvailability.data && staffWithAvailability.data.length > 0) 
+    ? staffWithAvailability.data 
+    : staffData;
 
   // If showing overflow, render trusted network
   if (showingOverflowFor) {
@@ -338,7 +354,7 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {displayData?.filter(item => item.staff !== null).map((item) => {
+        {displayData?.filter(item => item?.staff).map((item) => {
           const staff = item.staff;
           const pricing = item.custom_price;
           const availability = (item as any).availability;

@@ -16,7 +16,8 @@ import { normalizePhoneNumber } from "@/lib/utils";
 import { findOrCreateClient } from "@/lib/clientUtils";
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useRef, ChangeEvent } from "react";
-// import { PaymentMethodSelector } from "./PaymentMethodSelector"; // Commented out - auto-launching card reader instead
+import { isNativeApp, getPlatform } from "@/lib/platform";
+import { useTerminalPayment } from "@/hooks/useTerminalPayment";
 
 interface QuickCustomerFormProps {
   service: any;
@@ -56,8 +57,10 @@ export const QuickCustomerForm = ({
   const [showPhonePrompt, setShowPhonePrompt] = useState(false);
   const [shouldOpenCameraAfterPhone, setShouldOpenCameraAfterPhone] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  
+  // Native terminal payment hook for Tap to Pay
+  const { processPayment, initializeNativeSDK, isProcessing } = useTerminalPayment();
 
-  // Check for available credits, loyalty balance, and auto-fill customer name when phone changes
   useEffect(() => {
     const checkCreditsAndCustomer = async () => {
       if (!customerPhone) {
@@ -393,19 +396,79 @@ export const QuickCustomerForm = ({
     setProcessingPayment(true);
     
     try {
-      // Get current user's staff record to check business_id
+      // Get current user's staff record
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
       const { data: staffData } = await supabase
         .from('staff_members')
-        .select('business_id')
+        .select('id, business_id, allowed_terminal_types')
         .eq('user_id', user.id)
         .single();
 
+      if (!staffData) throw new Error('Staff record not found');
+
+      const isNative = isNativeApp();
+      const currentPlatform = getPlatform();
+      console.log('[QuickCustomerForm] Payment flow - isNative:', isNative, 'platform:', currentPlatform);
+
+      // Check for staff-level Tap to Pay settings first (for native app)
+      if (isNative && staffData.id) {
+        const { data: staffTerminal } = await supabase
+          .from('terminal_settings')
+          .select('connection_type, stripe_location_id')
+          .eq('staff_id', staffData.id)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        const allowedTypes = staffData.allowed_terminal_types || ['business_reader'];
+        const canUseTapToPay = allowedTypes.includes('tap_to_pay');
+        const isConfiguredTapToPay = staffTerminal?.connection_type === 'tap_to_pay';
+
+        console.log('[QuickCustomerForm] Staff terminal:', staffTerminal, 'canUseTapToPay:', canUseTapToPay);
+
+        if (canUseTapToPay && (!staffTerminal || isConfiguredTapToPay)) {
+          console.log('[QuickCustomerForm] Using native Tap to Pay');
+          
+          toast({
+            title: "Initializing Tap to Pay",
+            description: "Please wait...",
+          });
+
+          // Initialize native SDK
+          await initializeNativeSDK();
+
+          // Process payment via native SDK
+          const locationId = staffTerminal?.stripe_location_id;
+          const result = await processPayment(
+            Number(adjustedPrice),
+            { connectionType: 'tap_to_pay', locationId },
+            apptId,
+            customerEmail || undefined
+          );
+
+          if (result.success) {
+            // Record payment audit
+            await supabase
+              .from('salon_appointments')
+              .update({ payment_processed_by: staffData.id })
+              .eq('id', apptId);
+
+            toast({
+              title: "Payment Successful",
+              description: "Card payment completed!",
+            });
+            await handlePaymentComplete(apptId);
+          } else {
+            throw new Error(result.error || 'Payment failed');
+          }
+          return;
+        }
+      }
+
+      // Fall back to business-level WiFi reader (server-driven)
       let readerId: string | null = null;
 
-      // Try business terminal first if staff has business_id
       if (staffData?.business_id) {
         const { data: terminalData } = await supabase
           .from('terminal_settings')
@@ -418,7 +481,7 @@ export const QuickCustomerForm = ({
       }
 
       if (!readerId) {
-        throw new Error('No terminal reader configured. Please configure a terminal in admin settings or contact your business owner.');
+        throw new Error('No terminal reader configured. Please set up Tap to Pay in Settings → Terminal & Hardware, or contact your business owner.');
       }
 
       setCurrentReaderId(readerId);
@@ -445,7 +508,7 @@ export const QuickCustomerForm = ({
       
       const { data, error } = await supabase.functions.invoke("create-terminal-payment", {
         body: {
-          amount: Number(adjustedPrice), // Use adjusted price
+          amount: Number(adjustedPrice),
           currency: "eur",
           readerId: readerId,
           appointmentId: apptId,

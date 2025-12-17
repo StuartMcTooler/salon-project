@@ -32,12 +32,12 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
   const { data: staffData, isLoading, error: staffError } = useQuery({
     queryKey: selectedService 
       ? ['staff-for-service', selectedService.id] 
-      : ['all-staff', businessId],
+      : ['all-active-staff'],
     staleTime: 0,
     gcTime: 0,
     refetchOnMount: 'always',
     queryFn: async () => {
-      console.log('SalonStaffSelection: Fetching staff, selectedService:', selectedService?.id, 'businessId:', businessId);
+      console.log('SalonStaffSelection: Fetching staff, selectedService:', selectedService?.id);
       
       if (selectedService) {
         const { data, error } = await supabase
@@ -53,25 +53,19 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
           console.error('SalonStaffSelection: Error fetching staff for service:', error);
           throw error;
         }
-        console.log('SalonStaffSelection: Staff for service result:', data);
         return data;
       } else {
-        let query = supabase
+        // Query all active staff - no business_id filter needed
+        // The businessId was causing race condition issues
+        const { data, error } = await supabase
           .from('staff_members')
           .select('*')
           .eq('is_active', true);
-        
-        if (businessId) {
-          query = query.eq('business_id', businessId);
-        }
-        
-        const { data, error } = await query;
         
         if (error) {
           console.error('SalonStaffSelection: Error fetching all staff:', error);
           throw error;
         }
-        console.log('SalonStaffSelection: All staff result:', data);
         return data?.map(staff => ({ staff, custom_price: null })) || [];
       }
     },

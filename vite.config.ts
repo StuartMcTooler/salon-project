@@ -23,10 +23,18 @@ export default defineConfig(({ mode }) => ({
   define: {
     __BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),
   },
+  optimizeDeps: {
+    // Don't pre-bundle native-only Capacitor plugins
+    exclude: ['@capacitor-community/stripe-terminal'],
+  },
   build: {
     rollupOptions: {
-      // Also mark as external as backup
       external: ['@capacitor-community/stripe-terminal'],
+      onwarn(warning, warn) {
+        // Suppress warnings about native-only modules
+        if (warning.message?.includes('@capacitor-community/stripe-terminal')) return;
+        warn(warning);
+      },
     },
   },
 }));

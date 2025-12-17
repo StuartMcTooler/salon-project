@@ -404,9 +404,11 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Bio commented out to maintain consistent card sizes
                 {staff.bio && (
                   <p className="text-sm text-muted-foreground line-clamp-2">{staff.bio}</p>
                 )}
+                */}
                 
                 {pricing !== null && (
                   <div className="text-center">

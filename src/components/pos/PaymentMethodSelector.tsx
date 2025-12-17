@@ -157,8 +157,10 @@ export const PaymentMethodSelector = ({
 
     // DEBUG: Log all key detection values
     const isNative = isNativeApp();
+    const currentPlatform = getPlatform();
     addDebugLog(`===== PAYMENT FLOW START =====`);
     addDebugLog(`isNativeApp(): ${isNative}`);
+    addDebugLog(`getPlatform(): ${currentPlatform}`);
     addDebugLog(`staffId: ${staffId || 'MISSING'}`);
     addDebugLog(`businessId: ${businessId || 'none'}`);
     addDebugLog(`TEST_MODE: ${TEST_MODE}`);
@@ -282,7 +284,8 @@ export const PaymentMethodSelector = ({
           }
           // If staff has Tap to Pay configured but we're on web, show helpful message
           if (staffTerminal?.connection_type === 'tap_to_pay' && !isNative) {
-            throw new Error('Tap to Pay requires the native app. Please use the Bookd app on your phone to process card payments.');
+            addDebugLog(`❌ Tap to Pay configured but isNative=${isNative}, platform=${getPlatform()}`);
+            throw new Error(`Tap to Pay requires the native app (detected: ${getPlatform()}, isNative: ${isNative}). Please use the Bookd app on your phone.`);
           }
         }
       } else {

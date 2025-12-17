@@ -1415,6 +1415,7 @@ export type Database = {
           list_price: number | null
           notes: string | null
           original_requested_staff_id: string | null
+          payment_intent_id: string | null
           payment_method: string | null
           payment_processed_by: string | null
           payment_status: string | null
@@ -1443,6 +1444,7 @@ export type Database = {
           list_price?: number | null
           notes?: string | null
           original_requested_staff_id?: string | null
+          payment_intent_id?: string | null
           payment_method?: string | null
           payment_processed_by?: string | null
           payment_status?: string | null
@@ -1471,6 +1473,7 @@ export type Database = {
           list_price?: number | null
           notes?: string | null
           original_requested_staff_id?: string | null
+          payment_intent_id?: string | null
           payment_method?: string | null
           payment_processed_by?: string | null
           payment_status?: string | null

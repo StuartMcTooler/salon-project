@@ -5,13 +5,13 @@
     <key>method</key>
     <string>app-store-connect</string>
     <key>teamID</key>
-    <string>YOUR_TEAM_ID</string>
+    <string>5NYK73WG56</string>
     <key>signingStyle</key>
     <string>manual</string>
     <key>provisioningProfiles</key>
     <dict>
         <key>app.lovable.744b93d1b5ba4b6b84e84219b1a2924b</key>
-        <string>YOUR_PROVISIONING_PROFILE_NAME</string>
+        <string>Salon</string>
     </dict>
     <key>uploadBitcode</key>
     <false/>

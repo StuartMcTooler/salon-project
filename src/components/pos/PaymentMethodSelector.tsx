@@ -186,7 +186,7 @@ export const PaymentMethodSelector = ({
 
       // Check for staff-level terminal settings first (for Tap to Pay / Bluetooth)
       if (staffId) {
-        addDebugLog(`Querying staff terminal settings...`);
+        addDebugLog(`Querying terminal settings for staffId: ${staffId}`);
         
         // Fetch both terminal settings and allowed permissions
         const [terminalResult, permissionsResult] = await Promise.all([
@@ -278,14 +278,29 @@ export const PaymentMethodSelector = ({
           }
           return;
         } else {
-          addDebugLog(`❌ NOT using native SDK - falling through to WiFi reader`);
+          addDebugLog(`❌ NOT using native SDK - conditions not met`);
+          addDebugLog(`  - shouldUseNativeTapToPay: ${shouldUseNativeTapToPay}`);
+          addDebugLog(`  - isConfiguredTapToPayOnNative: ${isConfiguredTapToPayOnNative}`);
+          addDebugLog(`  - isNative: ${isNative}`);
+          addDebugLog(`  - staffTerminal exists: ${!!staffTerminal}`);
+          addDebugLog(`  - hasPermission: ${!!hasPermissionForConfigured}`);
+          
           if (!hasPermissionForConfigured && staffTerminal?.connection_type) {
             addDebugLog(`⚠️ No permission for ${staffTerminal.connection_type}`);
           }
-          // If staff has Tap to Pay configured but we're on web, show helpful message
+          
+          // If staff has Tap to Pay configured but we're not detecting native platform
           if (staffTerminal?.connection_type === 'tap_to_pay' && !isNative) {
-            addDebugLog(`❌ Tap to Pay configured but isNative=${isNative}, platform=${getPlatform()}`);
-            throw new Error(`Tap to Pay requires the native app (detected: ${getPlatform()}, isNative: ${isNative}). Please use the Bookd app on your phone.`);
+            addDebugLog(`❌ Tap to Pay configured but Capacitor not detected!`);
+            addDebugLog(`  - Platform reports: ${getPlatform()}`);
+            addDebugLog(`  - This means the native bridge isn't initialized`);
+            throw new Error(`Tap to Pay is enabled but platform detection failed (reports: ${getPlatform()}). Try restarting the app completely. If issue persists, the APK may need to be rebuilt.`);
+          }
+          
+          // If we're native but Tap to Pay isn't configured
+          if (isNative && !staffTerminal?.connection_type) {
+            addDebugLog(`❌ Native app but no terminal settings found for this staff`);
+            throw new Error(`You're in the native app but Tap to Pay isn't configured for your account. Go to Settings → Terminal & Hardware to enable it.`);
           }
         }
       } else {

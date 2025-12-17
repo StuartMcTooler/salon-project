@@ -280,6 +280,10 @@ export const PaymentMethodSelector = ({
           if (!hasPermissionForConfigured && staffTerminal?.connection_type) {
             addDebugLog(`⚠️ No permission for ${staffTerminal.connection_type}`);
           }
+          // If staff has Tap to Pay configured but we're on web, show helpful message
+          if (staffTerminal?.connection_type === 'tap_to_pay' && !isNative) {
+            throw new Error('Tap to Pay requires the native app. Please use the Bookd app on your phone to process card payments.');
+          }
         }
       } else {
         addDebugLog(`❌ No staffId provided - skipping staff terminal check`);

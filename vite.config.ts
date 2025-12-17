@@ -21,4 +21,9 @@ export default defineConfig(({ mode }) => ({
   define: {
     __BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),
   },
+  build: {
+    rollupOptions: {
+      external: ['@capacitor-community/stripe-terminal'],
+    },
+  },
 }));

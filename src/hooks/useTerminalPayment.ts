@@ -26,10 +26,15 @@ const loadStripeTerminal = async () => {
   if (!isNativeApp()) return null;
   if (StripeTerminalPlugin) return StripeTerminalPlugin;
   
-  const module = await import('@capacitor-community/stripe-terminal');
-  StripeTerminalPlugin = module.StripeTerminal;
-  TerminalConnectTypesEnum = module.TerminalConnectTypes;
-  return StripeTerminalPlugin;
+  try {
+    const module = await import('@capacitor-community/stripe-terminal');
+    StripeTerminalPlugin = module.StripeTerminal;
+    TerminalConnectTypesEnum = module.TerminalConnectTypes;
+    return StripeTerminalPlugin;
+  } catch (err) {
+    console.error('[TerminalPayment] Failed to load Stripe Terminal plugin:', err);
+    throw new Error('Stripe Terminal plugin not available. Please rebuild the native app with: npm run build && npx cap sync android');
+  }
 };
 
 export const useTerminalPayment = () => {

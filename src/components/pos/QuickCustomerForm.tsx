@@ -367,30 +367,8 @@ export const QuickCustomerForm = ({
           .eq('id', creditApplied.id);
       }
 
-      // Award loyalty points only if we have customer contact info
-      if (customerEmail || customerPhone) {
-        try {
-          const { data: loyaltyData, error: loyaltyError } = await supabase.functions.invoke(
-            'award-loyalty-points',
-            {
-              body: {
-                appointmentId: data.id,
-                creativeId: staffMember.id,
-                customerEmail: customerEmail || `${normalizedPhone}@phone.temp`,
-                customerName: customerName || 'Walk-in Customer',
-                customerPhone: normalizedPhone || '',
-                bookingAmount: Number(service.custom_price),
-              },
-            }
-          );
-
-          if (!loyaltyError && loyaltyData) {
-            setLoyaltyResult(loyaltyData);
-          }
-        } catch (loyaltyErr) {
-          console.error('Failed to award loyalty points:', loyaltyErr);
-        }
-      }
+      // NOTE: Loyalty points are awarded ONLY in handlePaymentComplete after payment is confirmed
+      // This prevents gaming the system by starting transactions without completing payment
 
       return data;
     },

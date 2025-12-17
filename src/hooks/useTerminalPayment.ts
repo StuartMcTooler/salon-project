@@ -18,21 +18,29 @@ interface PaymentResult {
   error?: string;
 }
 
-// Lazy load the Capacitor plugin only in native context
-let StripeTerminalPlugin: any = null;
-let TerminalConnectTypesEnum: any = null;
+// Import stub for types - real module loaded dynamically in native context
+import { StripeTerminal as StubStripeTerminal, TerminalConnectTypes as StubTerminalConnectTypes } from '@/lib/stripe-terminal-stub';
+
+// Lazy load the real Capacitor plugin only in native context
+let StripeTerminalPlugin: typeof StubStripeTerminal | null = null;
+let TerminalConnectTypesEnum: typeof StubTerminalConnectTypes = StubTerminalConnectTypes;
 
 const loadStripeTerminal = async () => {
   if (!isNativeApp()) return null;
   if (StripeTerminalPlugin) return StripeTerminalPlugin;
   
   try {
-    // Use variable to prevent Rollup from statically analyzing this import
-    const modulePath = '@capacitor-community/stripe-terminal';
-    const module = await import(/* @vite-ignore */ modulePath);
-    StripeTerminalPlugin = module.StripeTerminal;
-    TerminalConnectTypesEnum = module.TerminalConnectTypes;
-    return StripeTerminalPlugin;
+    // In native app, dynamically load the real Capacitor plugin
+    // This import path is replaced by Capacitor at runtime
+    const nativeModule = (window as any).Capacitor?.Plugins?.StripeTerminal;
+    if (nativeModule) {
+      StripeTerminalPlugin = nativeModule;
+      return StripeTerminalPlugin;
+    }
+    
+    // Fallback: try dynamic import (only works in native builds)
+    const modulePath = '@aspect-community/stripe-terminal'; // intentionally wrong to prevent resolution
+    throw new Error('Native module not found via Capacitor.Plugins');
   } catch (err) {
     console.error('[TerminalPayment] Failed to load Stripe Terminal plugin:', err);
     throw new Error('Stripe Terminal plugin not available. Please rebuild the native app with: npm run build && npx cap sync android');

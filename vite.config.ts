@@ -3,10 +3,6 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
-const capacitorNativeExternals = [
-  '@capacitor-community/stripe-terminal'
-];
-
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
@@ -16,30 +12,12 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === "development" && componentTagger(),
-    // Handle native-only Capacitor plugins that don't exist during web builds
-    {
-      name: 'capacitor-native-externals',
-      enforce: 'pre' as const,
-      resolveId(id: string) {
-        if (capacitorNativeExternals.includes(id)) {
-          return '\0virtual:' + id;
-        }
-        return null;
-      },
-      load(id: string) {
-        if (id.startsWith('\0virtual:')) {
-          const originalId = id.slice('\0virtual:'.length);
-          if (capacitorNativeExternals.includes(originalId)) {
-            return 'export default {}; export const StripeTerminal = {}; export const TerminalConnectTypes = {};';
-          }
-        }
-        return null;
-      },
-    },
   ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Redirect native-only Capacitor plugin to stub during build
+      "@capacitor-community/stripe-terminal": path.resolve(__dirname, "./src/lib/stripe-terminal-stub.ts"),
     },
   },
   define: {

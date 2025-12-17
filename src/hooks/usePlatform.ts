@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
 import * as Platform from '@/lib/platform';
 
 export const usePlatform = () => {
-  return useMemo(() => ({
+  // Don't memoize - platform detection must be fresh each time
+  // to handle cases where Capacitor initializes after first render
+  return {
     isNative: Platform.isNativeApp(),
     platform: Platform.getPlatform(),
     isAndroid: Platform.isAndroid(),
@@ -11,5 +12,5 @@ export const usePlatform = () => {
     canUseBluetoothReader: Platform.canUseBluetoothReader(),
     canUseInternetReader: Platform.canUseInternetReader(),
     availablePaymentMethods: Platform.getAvailablePaymentMethods(),
-  }), []);
+  };
 };

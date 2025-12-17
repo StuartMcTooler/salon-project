@@ -42,7 +42,7 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
 
       const { data, error } = await supabase
         .from("salon_appointments")
-        .select("*, staff_members(full_name, display_name)")
+        .select("*, staff_members!salon_appointments_staff_id_fkey(full_name, display_name)")
         .gte("appointment_date", dayStart.toISOString())
         .lt("appointment_date", dayEnd.toISOString())
         .neq("status", "cancelled")

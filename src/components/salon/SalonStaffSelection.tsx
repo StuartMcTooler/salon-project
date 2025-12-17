@@ -33,10 +33,11 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
     queryKey: selectedService 
       ? ['staff-for-service', selectedService.id] 
       : ['all-staff', businessId],
-    staleTime: 0, // Always fetch fresh data
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       if (selectedService) {
-        // Service-first mode: Show staff who offer this service
         const { data, error } = await supabase
           .from('staff_service_pricing')
           .select(`
@@ -49,13 +50,11 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
         if (error) throw error;
         return data;
       } else {
-        // Staff-first mode: Show all active staff
         let query = supabase
           .from('staff_members')
           .select('*')
           .eq('is_active', true);
         
-        // Only filter by business_id if one exists
         if (businessId) {
           query = query.eq('business_id', businessId);
         }
@@ -63,7 +62,7 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
         const { data, error } = await query;
         
         if (error) throw error;
-        return data.map(staff => ({ staff, custom_price: null }));
+        return data?.map(staff => ({ staff, custom_price: null })) || [];
       }
     },
     enabled: true,

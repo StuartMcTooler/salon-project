@@ -120,6 +120,7 @@ serve(async (req) => {
       if (appointmentId) {
         const updateData: any = {
           payment_method: 'card',
+          payment_intent_id: paymentIntent.id, // Store for refund capability
         };
 
         if (isDeposit) {

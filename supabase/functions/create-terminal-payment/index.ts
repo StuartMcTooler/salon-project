@@ -71,6 +71,7 @@ serve(async (req) => {
         .update({
           payment_status: "processing",
           payment_method: "card_present",
+          payment_intent_id: paymentIntent.id, // Store for refund capability
         })
         .eq("id", appointmentId);
     }

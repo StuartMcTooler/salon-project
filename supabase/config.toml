@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.create-terminal-location]
 verify_jwt = true
+
+[functions.process-bulk-cancellation]
+verify_jwt = true

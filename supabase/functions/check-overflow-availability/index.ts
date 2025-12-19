@@ -23,14 +23,16 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Step 1: Check test mode
+    // Step 1: Check test mode and get minimum lead hours
     const { data: staff, error: staffError } = await supabaseClient
       .from("staff_members")
-      .select("simulate_fully_booked, business_id")
+      .select("simulate_fully_booked, business_id, minimum_booking_lead_hours")
       .eq("id", staffId)
       .single();
 
     if (staffError) throw staffError;
+
+    const minimumLeadHours = staff.minimum_booking_lead_hours || 0;
 
     if (staff.simulate_fully_booked) {
       console.log(`[OVERFLOW] Test mode enabled for staff ${staffId}`);
@@ -87,7 +89,9 @@ serve(async (req) => {
           colleagueAppointments || [], 
           serviceDuration,
           colleagueBusinessHours,
-          colleagueStaffHours
+          colleagueStaffHours,
+          new Date(date),
+          0 // No lead time for cover colleagues
         );
 
         if (slots.length > 0) {
@@ -147,7 +151,9 @@ serve(async (req) => {
       appointments || [],
       serviceDuration,
       businessHours,
-      staffHours
+      staffHours,
+      new Date(date),
+      minimumLeadHours
     );
 
     if (availableSlots.length > 0) {
@@ -196,7 +202,9 @@ serve(async (req) => {
         colleagueAppointments || [],
         serviceDuration,
         businessHours,
-        staffHours
+        staffHours,
+        new Date(date),
+        0 // No lead time for cover colleagues
       );
 
       if (colleagueSlots.length > 0) {
@@ -233,12 +241,16 @@ function generateAvailableSlots(
   appointments: any[],
   serviceDuration: number,
   businessHours?: any,
-  staffHours?: any
+  staffHours?: any,
+  selectedDate?: Date,
+  minimumLeadHours: number = 0
 ): { time: string; endTime: string }[] {
   const hours = staffHours || businessHours;
+  const checkDate = selectedDate || new Date();
+  
   if (!hours) {
     // Default 9 AM - 6 PM when no hours are configured
-    return generateTimeSlots(9, 18, appointments, serviceDuration);
+    return generateTimeSlots(9, 18, appointments, serviceDuration, checkDate, minimumLeadHours);
   }
 
   const startHour = parseInt(hours.start_time.split(":")[0]);
@@ -246,26 +258,41 @@ function generateAvailableSlots(
 
   // Handle overnight or invalid ranges (e.g. 09:00 - 01:00)
   if (isNaN(startHour) || isNaN(endHour)) {
-    return generateTimeSlots(9, 18, appointments, serviceDuration);
+    return generateTimeSlots(9, 18, appointments, serviceDuration, checkDate, minimumLeadHours);
   }
 
   // If endHour is earlier than startHour, assume closing at midnight
   const effectiveEndHour = endHour > startHour ? endHour : 24;
 
-  return generateTimeSlots(startHour, effectiveEndHour, appointments, serviceDuration);
+  return generateTimeSlots(startHour, effectiveEndHour, appointments, serviceDuration, checkDate, minimumLeadHours);
 }
 
 function generateTimeSlots(
   startHour: number,
   endHour: number,
   appointments: any[],
-  serviceDuration: number
+  serviceDuration: number,
+  selectedDate: Date,
+  minimumLeadHours: number = 0
 ): { time: string; endTime: string }[] {
   const slots = [];
+  const now = new Date();
+  
+  // Calculate earliest bookable time considering lead hours (handles midnight crossing)
+  const earliestBookableTime = new Date(now.getTime() + minimumLeadHours * 60 * 60 * 1000);
   
   for (let hour = startHour; hour < endHour; hour++) {
     for (let minute = 0; minute < 60; minute += 30) {
       const time = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+      
+      // Build full datetime for this slot to compare against earliest bookable time
+      const slotDateTime = new Date(selectedDate);
+      slotDateTime.setHours(hour, minute, 0, 0);
+      
+      // Skip if slot is before the earliest bookable time
+      if (slotDateTime < earliestBookableTime) {
+        continue;
+      }
       
       // Check if slot conflicts with existing appointment
       const slotStart = hour * 60 + minute;

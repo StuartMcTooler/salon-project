@@ -1818,6 +1818,7 @@ export type Database = {
           is_accepting_referrals: boolean | null
           is_active: boolean | null
           is_test_user: boolean | null
+          minimum_booking_lead_hours: number | null
           phone: string | null
           profile_image_url: string | null
           referral_discount_type:
@@ -1856,6 +1857,7 @@ export type Database = {
           is_accepting_referrals?: boolean | null
           is_active?: boolean | null
           is_test_user?: boolean | null
+          minimum_booking_lead_hours?: number | null
           phone?: string | null
           profile_image_url?: string | null
           referral_discount_type?:
@@ -1894,6 +1896,7 @@ export type Database = {
           is_accepting_referrals?: boolean | null
           is_active?: boolean | null
           is_test_user?: boolean | null
+          minimum_booking_lead_hours?: number | null
           phone?: string | null
           profile_image_url?: string | null
           referral_discount_type?:

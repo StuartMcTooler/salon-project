@@ -90,6 +90,24 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
     enabled: !!appointment?.staff_id && !!dateStr,
   });
 
+  // Fetch staff member's minimum booking lead hours
+  const { data: staffData } = useQuery({
+    queryKey: ["staff-member-lead-time", appointment?.staff_id],
+    queryFn: async () => {
+      if (!appointment?.staff_id) return null;
+      
+      const { data, error } = await supabase
+        .from("staff_members")
+        .select("minimum_booking_lead_hours")
+        .eq("id", appointment.staff_id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!appointment?.staff_id,
+  });
+
   const availableSlots = selectedDate && appointment
     ? getAvailableSlots(
         appointment.duration_minutes,
@@ -99,7 +117,8 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
         undefined,
         9,
         18,
-        availabilityOverride
+        availabilityOverride,
+        staffData?.minimum_booking_lead_hours || 0
       )
     : [];
 

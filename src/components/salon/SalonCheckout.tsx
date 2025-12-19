@@ -285,6 +285,9 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       return [];
     }
 
+    // Get minimum lead time from staff settings (defaults to 0)
+    const minimumLeadHours = staff.minimum_booking_lead_hours || 0;
+
     // Otherwise always use real availability (business hours + appointments)
     return getAvailableSlots(
       service.duration_minutes,
@@ -294,9 +297,10 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       staffHours,
       9, // default start hour
       18, // default end hour
-      availabilityOverride
+      availabilityOverride,
+      minimumLeadHours
     );
-  }, [date, service, existingAppointments, businessHours, staffHours, staff.simulate_fully_booked, availabilityOverride]);
+  }, [date, service, existingAppointments, businessHours, staffHours, staff.simulate_fully_booked, staff.minimum_booking_lead_hours, availabilityOverride]);
 
   // Enrich slots with smart pricing data
   const availableSlots: EnrichedTimeSlot[] = useMemo(() => {

@@ -64,6 +64,22 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
     refetchOnWindowFocus: true,
   });
 
+  // Fetch staff member's minimum booking lead hours
+  const { data: staffData } = useQuery({
+    queryKey: ['staff-member', staffId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('staff_members')
+        .select('minimum_booking_lead_hours')
+        .eq('id', staffId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!staffId,
+  });
+
   const { data: businessHours } = useQuery({
     queryKey: ['business-hours', date?.getDay()],
     queryFn: async () => {
@@ -183,6 +199,8 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
       return [];
     }
 
+    const minimumLeadHours = staffData?.minimum_booking_lead_hours || 0;
+
     return getAvailableSlots(
       selectedService.service.duration_minutes,
       existingAppointments,
@@ -191,9 +209,10 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
       staffHours,
       9,
       18,
-      availabilityOverride
+      availabilityOverride,
+      minimumLeadHours
     );
-  }, [date, selectedService, existingAppointments, businessHours, staffHours, availabilityOverride]);
+  }, [date, selectedService, existingAppointments, businessHours, staffHours, availabilityOverride, staffData?.minimum_booking_lead_hours]);
 
   const createAppointment = useMutation({
     mutationFn: async () => {

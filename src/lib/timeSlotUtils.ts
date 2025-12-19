@@ -127,6 +127,8 @@ export const isSlotAvailable = (
  * @param staffHours - Staff hours for the day (optional)
  * @param startHour - Default start hour if no hours specified (default: 9)
  * @param endHour - Default end hour if no hours specified (default: 18)
+ * @param availabilityOverride - Date-specific availability override (optional)
+ * @param minimumLeadHours - Minimum hours notice required for bookings (default: 0)
  * @returns Array of available time slots with end times
  */
 export const getAvailableSlots = (
@@ -137,7 +139,8 @@ export const getAvailableSlots = (
   staffHours?: BusinessHours | null,
   startHour: number = 9,
   endHour: number = 18,
-  availabilityOverride?: AvailabilityOverride | null
+  availabilityOverride?: AvailabilityOverride | null,
+  minimumLeadHours: number = 0
 ): Array<{ time: string; endTime: string }> => {
   const dayOfWeek = selectedDate.getDay();
   
@@ -170,7 +173,8 @@ export const getAvailableSlots = (
         overrideEndHour,
         serviceDuration,
         appointments,
-        selectedDate
+        selectedDate,
+        minimumLeadHours
       );
     }
   }
@@ -229,7 +233,8 @@ export const getAvailableSlots = (
     actualEndHour,
     serviceDuration,
     appointments,
-    selectedDate
+    selectedDate,
+    minimumLeadHours
   );
 };
 
@@ -241,7 +246,8 @@ const generateSlotsForTimeRange = (
   actualEndHour: number,
   serviceDuration: number,
   appointments: Appointment[],
-  selectedDate: Date
+  selectedDate: Date,
+  minimumLeadHours: number = 0
 ): Array<{ time: string; endTime: string }> => {
   
   const availableSlots: Array<{ time: string; endTime: string }> = [];
@@ -255,10 +261,11 @@ const generateSlotsForTimeRange = (
   const openingMinutes = startHourInt * 60 + startMinutes;
   const closingMinutes = Math.floor(cappedEndHour) * 60 + Math.round((cappedEndHour - Math.floor(cappedEndHour)) * 60);
   
-  // Get current time for filtering past slots on today
+  // Get current time for filtering past slots and lead time requirement
   const now = new Date();
-  const isToday = selectedDate.toDateString() === now.toDateString();
-  const nowMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : 0;
+  
+  // Calculate earliest bookable time considering lead time (handles midnight crossing)
+  const earliestBookableTime = new Date(now.getTime() + minimumLeadHours * 60 * 60 * 1000);
   
   // Sort appointments by start time
   const sortedAppointments = [...appointments].sort((a, b) => 
@@ -286,8 +293,13 @@ const generateSlotsForTimeRange = (
     const slotMin = currentMinutes % 60;
     const slotStr = `${slotHour.toString().padStart(2, '0')}:${slotMin.toString().padStart(2, '0')}`;
     
-    // Skip if in the past
-    if (isToday && currentMinutes <= nowMinutes) {
+    // Build full datetime for this slot to compare against earliest bookable time
+    // This handles midnight crossing correctly (e.g., booking at 11 PM for 1 AM next day)
+    const slotDateTime = new Date(selectedDate);
+    slotDateTime.setHours(slotHour, slotMin, 0, 0);
+    
+    // Skip if slot is before the earliest bookable time (considers both past and lead time)
+    if (slotDateTime < earliestBookableTime) {
       currentMinutes += 30;
       continue;
     }

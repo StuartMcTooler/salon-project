@@ -56,6 +56,22 @@ export const AppointmentEditForm = ({
   const selectedService = services?.find((s) => s.id === selectedServiceId);
 
   const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : null;
+
+  // Fetch staff member's minimum booking lead hours
+  const { data: staffData } = useQuery({
+    queryKey: ['staff-member-lead-time', appointment.staff_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('staff_members')
+        .select('minimum_booking_lead_hours')
+        .eq('id', appointment.staff_id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!appointment.staff_id,
+  });
   
   const { data: availableSlots } = useQuery({
     queryKey: ["available-slots", appointment.staff_id, selectedDate, selectedServiceId],
@@ -82,6 +98,8 @@ export const AppointmentEditForm = ({
         .eq("override_date", dateStr)
         .maybeSingle();
 
+      const minimumLeadHours = staffData?.minimum_booking_lead_hours || 0;
+
       return getAvailableSlots(
         selectedService.duration_minutes,
         existingAppointments || [],
@@ -90,7 +108,8 @@ export const AppointmentEditForm = ({
         null,
         9,
         18,
-        override as AvailabilityOverride | null
+        override as AvailabilityOverride | null,
+        minimumLeadHours
       );
     },
     enabled: !!selectedService && !!selectedDate,

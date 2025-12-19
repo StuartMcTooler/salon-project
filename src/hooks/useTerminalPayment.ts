@@ -151,7 +151,12 @@ export const useTerminalPayment = () => {
           terminalType = TerminalConnectTypesEnum?.Internet || 'internet';
       }
       
-      const discoveryConfig: any = { type: terminalType };
+      const discoveryConfig: any = { 
+        type: terminalType,
+        // Force real hardware discovery - required for Tap to Pay on Android
+        // even when Stripe account is in Test Mode
+        isSimulated: false,
+      };
       if (locationId) {
         discoveryConfig.locationId = locationId;
       }

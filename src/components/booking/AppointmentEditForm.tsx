@@ -169,6 +169,16 @@ export const AppointmentEditForm = ({
       };
     },
     onSuccess: (data) => {
+      // Send change email to creator (non-blocking)
+      supabase.functions.invoke('send-creator-email', {
+        body: {
+          staffId: appointment.staff_id,
+          appointmentId: appointment.id,
+          notificationType: 'booking_changed',
+          originalAppointment: data.original
+        }
+      }).catch(err => console.error('[EDIT] Failed to send creator email:', err));
+      
       queryClient.invalidateQueries({ queryKey: ["staff-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["visual-calendar"] });
       queryClient.invalidateQueries({ queryKey: ["todays-appointments"] });

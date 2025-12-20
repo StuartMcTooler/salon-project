@@ -661,6 +661,15 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
     onSuccess: async (data) => {
       console.log('[SALON] Booking success, refetching for', staff.id, dateKey);
       
+      // Send email notification to creator (non-blocking)
+      supabase.functions.invoke('send-creator-email', {
+        body: {
+          staffId: staff.id,
+          appointmentId: data.id,
+          notificationType: 'new_booking'
+        }
+      }).catch(err => console.error('[SALON] Failed to send creator email:', err));
+      
       // Force immediate refetch to update available slots
       await refetch();
       

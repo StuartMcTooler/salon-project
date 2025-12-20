@@ -254,6 +254,15 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
     onSuccess: async (data) => {
       console.log('[BOOKING] Success, invalidating queries for', staffId, dateKey);
       
+      // Send email notification to creator (non-blocking)
+      supabase.functions.invoke('send-creator-email', {
+        body: {
+          staffId: staffId,
+          appointmentId: data.id,
+          notificationType: 'new_booking'
+        }
+      }).catch(err => console.error('[BOOKING] Failed to send creator email:', err));
+      
       // Invalidate the appointments query to force a refetch
       await queryClient.invalidateQueries({ queryKey: ['appointments', staffId, dateKey] });
       

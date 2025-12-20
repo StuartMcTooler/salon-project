@@ -1,5 +1,14 @@
 project_id = "ynmfedrtxqbovkglrymg"
 
+[functions.create-connect-account]
+verify_jwt = true
+
+[functions.create-connect-login-link]
+verify_jwt = true
+
+[functions.stripe-connect-webhook]
+verify_jwt = false
+
 [functions.send-staff-invite]
 verify_jwt = true
 

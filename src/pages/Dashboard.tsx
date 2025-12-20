@@ -17,6 +17,7 @@ import { ReferralIncomeCard } from "@/components/dashboard/ReferralIncomeCard";
 import { SmartWaitlistToggle } from "@/components/dashboard/SmartWaitlistToggle";
 import { SmartSlotSettings } from "@/components/admin/SmartSlotSettings";
 import { DemandHeatmap } from "@/components/admin/DemandHeatmap";
+import { PayoutActivationCard } from "@/components/dashboard/PayoutActivationCard";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -159,6 +160,7 @@ const Dashboard = () => {
               <div>
                 <h2 className="text-2xl font-bold mb-4">Settings</h2>
                 <div className="space-y-4">
+                  <PayoutActivationCard staffId={staffId} />
                   <ProfilePictureSettings staffId={staffId} />
                   <ServiceManager staffId={staffId} />
                   <WalkInToggle businessId={businessId} />

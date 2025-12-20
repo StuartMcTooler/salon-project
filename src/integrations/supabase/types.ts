@@ -510,6 +510,70 @@ export type Database = {
           },
         ]
       }
+      creative_earnings: {
+        Row: {
+          appointment_id: string | null
+          created_at: string | null
+          creative_id: string
+          gross_amount: number
+          id: string
+          net_earnings: number
+          platform_fee: number
+          referral_commission: number | null
+          stripe_payment_intent_id: string | null
+          stripe_transfer_id: string | null
+          transfer_group: string | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          created_at?: string | null
+          creative_id: string
+          gross_amount: number
+          id?: string
+          net_earnings: number
+          platform_fee: number
+          referral_commission?: number | null
+          stripe_payment_intent_id?: string | null
+          stripe_transfer_id?: string | null
+          transfer_group?: string | null
+        }
+        Update: {
+          appointment_id?: string | null
+          created_at?: string | null
+          creative_id?: string
+          gross_amount?: number
+          id?: string
+          net_earnings?: number
+          platform_fee?: number
+          referral_commission?: number | null
+          stripe_payment_intent_id?: string | null
+          stripe_transfer_id?: string | null
+          transfer_group?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creative_earnings_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creative_earnings_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creative_earnings_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creative_invites: {
         Row: {
           created_at: string | null
@@ -1829,6 +1893,9 @@ export type Database = {
           simulate_fully_booked: boolean | null
           skill_level: string | null
           specialties: string[] | null
+          stripe_connect_account_id: string | null
+          stripe_connect_onboarded_at: string | null
+          stripe_connect_status: string | null
           tier: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at: string | null
           total_bookings: number | null
@@ -1868,6 +1935,9 @@ export type Database = {
           simulate_fully_booked?: boolean | null
           skill_level?: string | null
           specialties?: string[] | null
+          stripe_connect_account_id?: string | null
+          stripe_connect_onboarded_at?: string | null
+          stripe_connect_status?: string | null
           tier?: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at?: string | null
           total_bookings?: number | null
@@ -1907,6 +1977,9 @@ export type Database = {
           simulate_fully_booked?: boolean | null
           skill_level?: string | null
           specialties?: string[] | null
+          stripe_connect_account_id?: string | null
+          stripe_connect_onboarded_at?: string | null
+          stripe_connect_status?: string | null
           tier?: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at?: string | null
           total_bookings?: number | null

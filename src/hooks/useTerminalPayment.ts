@@ -22,10 +22,33 @@ interface PaymentResult {
 
 // Native plugin reference - loaded dynamically at runtime only
 let StripeTerminalPlugin: any = null;
+let StripeTerminalAvailable: boolean | null = null; // Cache availability check
 let TerminalConnectTypesEnum: any = {
   TapToPay: 'tap-to-pay',
   Bluetooth: 'bluetooth',
   Internet: 'internet',
+};
+
+/**
+ * Check if Stripe Terminal plugin is available (without throwing)
+ */
+export const isStripeTerminalAvailable = (): boolean => {
+  if (StripeTerminalAvailable !== null) return StripeTerminalAvailable;
+  
+  if (!isNativeApp()) {
+    StripeTerminalAvailable = false;
+    return false;
+  }
+  
+  try {
+    const Capacitor = (window as any).Capacitor;
+    StripeTerminalAvailable = !!Capacitor?.Plugins?.StripeTerminal;
+    console.log('[TerminalPayment] StripeTerminal available:', StripeTerminalAvailable);
+  } catch {
+    StripeTerminalAvailable = false;
+  }
+  
+  return StripeTerminalAvailable;
 };
 
 /**

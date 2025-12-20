@@ -71,3 +71,6 @@ verify_jwt = true
 
 [functions.process-bulk-cancellation]
 verify_jwt = true
+
+[functions.send-creator-email]
+verify_jwt = false

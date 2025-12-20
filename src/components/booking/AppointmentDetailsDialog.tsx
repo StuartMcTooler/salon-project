@@ -89,8 +89,19 @@ export const AppointmentDetailsDialog = ({
         .eq('id', appointment.id);
 
       if (error) throw error;
+      
+      return { staffId: appointment.staff_id, appointmentId: appointment.id };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Send cancellation email to creator (non-blocking)
+      supabase.functions.invoke('send-creator-email', {
+        body: {
+          staffId: data.staffId,
+          appointmentId: data.appointmentId,
+          notificationType: 'booking_cancelled'
+        }
+      }).catch(err => console.error('[CANCEL] Failed to send creator email:', err));
+      
       queryClient.invalidateQueries({ queryKey: ['timeline-appointments'] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['visual-calendar'] });

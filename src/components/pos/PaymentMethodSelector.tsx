@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { CreditCard, Smartphone, Loader2, Banknote, CheckCircle2, Bug } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useTerminalPayment } from "@/hooks/useTerminalPayment";
+import { useTerminalPayment, isStripeTerminalAvailable } from "@/hooks/useTerminalPayment";
 import { isNativeApp, getPlatform } from "@/lib/platform";
 
 interface PaymentMethodSelectorProps {
@@ -246,6 +246,18 @@ export const PaymentMethodSelector = ({
           const connectionType = 'tap_to_pay';
 
           addDebugLog(`✅ USING NATIVE SDK for: ${connectionType}`);
+          
+          // Check if Stripe Terminal plugin is actually available before trying to use it
+          const pluginAvailable = isStripeTerminalAvailable();
+          addDebugLog(`StripeTerminal plugin available: ${pluginAvailable}`);
+          
+          if (!pluginAvailable) {
+            addDebugLog(`❌ Stripe Terminal plugin not installed in native build`);
+            throw new Error(
+              'Tap to Pay requires the Stripe Terminal plugin. ' +
+              'The native app needs to be rebuilt with: npm run build && npx cap sync android'
+            );
+          }
           
           try {
             // Initialize native SDK if needed

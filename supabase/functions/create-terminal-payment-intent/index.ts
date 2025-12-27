@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-force-test-mode, x-force-live-mode",
 };
 
 serve(async (req) => {
@@ -15,9 +15,36 @@ serve(async (req) => {
   try {
     const { amount, currency = "eur", appointmentId, customerEmail } = await req.json();
 
-    console.log("Creating PaymentIntent for native SDK:", { amount, currency, appointmentId });
+    // Determine which Stripe key to use based on header
+    const forceTestMode = req.headers.get("x-force-test-mode") === "true";
+    const forceLiveMode = req.headers.get("x-force-live-mode") === "true";
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+    let stripeKey: string;
+    let modeLabel: string;
+    
+    if (forceTestMode) {
+      stripeKey = Deno.env.get("STRIPE_TEST_SECRET_KEY") || "";
+      modeLabel = "TEST (forced)";
+      console.log("🧪 STRIPE: Using TEST key (forced by header)");
+    } else if (forceLiveMode) {
+      stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
+      modeLabel = "LIVE (forced)";
+      console.log("💳 STRIPE: Using LIVE key (forced by header)");
+    } else {
+      stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
+      modeLabel = "LIVE (default)";
+      console.log("💳 STRIPE: Using default LIVE key");
+    }
+
+    if (!stripeKey) {
+      throw new Error(forceTestMode 
+        ? "STRIPE_TEST_SECRET_KEY not configured" 
+        : "STRIPE_SECRET_KEY not configured");
+    }
+
+    console.log(`Creating PaymentIntent for native SDK [${modeLabel}]:`, { amount, currency, appointmentId });
+
+    const stripe = new Stripe(stripeKey, {
       apiVersion: "2025-08-27.basil",
     });
 
@@ -31,6 +58,7 @@ serve(async (req) => {
         appointment_id: appointmentId || "",
         customer_email: customerEmail || "",
         source: "native_terminal_sdk",
+        stripe_mode: modeLabel,
       },
     });
 
@@ -57,6 +85,7 @@ serve(async (req) => {
       JSON.stringify({
         clientSecret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,
+        stripeMode: modeLabel,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

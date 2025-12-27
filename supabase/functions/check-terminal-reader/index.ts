@@ -3,7 +3,7 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-force-test-mode, x-force-live-mode",
 };
 
 serve(async (req) => {
@@ -12,12 +12,29 @@ serve(async (req) => {
   }
 
   try {
-    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
+    // Determine which Stripe key to use based on header
+    const forceTestMode = req.headers.get("x-force-test-mode") === "true";
+    const forceLiveMode = req.headers.get("x-force-live-mode") === "true";
+
+    let stripeSecretKey: string;
+    let modeLabel: string;
     
-    // Determine Stripe mode
-    const isTestMode = stripeSecretKey.startsWith("sk_test_");
-    const isLiveMode = stripeSecretKey.startsWith("sk_live_");
-    const mode = isTestMode ? "test" : isLiveMode ? "live" : "unknown";
+    if (forceTestMode) {
+      stripeSecretKey = Deno.env.get("STRIPE_TEST_SECRET_KEY") || "";
+      modeLabel = "test";
+      console.log("🧪 STRIPE: Using TEST key (forced by header)");
+    } else if (forceLiveMode) {
+      stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
+      modeLabel = "live";
+      console.log("💳 STRIPE: Using LIVE key (forced by header)");
+    } else {
+      stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
+      // Determine mode from the key itself for default
+      const isTestMode = stripeSecretKey.startsWith("sk_test_");
+      const isLiveMode = stripeSecretKey.startsWith("sk_live_");
+      modeLabel = isTestMode ? "test" : isLiveMode ? "live" : "unknown";
+      console.log("💳 STRIPE: Using default key");
+    }
 
     const { readerId } = await req.json();
 
@@ -25,8 +42,9 @@ serve(async (req) => {
       // If no readerId provided, just return mode info
       return new Response(
         JSON.stringify({
-          mode,
+          mode: modeLabel,
           configured: !!stripeSecretKey,
+          forcedMode: forceTestMode ? "test" : forceLiveMode ? "live" : null,
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -35,7 +53,13 @@ serve(async (req) => {
       );
     }
 
-    console.log("Checking terminal reader status:", readerId);
+    if (!stripeSecretKey) {
+      throw new Error(forceTestMode 
+        ? "STRIPE_TEST_SECRET_KEY not configured" 
+        : "STRIPE_SECRET_KEY not configured");
+    }
+
+    console.log(`Checking terminal reader status [${modeLabel}]:`, readerId);
 
     const stripe = new Stripe(stripeSecretKey, {
       apiVersion: "2025-08-27.basil",
@@ -56,7 +80,8 @@ serve(async (req) => {
         isOnline,
         deviceType: reader.device_type,
         location: reader.location,
-        mode,
+        mode: modeLabel,
+        forcedMode: forceTestMode ? "test" : forceLiveMode ? "live" : null,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

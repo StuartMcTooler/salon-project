@@ -83,3 +83,9 @@ verify_jwt = true
 
 [functions.send-creator-email]
 verify_jwt = false
+
+[functions.check-terminal-reader]
+verify_jwt = true
+
+[functions.log-admin-action]
+verify_jwt = true

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Loader2 } from "lucide-react";
+import { LogOut, Loader2, Wrench } from "lucide-react";
 import { StaffManagement } from "@/components/admin/StaffManagement";
 import { ServicePricing } from "@/components/admin/ServicePricing";
 import { ServiceManagement } from "@/components/admin/ServiceManagement";
@@ -16,7 +16,7 @@ import { VerticalStaffCalendar } from "@/components/admin/VerticalStaffCalendar"
 import { ScheduleToolbar } from "@/components/admin/ScheduleToolbar";
 import { ClientManagement } from "@/components/admin/ClientManagement";
 import { FrontDeskManagement } from "@/components/admin/FrontDeskManagement";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { StaffPerformanceDashboard } from "@/components/admin/StaffPerformanceDashboard";
 import { ReferralDiscountSettings } from "@/components/admin/ReferralDiscountSettings";
 import { TierManagement } from "@/components/admin/TierManagement";
@@ -30,9 +30,12 @@ import { SimulatedMessagesLog } from "@/components/admin/SimulatedMessagesLog";
 import { SmartSlotsBusinessSettings } from "@/components/admin/SmartSlotsBusinessSettings";
 import { DemandHeatmap } from "@/components/admin/DemandHeatmap";
 import { BookingLeadTimeSettings } from "@/components/admin/BookingLeadTimeSettings";
+import { DevToolsPanel } from "@/components/admin/DevToolsPanel";
+import { TestModeWarningBanner } from "@/components/admin/TestModeWarningBanner";
 import { toast } from "sonner";
 import { useBusinessConfig } from "@/hooks/useBusinessConfig";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useSuperAdmin } from "@/hooks/useSuperAdmin";
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -42,6 +45,7 @@ export default function Admin() {
   const { config, loading: configLoading } = useBusinessConfig();
   const businessId = config.businessId || "";
   const { role, loading: roleLoading, isAdmin, isFrontDesk } = useUserRole();
+  const { isSuperAdmin, loading: superAdminLoading } = useSuperAdmin();
   
   const currentTab = searchParams.get('tab') || 'schedule';
 
@@ -74,7 +78,7 @@ export default function Admin() {
     navigate("/auth");
   };
 
-  if (loading || configLoading || roleLoading) {
+  if (loading || configLoading || roleLoading || superAdminLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -88,6 +92,9 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Super Admin Test Mode Warning Banner */}
+      {isSuperAdmin && <TestModeWarningBanner />}
+      
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold">Admin Dashboard</h1>
@@ -121,9 +128,6 @@ export default function Admin() {
                   <DropdownMenuItem onClick={() => setSearchParams({ tab: 'booking-lead-time' })}>Booking Lead Time</DropdownMenuItem>
                   {features.staffManagement && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'staff' })}>Staff</DropdownMenuItem>}
                   {features.staffManagement && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'tiers' })}>Tiers</DropdownMenuItem>}
-                  {features.staffManagement && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'overflow' })}>Overflow Test</DropdownMenuItem>}
-                  <DropdownMenuItem onClick={() => setSearchParams({ tab: 'availability-test' })}>Availability Testing</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSearchParams({ tab: 'test-users' })}>Test Users & Logs</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setSearchParams({ tab: 'services' })}>Services</DropdownMenuItem>
                   {features.servicePricing && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'pricing' })}>Pricing</DropdownMenuItem>}
                   {features.businessHours && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'hours' })}>Hours</DropdownMenuItem>}
@@ -131,6 +135,37 @@ export default function Admin() {
                   {features.loyaltyProgram && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'loyalty' })}>Loyalty</DropdownMenuItem>}
                   <DropdownMenuItem onClick={() => setSearchParams({ tab: 'feedback' })}>Feedback</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setSearchParams({ tab: 'front-desk' })}>Front Desk</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {/* Super Admin Dev Tools Dropdown */}
+            {isSuperAdmin && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="border-orange-400 text-orange-600 hover:bg-orange-50">
+                    <Wrench className="h-4 w-4 mr-1" />
+                    Dev Tools ▼
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => setSearchParams({ tab: 'devtools' })}>
+                    🔧 God Mode Panel
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {features.staffManagement && (
+                    <DropdownMenuItem onClick={() => setSearchParams({ tab: 'overflow' })}>
+                      Overflow Test Mode
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => setSearchParams({ tab: 'availability-test' })}>
+                    Availability Testing
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSearchParams({ tab: 'test-users' })}>
+                    Test Users & Logs
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSearchParams({ tab: 'referral-testing' })}>
+                    Referral Testing
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -181,12 +216,6 @@ export default function Admin() {
                 </TabsContent>
               )}
 
-              {features.staffManagement && (
-                <TabsContent value="overflow">
-                  <OverflowTestMode />
-                </TabsContent>
-              )}
-
               {features.terminalSettings && (
                 <TabsContent value="terminal">
                   <TerminalSettings businessId={businessId} />
@@ -228,6 +257,21 @@ export default function Admin() {
               <TabsContent value="front-desk">
                 <FrontDeskManagement />
               </TabsContent>
+            </>
+          )}
+
+          {/* Super Admin Only Tabs */}
+          {isSuperAdmin && (
+            <>
+              <TabsContent value="devtools">
+                <DevToolsPanel />
+              </TabsContent>
+
+              {features.staffManagement && (
+                <TabsContent value="overflow">
+                  <OverflowTestMode />
+                </TabsContent>
+              )}
 
               <TabsContent value="referral-testing">
                 <ReferralTestingTool />

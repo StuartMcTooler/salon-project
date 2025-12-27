@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          user_email: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          user_email: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          user_email?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       auth_otp_requests: {
         Row: {
           client_id: string
@@ -2355,7 +2382,7 @@ export type Database = {
       update_staff_rating: { Args: { staff_uuid: string }; Returns: undefined }
     }
     Enums: {
-      app_role: "admin" | "staff" | "user" | "front_desk"
+      app_role: "admin" | "staff" | "user" | "front_desk" | "super_admin"
       booking_type_enum: "direct" | "cover" | "referral_network"
       business_type: "multi_staff_salon" | "solo_professional"
       commission_type: "finders_fee" | "revenue_share"
@@ -2488,7 +2515,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "staff", "user", "front_desk"],
+      app_role: ["admin", "staff", "user", "front_desk", "super_admin"],
       booking_type_enum: ["direct", "cover", "referral_network"],
       business_type: ["multi_staff_salon", "solo_professional"],
       commission_type: ["finders_fee", "revenue_share"],

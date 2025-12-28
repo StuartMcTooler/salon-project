@@ -26,6 +26,7 @@ import PortalHome from "./pages/PortalHome";
 import ImageProcessingTest from "./pages/ImageProcessingTest";
 import AcceptInvite from "./pages/AcceptInvite";
 import MyProfile from "./pages/MyProfile";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,7 @@ const App = () => (
           <Route path="/salon" element={<Salon />} />
           <Route path="/book/:staffId" element={<PublicBooking />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/settings/upgrade" element={<AccountUpgrade />} />

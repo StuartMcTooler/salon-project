@@ -16,25 +16,45 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Listen for auth state changes - Supabase handles the token from URL automatically
+    let timeoutId: NodeJS.Timeout;
+    let isSessionReady = false;
+
+    // Set up auth state listener FIRST (following Supabase best practices)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
+      console.log('ResetPassword: Auth event:', event, 'Has session:', !!session);
+      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || session) {
+        isSessionReady = true;
         setSessionReady(true);
-      } else if (session) {
-        setSessionReady(true);
+        setError(null);
       }
     });
 
-    // Check if we already have a session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session }, error: sessionError }) => {
+      console.log('ResetPassword: Initial session check:', !!session, sessionError);
       if (session) {
+        isSessionReady = true;
         setSessionReady(true);
+        setError(null);
+      } else if (sessionError) {
+        setError('Failed to verify reset link. Please try again.');
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Timeout fallback - if still verifying after 5 seconds, show error
+    timeoutId = setTimeout(() => {
+      if (!isSessionReady) {
+        setError('Reset link may have expired or is invalid. Please request a new one.');
+      }
+    }, 5000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -113,14 +133,27 @@ const ResetPassword = () => {
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1 text-center">
             <div className="flex justify-center mb-4">
-              <Loader2 className="h-12 w-12 text-primary animate-spin" />
+              {error ? (
+                <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                  <Scissors className="h-6 w-6 text-destructive" />
+                </div>
+              ) : (
+                <Loader2 className="h-12 w-12 text-primary animate-spin" />
+              )}
             </div>
-            <CardTitle className="text-2xl font-bold">Verifying...</CardTitle>
+            <CardTitle className="text-2xl font-bold">
+              {error ? "Link Problem" : "Verifying..."}
+            </CardTitle>
             <CardDescription>
-              Please wait while we verify your reset link.
+              {error || "Please wait while we verify your reset link."}
             </CardDescription>
           </CardHeader>
-          <CardContent className="text-center">
+          <CardContent className="text-center space-y-3">
+            {error ? (
+              <Button className="w-full" onClick={() => navigate("/auth")}>
+                Request New Reset Link
+              </Button>
+            ) : null}
             <Button variant="ghost" onClick={() => navigate("/auth")}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Sign In

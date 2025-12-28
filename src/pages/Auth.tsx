@@ -316,6 +316,17 @@ const Auth = () => {
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Back to Sign In
                 </Button>
+                
+                <div className="mt-4 pt-4 border-t text-center">
+                  <p className="text-sm text-muted-foreground mb-2">Looking to book an appointment?</p>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => navigate('/portal')}
+                  >
+                    Customer? Go to Booking Portal
+                  </Button>
+                </div>
               </form>
             )}
           </CardContent>
@@ -332,9 +343,9 @@ const Auth = () => {
           <div className="flex justify-center mb-4">
             <Scissors className="h-12 w-12 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">Salon Booking</CardTitle>
+          <CardTitle className="text-2xl font-bold">Staff Login</CardTitle>
           <CardDescription>
-            Sign in to book appointments or create an account
+            Access your staff dashboard or create a business account
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -435,6 +446,17 @@ const Auth = () => {
               </form>
             </TabsContent>
           </Tabs>
+          
+          <div className="mt-6 pt-4 border-t text-center">
+            <p className="text-sm text-muted-foreground mb-2">Looking to book an appointment?</p>
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => navigate('/portal')}
+            >
+              Customer? Go to Booking Portal
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

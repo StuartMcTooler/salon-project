@@ -8,7 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { User, Session } from '@supabase/supabase-js';
-import { Scissors } from "lucide-react";
+import { Scissors, ArrowLeft, Mail } from "lucide-react";
+
+type AuthView = 'sign_in' | 'sign_up' | 'forgot_password';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -20,6 +22,15 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [authView, setAuthView] = useState<AuthView>('sign_in');
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+
+  // Get the app URL for redirects - handles Capacitor mobile compatibility
+  const getAppUrl = () => {
+    const baseUrl = import.meta.env.VITE_APP_URL || 'https://744b93d1-b5ba-4b6b-84e8-4219b1a2924b.lovableproject.com';
+    // Remove trailing slash if present to avoid double slashes
+    return baseUrl.replace(/\/$/, '');
+  };
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -134,7 +145,7 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/salon`;
+      const redirectUrl = `${getAppUrl()}/salon`;
       
       const { error } = await supabase.auth.signUp({
         email,
@@ -206,10 +217,114 @@ const Auth = () => {
     }
   };
 
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${getAppUrl()}/reset-password`,
+      });
+
+      if (error) throw error;
+
+      setResetEmailSent(true);
+      toast({
+        title: "Check your email",
+        description: "We sent you a password reset link.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Reset failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (user) {
     return null;
   }
 
+  // Forgot Password View
+  if (authView === 'forgot_password') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-accent/20 to-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1 text-center">
+            <div className="flex justify-center mb-4">
+              <Scissors className="h-12 w-12 text-primary" />
+            </div>
+            <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
+            <CardDescription>
+              {resetEmailSent 
+                ? "Check your email for a reset link"
+                : "Enter your email to receive a reset link"
+              }
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {resetEmailSent ? (
+              <div className="space-y-4 text-center">
+                <div className="flex justify-center">
+                  <Mail className="h-16 w-16 text-primary/60" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  We've sent a password reset link to <strong>{email}</strong>. 
+                  Click the link in your email to set a new password.
+                </p>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => {
+                    setAuthView('sign_in');
+                    setResetEmailSent(false);
+                    setEmail("");
+                  }}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to Sign In
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handlePasswordReset} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">Email</Label>
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Sending..." : "Send Reset Link"}
+                </Button>
+                <Button 
+                  type="button"
+                  variant="ghost" 
+                  className="w-full"
+                  onClick={() => {
+                    setAuthView('sign_in');
+                    setResetEmailSent(false);
+                  }}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to Sign In
+                </Button>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Sign In / Sign Up View
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-accent/20 to-background p-4">
       <Card className="w-full max-w-md">
@@ -255,6 +370,14 @@ const Auth = () => {
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Signing in..." : "Sign In"}
+                </Button>
+                <Button 
+                  type="button"
+                  variant="link" 
+                  className="w-full text-sm text-muted-foreground"
+                  onClick={() => setAuthView('forgot_password')}
+                >
+                  Forgot Password?
                 </Button>
               </form>
             </TabsContent>

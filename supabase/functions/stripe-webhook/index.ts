@@ -7,6 +7,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
 };
 
+// SHA-256 hash function for PCI-compliant payment fingerprinting
+async function hashPaymentMethod(paymentMethodId: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(paymentMethodId);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -25,7 +34,6 @@ serve(async (req) => {
     const body = await req.text();
     const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
 
-    // SECURITY: Webhook secret is required - never process unverified webhooks
     if (!webhookSecret) {
       console.error("STRIPE_WEBHOOK_SECRET not configured - rejecting webhook");
       return new Response(
@@ -37,7 +45,6 @@ serve(async (req) => {
       );
     }
 
-    // Verify webhook signature using async method
     let event: Stripe.Event;
     try {
       event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
@@ -64,11 +71,8 @@ serve(async (req) => {
       const readerAction = event.data.object as any;
       console.log("Reader action succeeded:", readerAction.id);
 
-      // Find appointment by PaymentIntent ID in metadata
       if (readerAction.action?.process_payment_intent?.payment_intent) {
         const paymentIntentId = readerAction.action.process_payment_intent.payment_intent;
-        
-        // Get PaymentIntent to access metadata
         const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
         const appointmentId = paymentIntent.metadata?.appointment_id;
 
@@ -92,7 +96,6 @@ serve(async (req) => {
 
       if (readerAction.action?.process_payment_intent?.payment_intent) {
         const paymentIntentId = readerAction.action.process_payment_intent.payment_intent;
-        
         const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
         const appointmentId = paymentIntent.metadata?.appointment_id;
 
@@ -120,7 +123,7 @@ serve(async (req) => {
       if (appointmentId) {
         const updateData: any = {
           payment_method: 'card',
-          payment_intent_id: paymentIntent.id, // Store for refund capability
+          payment_intent_id: paymentIntent.id,
         };
 
         if (isDeposit) {
@@ -139,24 +142,98 @@ serve(async (req) => {
 
         console.log("Updated appointment:", appointmentId, isDeposit ? "deposit paid" : "fully paid");
 
-        // NEW: Check if this was a cover booking and trigger boomerang
+        // Get appointment details for further processing
         const { data: appointmentDetails } = await supabaseClient
           .from('salon_appointments')
           .select('booking_type, original_requested_staff_id, staff_id, customer_name, customer_phone')
           .eq('id', appointmentId)
           .single();
 
+        // === PARTNER PROGRAM: Payment Fingerprinting (PCI Compliant) ===
+        if (paymentIntent.payment_method) {
+          const paymentMethodId = typeof paymentIntent.payment_method === 'string' 
+            ? paymentIntent.payment_method 
+            : paymentIntent.payment_method.id;
+          
+          // SHA-256 hash - NEVER store raw payment data
+          const fingerprintHash = await hashPaymentMethod(paymentMethodId);
+          
+          const staffId = appointmentDetails?.staff_id;
+          
+          if (staffId) {
+            // Check if staff was invited by someone
+            const { data: invite } = await supabaseClient
+              .from('creative_invites')
+              .select('inviter_creative_id, unique_payment_methods_count, bonus_qualification_met_at')
+              .eq('invited_creative_id', staffId)
+              .maybeSingle();
+            
+            if (invite) {
+              // Insert fingerprint (unique constraint prevents duplicates)
+              const { error: fpError } = await supabaseClient
+                .from('payment_method_fingerprints')
+                .insert({
+                  creative_id: staffId,
+                  invited_by_creative_id: invite.inviter_creative_id,
+                  fingerprint_hash: fingerprintHash
+                });
+              
+              // If insert succeeded (new unique fingerprint), update count
+              if (!fpError) {
+                const newCount = (invite.unique_payment_methods_count || 0) + 1;
+                
+                await supabaseClient
+                  .from('creative_invites')
+                  .update({ unique_payment_methods_count: newCount })
+                  .eq('invited_creative_id', staffId);
+                
+                console.log(`Fingerprint recorded. New unique count: ${newCount}`);
+                
+                // === CHECK BONUS QUALIFICATION (5 unique payments) ===
+                if (newCount >= 5 && !invite.bonus_qualification_met_at) {
+                  console.log('Triggering bonus qualification check...');
+                  try {
+                    await supabaseClient.functions.invoke('check-bonus-qualification', {
+                      body: {
+                        creativeId: staffId,
+                        inviterId: invite.inviter_creative_id
+                      }
+                    });
+                  } catch (bonusError) {
+                    console.error('Failed to trigger bonus qualification:', bonusError);
+                  }
+                }
+              } else if (fpError.code !== '23505') {
+                // Log error unless it's a duplicate (expected for repeat customers)
+                console.log('Fingerprint already exists or error:', fpError.message);
+              }
+            }
+            
+            // === PROCESS SWITCHING BONUS (per-booking) ===
+            try {
+              await supabaseClient.functions.invoke('process-switching-bonus', {
+                body: {
+                  creativeId: staffId,
+                  appointmentId: appointmentId,
+                  paymentIntentId: paymentIntent.id
+                }
+              });
+            } catch (switchingError) {
+              console.error('Failed to process switching bonus:', switchingError);
+            }
+          }
+        }
+
+        // Handle cover booking boomerang
         if (appointmentDetails?.booking_type === 'cover' && appointmentDetails.original_requested_staff_id) {
           console.log('Cover booking detected - triggering boomerang automation');
           
-          // Get original staff details (who they wanted)
           const { data: originalStaff } = await supabaseClient
             .from('staff_members')
             .select('display_name, id')
             .eq('id', appointmentDetails.original_requested_staff_id)
             .single();
             
-          // Get cover staff details (who served them)
           const { data: coverStaff } = await supabaseClient
             .from('staff_members')
             .select('display_name')
@@ -164,7 +241,6 @@ serve(async (req) => {
             .single();
           
           if (originalStaff && coverStaff && appointmentDetails.customer_phone) {
-            // Send boomerang message
             const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://yourapp.lovable.app';
             const bookingLink = `${frontendUrl}/salon?staff=${originalStaff.id}`;
             
@@ -178,7 +254,6 @@ serve(async (req) => {
               console.log('Boomerang message sent successfully');
             } catch (whatsappError) {
               console.error('Failed to send boomerang message:', whatsappError);
-              // Don't fail the webhook if WhatsApp fails
             }
           }
         }

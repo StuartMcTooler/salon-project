@@ -87,9 +87,9 @@ export default function ReferralHub() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold">Referral Hub</h1>
+              <h1 className="text-2xl font-bold">Partner Program</h1>
               <p className="text-sm text-muted-foreground">
-                Unlock Pro status and grow your passive income
+                Build your network, unlock passive income
               </p>
             </div>
           </div>

@@ -5,6 +5,44 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Grandfathering hierarchy: User.custom_rate → Tier.rate → Global.default (€0.27)
+async function getCommissionAmount(creativeId: string, supabase: any): Promise<{ amount: number; tierId: string | null }> {
+  // 1. Check if creative has custom tier assigned
+  const { data: creative } = await supabase
+    .from('staff_members')
+    .select('commission_tier_id')
+    .eq('id', creativeId)
+    .single();
+  
+  let tierId = creative?.commission_tier_id;
+  
+  // 2. If no custom tier, get default tier
+  if (!tierId) {
+    const { data: defaultTier } = await supabase
+      .from('commission_tiers')
+      .select('id, commission_per_booking')
+      .eq('is_default', true)
+      .single();
+    
+    return { 
+      amount: defaultTier?.commission_per_booking || 0.27, // Global fallback €0.27
+      tierId: defaultTier?.id || null 
+    };
+  }
+  
+  // 3. Get commission from assigned tier
+  const { data: tier } = await supabase
+    .from('commission_tiers')
+    .select('commission_per_booking')
+    .eq('id', tierId)
+    .single();
+  
+  return { 
+    amount: tier?.commission_per_booking || 0.27, 
+    tierId 
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -24,7 +62,7 @@ Deno.serve(async (req) => {
 
     console.log('Calculating referral commission for:', { clientEmail, receiverCreativeId, bookingAmount, appointmentId });
 
-    // NEW: Check if this is a cover booking
+    // Check if this is a cover booking
     let alphaCreativeId = null;
     let isCoverBooking = false;
 
@@ -55,7 +93,6 @@ Deno.serve(async (req) => {
         throw ownershipError;
       }
 
-      // If no ownership, no commission
       if (!ownership) {
         console.log('No ownership found - no commission');
         return new Response(
@@ -67,7 +104,6 @@ Deno.serve(async (req) => {
       alphaCreativeId = ownership.creative_id;
     }
 
-    // At this point, alphaCreativeId should be set either from cover booking or ownership
     if (!alphaCreativeId) {
       console.log('No alpha creative found');
       return new Response(
@@ -88,7 +124,6 @@ Deno.serve(async (req) => {
       throw alphaTierError;
     }
 
-    // Only Pro creatives can earn referral commissions
     if (alphaTier?.tier !== 'pro') {
       console.log('Alpha creative is not Pro - no commission');
       return new Response(
@@ -100,7 +135,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // If the receiver IS the alpha (booking with original creative), no commission
+    // If the receiver IS the alpha, no commission
     if (alphaCreativeId === receiverCreativeId) {
       console.log('Booking with original creative - no commission');
       return new Response(
@@ -109,7 +144,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if this is a "second referral" (has client already booked with receiver before?)
+    // Check if this is a "second referral"
     const { data: existingTransactions, error: txError } = await supabase
       .from('referral_transactions')
       .select('id')
@@ -122,7 +157,6 @@ Deno.serve(async (req) => {
       throw txError;
     }
 
-    // Second referral - no commission (One-Time Acquisition Rule)
     if (existingTransactions && existingTransactions.length > 0) {
       console.log('Second referral detected - no commission');
       return new Response(
@@ -147,7 +181,6 @@ Deno.serve(async (req) => {
       throw termsError;
     }
 
-    // If receiver doesn't accept referrals, no commission
     if (!terms) {
       console.log('Receiver does not accept referrals - no commission');
       return new Response(
@@ -156,13 +189,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Calculate commission
-    const commissionAmount = (bookingAmount * terms.commission_percentage) / 100;
+    // NEW: Get fixed commission amount from tier (replaces percentage calculation)
+    const { amount: commissionAmount, tierId: commissionTierId } = await getCommissionAmount(alphaCreativeId, supabase);
+    
+    console.log('Fixed commission from tier:', { commissionAmount, commissionTierId });
+
     const revenueShareEndDate = terms.commission_type === 'revenue_share' && terms.revenue_share_duration_months
       ? new Date(Date.now() + terms.revenue_share_duration_months * 30 * 24 * 60 * 60 * 1000)
       : null;
 
-    // Create referral transaction record
+    // Create referral transaction record with audit trail
     const { data: transaction, error: insertError } = await supabase
       .from('referral_transactions')
       .insert({
@@ -171,9 +207,11 @@ Deno.serve(async (req) => {
         receiver_creative_id: receiverCreativeId,
         client_email: clientEmail,
         commission_type: terms.commission_type,
-        commission_percentage: terms.commission_percentage,
+        commission_percentage: terms.commission_percentage, // Keep for backwards compat
         booking_amount: bookingAmount,
         commission_amount: commissionAmount,
+        commission_tier_id: commissionTierId, // AUDIT: Which tier was used
+        commission_fixed_amount: commissionAmount, // AUDIT: Exact amount paid
         revenue_share_end_date: revenueShareEndDate,
         status: 'pending'
       })
@@ -185,7 +223,7 @@ Deno.serve(async (req) => {
       throw insertError;
     }
 
-    console.log('Commission calculated:', { commissionAmount, transaction });
+    console.log('Commission calculated (fixed):', { commissionAmount, transaction });
 
     // Check if receiver was invited by another creative (C2C)
     const { data: invite, error: inviteError } = await supabase
@@ -224,7 +262,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         requiresCommission: true,
         commissionAmount,
-        commissionPercentage: terms.commission_percentage,
+        commissionTierId,
         commissionType: terms.commission_type,
         alphaCreativeName: 'your original creative',
         transactionId: transaction.id

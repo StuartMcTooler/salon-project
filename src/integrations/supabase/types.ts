@@ -82,6 +82,54 @@ export type Database = {
           },
         ]
       }
+      bonus_notifications: {
+        Row: {
+          bonus_amount: number | null
+          created_at: string | null
+          creative_id: string
+          id: string
+          is_read: boolean | null
+          message: string
+          notification_type: string
+          title: string
+        }
+        Insert: {
+          bonus_amount?: number | null
+          created_at?: string | null
+          creative_id: string
+          id?: string
+          is_read?: boolean | null
+          message: string
+          notification_type: string
+          title: string
+        }
+        Update: {
+          bonus_amount?: number | null
+          created_at?: string | null
+          creative_id?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          notification_type?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bonus_notifications_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bonus_notifications_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_accounts: {
         Row: {
           address: string | null
@@ -1547,7 +1595,9 @@ export type Database = {
           booking_amount: number
           client_email: string
           commission_amount: number
+          commission_fixed_amount: number | null
           commission_percentage: number
+          commission_tier_id: string | null
           commission_type: Database["public"]["Enums"]["commission_type"]
           created_at: string | null
           id: string
@@ -1562,7 +1612,9 @@ export type Database = {
           booking_amount: number
           client_email: string
           commission_amount: number
+          commission_fixed_amount?: number | null
           commission_percentage: number
+          commission_tier_id?: string | null
           commission_type: Database["public"]["Enums"]["commission_type"]
           created_at?: string | null
           id?: string
@@ -1577,7 +1629,9 @@ export type Database = {
           booking_amount?: number
           client_email?: string
           commission_amount?: number
+          commission_fixed_amount?: number | null
           commission_percentage?: number
+          commission_tier_id?: string | null
           commission_type?: Database["public"]["Enums"]["commission_type"]
           created_at?: string | null
           id?: string
@@ -1593,6 +1647,13 @@ export type Database = {
             columns: ["appointment_id"]
             isOneToOne: false
             referencedRelation: "salon_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_transactions_commission_tier_id_fkey"
+            columns: ["commission_tier_id"]
+            isOneToOne: false
+            referencedRelation: "commission_tiers"
             referencedColumns: ["id"]
           },
           {

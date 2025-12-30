@@ -272,6 +272,45 @@ export type Database = {
           },
         ]
       }
+      campaign_configs: {
+        Row: {
+          bonus_trigger_bookings: number | null
+          campaign_code: string
+          created_at: string | null
+          demo_access_token: string | null
+          double_sided_bonus: number | null
+          id: string
+          is_active: boolean | null
+          switching_bonus_cap: number | null
+          switching_bonus_per_booking: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          bonus_trigger_bookings?: number | null
+          campaign_code: string
+          created_at?: string | null
+          demo_access_token?: string | null
+          double_sided_bonus?: number | null
+          id?: string
+          is_active?: boolean | null
+          switching_bonus_cap?: number | null
+          switching_bonus_per_booking?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          bonus_trigger_bookings?: number | null
+          campaign_code?: string
+          created_at?: string | null
+          demo_access_token?: string | null
+          double_sided_bonus?: number | null
+          id?: string
+          is_active?: boolean | null
+          switching_bonus_cap?: number | null
+          switching_bonus_per_booking?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       client_content: {
         Row: {
           ai_metadata: Json | null
@@ -460,6 +499,36 @@ export type Database = {
           },
         ]
       }
+      commission_tiers: {
+        Row: {
+          commission_per_booking: number
+          created_at: string | null
+          id: string
+          is_default: boolean | null
+          market_code: string | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          commission_per_booking?: number
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          market_code?: string | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          commission_per_booking?: number
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          market_code?: string | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       content_requests: {
         Row: {
           appointment_id: string
@@ -603,6 +672,7 @@ export type Database = {
       }
       creative_invites: {
         Row: {
+          bonus_qualification_met_at: string | null
           created_at: string | null
           id: string
           invite_code: string
@@ -610,10 +680,12 @@ export type Database = {
           inviter_creative_id: string
           signup_completed_at: string | null
           tenth_booking_completed_at: string | null
+          unique_payment_methods_count: number | null
           upfront_bonus_amount: number | null
           upfront_bonus_paid: boolean | null
         }
         Insert: {
+          bonus_qualification_met_at?: string | null
           created_at?: string | null
           id?: string
           invite_code: string
@@ -621,10 +693,12 @@ export type Database = {
           inviter_creative_id: string
           signup_completed_at?: string | null
           tenth_booking_completed_at?: string | null
+          unique_payment_methods_count?: number | null
           upfront_bonus_amount?: number | null
           upfront_bonus_paid?: boolean | null
         }
         Update: {
+          bonus_qualification_met_at?: string | null
           created_at?: string | null
           id?: string
           invite_code?: string
@@ -632,6 +706,7 @@ export type Database = {
           inviter_creative_id?: string
           signup_completed_at?: string | null
           tenth_booking_completed_at?: string | null
+          unique_payment_methods_count?: number | null
           upfront_bonus_amount?: number | null
           upfront_bonus_paid?: boolean | null
         }
@@ -1280,6 +1355,59 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_method_fingerprints: {
+        Row: {
+          created_at: string | null
+          creative_id: string
+          fingerprint_hash: string
+          id: string
+          invited_by_creative_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          creative_id: string
+          fingerprint_hash: string
+          id?: string
+          invited_by_creative_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          creative_id?: string
+          fingerprint_hash?: string
+          id?: string
+          invited_by_creative_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_method_fingerprints_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_method_fingerprints_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_method_fingerprints_invited_by_creative_id_fkey"
+            columns: ["invited_by_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_method_fingerprints_invited_by_creative_id_fkey"
+            columns: ["invited_by_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portfolio_approval_requests: {
         Row: {
           client_email: string
@@ -1381,7 +1509,10 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          discount_type: string | null
+          discount_value: number | null
           id: string
+          is_legacy: boolean | null
           referrer_email: string | null
           referrer_name: string
           referrer_phone: string
@@ -1389,7 +1520,10 @@ export type Database = {
         Insert: {
           code: string
           created_at?: string
+          discount_type?: string | null
+          discount_value?: number | null
           id?: string
+          is_legacy?: boolean | null
           referrer_email?: string | null
           referrer_name: string
           referrer_phone: string
@@ -1397,7 +1531,10 @@ export type Database = {
         Update: {
           code?: string
           created_at?: string
+          discount_type?: string | null
+          discount_value?: number | null
           id?: string
+          is_legacy?: boolean | null
           referrer_email?: string | null
           referrer_name?: string
           referrer_phone?: string
@@ -1895,8 +2032,10 @@ export type Database = {
           average_rating: number | null
           bio: string | null
           business_id: string | null
+          campaign_code: string | null
           city: string | null
           commission_rate: number | null
+          commission_tier_id: string | null
           created_at: string
           deposit_fixed_amount: number | null
           deposit_percentage: number | null
@@ -1937,8 +2076,10 @@ export type Database = {
           average_rating?: number | null
           bio?: string | null
           business_id?: string | null
+          campaign_code?: string | null
           city?: string | null
           commission_rate?: number | null
+          commission_tier_id?: string | null
           created_at?: string
           deposit_fixed_amount?: number | null
           deposit_percentage?: number | null
@@ -1979,8 +2120,10 @@ export type Database = {
           average_rating?: number | null
           bio?: string | null
           business_id?: string | null
+          campaign_code?: string | null
           city?: string | null
           commission_rate?: number | null
+          commission_tier_id?: string | null
           created_at?: string
           deposit_fixed_amount?: number | null
           deposit_percentage?: number | null
@@ -2020,6 +2163,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "business_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_members_commission_tier_id_fkey"
+            columns: ["commission_tier_id"]
+            isOneToOne: false
+            referencedRelation: "commission_tiers"
             referencedColumns: ["id"]
           },
         ]
@@ -2070,6 +2220,64 @@ export type Database = {
           {
             foreignKeyName: "staff_service_pricing_staff_id_fkey"
             columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      switching_bonus_ledger: {
+        Row: {
+          appointment_id: string | null
+          bonus_amount: number
+          campaign_code: string | null
+          created_at: string | null
+          creative_id: string
+          cumulative_count: number
+          id: string
+          paid_at: string | null
+          status: string | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          bonus_amount: number
+          campaign_code?: string | null
+          created_at?: string | null
+          creative_id: string
+          cumulative_count: number
+          id?: string
+          paid_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          appointment_id?: string | null
+          bonus_amount?: number
+          campaign_code?: string | null
+          created_at?: string | null
+          creative_id?: string
+          cumulative_count?: number
+          id?: string
+          paid_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "switching_bonus_ledger_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "switching_bonus_ledger_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "switching_bonus_ledger_creative_id_fkey"
+            columns: ["creative_id"]
             isOneToOne: false
             referencedRelation: "staff_members_public"
             referencedColumns: ["id"]

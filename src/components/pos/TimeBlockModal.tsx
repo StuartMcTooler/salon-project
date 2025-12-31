@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -6,9 +6,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format, addMinutes, addDays, addWeeks } from "date-fns";
+import { format, addMinutes, addDays, addWeeks, setHours, setMinutes } from "date-fns";
 import { Loader2 } from "lucide-react";
 
 interface TimeBlockModalProps {
@@ -43,8 +44,20 @@ export const TimeBlockModal = ({ open, onOpenChange, staffId, startTime, onSucce
   const [repeatDaily, setRepeatDaily] = useState(false);
   const [repeatWeekly, setRepeatWeekly] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedStartTime, setSelectedStartTime] = useState(format(startTime, 'HH:mm'));
 
-  const endTime = addMinutes(startTime, duration);
+  // Update selected time when startTime prop changes
+  useEffect(() => {
+    setSelectedStartTime(format(startTime, 'HH:mm'));
+  }, [startTime]);
+
+  // Calculate actual start time from the time input
+  const actualStartTime = (() => {
+    const [hours, mins] = selectedStartTime.split(':').map(Number);
+    return setMinutes(setHours(startTime, hours), mins);
+  })();
+
+  const endTime = addMinutes(actualStartTime, duration);
 
   const handleSubmit = async () => {
     setIsLoading(true);
@@ -56,7 +69,7 @@ export const TimeBlockModal = ({ open, onOpenChange, staffId, startTime, onSucce
       blocksToCreate.push({
         staff_id: staffId,
         is_blocked: true,
-        appointment_date: startTime.toISOString(),
+        appointment_date: actualStartTime.toISOString(),
         duration_minutes: duration,
         price: 0,
         customer_name: 'TIME BLOCK',
@@ -68,7 +81,7 @@ export const TimeBlockModal = ({ open, onOpenChange, staffId, startTime, onSucce
       // Create recurring blocks
       if (repeatDaily) {
         for (let i = 1; i <= 6; i++) { // Next 6 days (7 days total)
-          const nextDate = addDays(startTime, i);
+          const nextDate = addDays(actualStartTime, i);
           blocksToCreate.push({
             staff_id: staffId,
             is_blocked: true,
@@ -85,7 +98,7 @@ export const TimeBlockModal = ({ open, onOpenChange, staffId, startTime, onSucce
 
       if (repeatWeekly) {
         for (let i = 1; i <= 3; i++) { // Next 3 weeks (4 weeks total)
-          const nextDate = addWeeks(startTime, i);
+          const nextDate = addWeeks(actualStartTime, i);
           blocksToCreate.push({
             staff_id: staffId,
             is_blocked: true,
@@ -179,15 +192,21 @@ export const TimeBlockModal = ({ open, onOpenChange, staffId, startTime, onSucce
             </Select>
           </div>
 
-          {/* Time Display */}
-          <div className="bg-muted p-3 rounded-md">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">{format(startTime, 'h:mm a')}</span>
+          {/* Start Time Picker */}
+          <div className="space-y-2">
+            <Label>Start Time</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                type="time"
+                value={selectedStartTime}
+                onChange={(e) => setSelectedStartTime(e.target.value)}
+                className="w-32"
+              />
               <span className="text-muted-foreground">→</span>
-              <span className="font-medium">{format(endTime, 'h:mm a')}</span>
+              <span className="font-medium text-sm">{format(endTime, 'h:mm a')}</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {format(startTime, 'EEEE, MMMM d, yyyy')}
+            <p className="text-xs text-muted-foreground">
+              {format(actualStartTime, 'EEEE, MMMM d, yyyy')}
             </p>
           </div>
 

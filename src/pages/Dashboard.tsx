@@ -18,6 +18,8 @@ import { SmartWaitlistToggle } from "@/components/dashboard/SmartWaitlistToggle"
 import { SmartSlotSettings } from "@/components/admin/SmartSlotSettings";
 import { DemandHeatmap } from "@/components/admin/DemandHeatmap";
 import { PayoutActivationCard } from "@/components/dashboard/PayoutActivationCard";
+import { SoloAvailabilitySettings } from "@/components/dashboard/SoloAvailabilitySettings";
+import { BookingLeadTimeSettings } from "@/components/admin/BookingLeadTimeSettings";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -162,6 +164,8 @@ const Dashboard = () => {
                 <div className="space-y-4">
                   <PayoutActivationCard staffId={staffId} />
                   <ProfilePictureSettings staffId={staffId} />
+                  <SoloAvailabilitySettings staffId={staffId} />
+                  <BookingLeadTimeSettings />
                   <ServiceManager staffId={staffId} />
                   <WalkInToggle businessId={businessId} />
                   <MyLoyaltySettings staffId={staffId} businessId={businessId} />

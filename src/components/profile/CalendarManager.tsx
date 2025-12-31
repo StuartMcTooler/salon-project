@@ -7,11 +7,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, XCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, XCircle, Plus } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, getDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { AffectedAppointmentsWarning } from "@/components/admin/AffectedAppointmentsWarning";
+import { TimeBlockModal } from "@/components/pos/TimeBlockModal";
 
 interface CalendarManagerProps {
   staffId: string;
@@ -44,6 +45,10 @@ export const CalendarManager = ({ staffId }: CalendarManagerProps) => {
   // Warning dialog state
   const [warningOpen, setWarningOpen] = useState(false);
   const [pendingDayOff, setPendingDayOff] = useState<Date | null>(null);
+
+  // Time block modal state
+  const [blockModalOpen, setBlockModalOpen] = useState(false);
+  const [blockStartTime, setBlockStartTime] = useState<Date | null>(null);
 
   // Fetch staff details for display name
   const { data: staffDetails } = useQuery({
@@ -81,6 +86,27 @@ export const CalendarManager = ({ staffId }: CalendarManagerProps) => {
     enabled: !!staffId,
   });
 
+  // Fetch blocked time slots for the month
+  const { data: blockedSlots = [] } = useQuery({
+    queryKey: ["blocked-slots", staffId, format(currentMonth, "yyyy-MM")],
+    queryFn: async () => {
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(currentMonth);
+      
+      const { data, error } = await supabase
+        .from("salon_appointments")
+        .select("id, appointment_date, service_name, duration_minutes")
+        .eq("staff_id", staffId)
+        .eq("is_blocked", true)
+        .gte("appointment_date", format(monthStart, "yyyy-MM-dd"))
+        .lte("appointment_date", format(monthEnd, "yyyy-MM-dd") + "T23:59:59");
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!staffId,
+  });
+
   // Fetch staff's default hours
   const { data: defaultHours = [] } = useQuery({
     queryKey: ["staff-hours", staffId],
@@ -103,6 +129,19 @@ export const CalendarManager = ({ staffId }: CalendarManagerProps) => {
     return map;
   }, [overrides]);
 
+  // Create blocked slots map for quick lookup
+  const blockedSlotsMap = useMemo(() => {
+    const map = new Map<string, typeof blockedSlots>();
+    blockedSlots.forEach(slot => {
+      const dateStr = format(new Date(slot.appointment_date), "yyyy-MM-dd");
+      if (!map.has(dateStr)) {
+        map.set(dateStr, []);
+      }
+      map.get(dateStr)!.push(slot);
+    });
+    return map;
+  }, [blockedSlots]);
+
   // Create default hours map by day of week
   const defaultHoursMap = useMemo(() => {
     const map = new Map<number, { start_time: string; end_time: string; is_active: boolean }>();
@@ -123,6 +162,7 @@ export const CalendarManager = ({ staffId }: CalendarManagerProps) => {
       .select("id")
       .eq("staff_id", staffId)
       .in("status", ["pending", "confirmed"])
+      .eq("is_blocked", false)
       .gte("appointment_date", `${dateStr}T00:00:00`)
       .lt("appointment_date", `${dateStr}T23:59:59`);
     
@@ -239,6 +279,25 @@ export const CalendarManager = ({ staffId }: CalendarManagerProps) => {
     setDialogOpen(true);
   };
 
+  // Handle Block Time button click
+  const handleBlockTime = () => {
+    if (!selectedDate) return;
+    
+    // Set default start time to 9:00 AM on selected date
+    const blockDate = new Date(selectedDate);
+    blockDate.setHours(9, 0, 0, 0);
+    setBlockStartTime(blockDate);
+    setDialogOpen(false);
+    setBlockModalOpen(true);
+  };
+
+  const handleBlockSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ["blocked-slots", staffId] });
+    queryClient.invalidateQueries({ queryKey: ["salon-appointments"] });
+    setBlockModalOpen(false);
+    setBlockStartTime(null);
+  };
+
   // Generate calendar days
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -253,12 +312,16 @@ export const CalendarManager = ({ staffId }: CalendarManagerProps) => {
   }, [currentMonth]);
 
   // Get day status for coloring
-  const getDayStatus = (date: Date): "default" | "custom" | "off" => {
+  const getDayStatus = (date: Date): "default" | "custom" | "off" | "blocked" => {
     const dateStr = format(date, "yyyy-MM-dd");
     const override = overrideMap.get(dateStr);
+    const hasBlocks = blockedSlotsMap.has(dateStr);
     
     if (override) {
       return override.is_available ? "custom" : "off";
+    }
+    if (hasBlocks) {
+      return "blocked";
     }
     return "default";
   };
@@ -301,7 +364,7 @@ export const CalendarManager = ({ staffId }: CalendarManagerProps) => {
             Calendar Manager
           </CardTitle>
           <CardDescription>
-            Set custom hours or days off for specific dates
+            Set custom hours, days off, or block specific time slots
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -327,7 +390,7 @@ export const CalendarManager = ({ staffId }: CalendarManagerProps) => {
           </div>
 
           {/* Legend */}
-          <div className="flex gap-4 mb-4 text-sm">
+          <div className="flex flex-wrap gap-4 mb-4 text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded bg-muted border" />
               <span>Default</span>
@@ -339,6 +402,10 @@ export const CalendarManager = ({ staffId }: CalendarManagerProps) => {
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded bg-red-500" />
               <span>Off</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-orange-500" />
+              <span>Blocked</span>
             </div>
           </div>
 
@@ -360,6 +427,7 @@ export const CalendarManager = ({ staffId }: CalendarManagerProps) => {
               const status = getDayStatus(date);
               const dateStr = format(date, "yyyy-MM-dd");
               const override = overrideMap.get(dateStr);
+              const blocks = blockedSlotsMap.get(dateStr);
               
               return (
                 <button
@@ -372,7 +440,8 @@ export const CalendarManager = ({ staffId }: CalendarManagerProps) => {
                     isToday(date) && "ring-2 ring-primary",
                     status === "default" && "bg-muted/50",
                     status === "custom" && "bg-blue-500/20 border-2 border-blue-500",
-                    status === "off" && "bg-red-500/20 border-2 border-red-500"
+                    status === "off" && "bg-red-500/20 border-2 border-red-500",
+                    status === "blocked" && "bg-orange-500/20 border-2 border-orange-500"
                   )}
                 >
                   <span className={cn(
@@ -384,6 +453,11 @@ export const CalendarManager = ({ staffId }: CalendarManagerProps) => {
                   {override && override.is_available && (
                     <span className="text-[10px] text-muted-foreground">
                       {override.start_time?.slice(0, 5)}
+                    </span>
+                  )}
+                  {blocks && blocks.length > 0 && (
+                    <span className="text-[10px] text-orange-600 font-medium">
+                      {blocks.length} block{blocks.length > 1 ? 's' : ''}
                     </span>
                   )}
                 </button>
@@ -450,6 +524,19 @@ export const CalendarManager = ({ staffId }: CalendarManagerProps) => {
                     </div>
                   </div>
                 )}
+
+                {/* Block Time Button */}
+                <div className="pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleBlockTime}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Block Time Slot
+                    <span className="text-xs text-muted-foreground ml-2">(Lunch, Meeting, etc.)</span>
+                  </Button>
+                </div>
               </div>
 
               <DialogFooter>
@@ -478,6 +565,15 @@ export const CalendarManager = ({ staffId }: CalendarManagerProps) => {
           onCancel={handleWarningCancel}
         />
       )}
+
+      {/* Time Block Modal */}
+      <TimeBlockModal
+        open={blockModalOpen}
+        onOpenChange={setBlockModalOpen}
+        staffId={staffId}
+        startTime={blockStartTime}
+        onSuccess={handleBlockSuccess}
+      />
     </>
   );
 };

@@ -6,6 +6,15 @@ interface TimeSlot {
   endTime: string;
 }
 
+interface BusinessHoursRow {
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  is_active: boolean;
+  break_start_time?: string | null;
+  break_end_time?: string | null;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -100,28 +109,30 @@ Deno.serve(async (req) => {
 
     console.log('Shortest service duration:', shortestDuration);
 
-    // Get staff business hours
+    // Get staff business hours (including break times)
     const { data: staffHours, error: hoursError } = await supabaseClient
       .from('business_hours')
-      .select('*')
+      .select('day_of_week, start_time, end_time, is_active, break_start_time, break_end_time')
       .eq('staff_id', staff_id)
       .eq('is_active', true);
 
     if (hoursError) throw hoursError;
 
     // If no staff hours, check business hours
-    let businessHours = null;
+    let businessHours: BusinessHoursRow[] | null = null;
     if (!staffHours || staffHours.length === 0) {
       const { data: bizHours } = await supabaseClient
         .from('business_hours')
-        .select('*')
+        .select('day_of_week, start_time, end_time, is_active, break_start_time, break_end_time')
         .eq('business_id', staff.business_id)
         .eq('is_active', true);
       
-      businessHours = bizHours;
+      businessHours = bizHours as BusinessHoursRow[] | null;
     }
 
-    const hoursToUse = staffHours && staffHours.length > 0 ? staffHours : businessHours;
+    const hoursToUse: BusinessHoursRow[] = staffHours && staffHours.length > 0 
+      ? staffHours as BusinessHoursRow[] 
+      : (businessHours || []);
 
     if (!hoursToUse || hoursToUse.length === 0) {
       console.log('No business hours found');
@@ -163,12 +174,14 @@ Deno.serve(async (req) => {
         .lt('appointment_date', `${dateStr}T23:59:59`)
         .neq('status', 'cancelled');
 
-      // Generate time slots
+      // Generate time slots (now includes break filtering)
       const slots = generateTimeSlots(
         dayHours.start_time,
         dayHours.end_time,
         shortestDuration,
-        appointments || []
+        appointments || [],
+        dayHours.break_start_time,
+        dayHours.break_end_time
       );
 
       // If checking today, filter out past times
@@ -253,7 +266,9 @@ function generateTimeSlots(
   startTime: string,
   endTime: string,
   durationMinutes: number,
-  existingAppointments: any[]
+  existingAppointments: any[],
+  breakStartTime?: string | null,
+  breakEndTime?: string | null
 ): TimeSlot[] {
   const slots: TimeSlot[] = [];
   const [startHour, startMin] = startTime.split(':').map(Number);
@@ -262,9 +277,32 @@ function generateTimeSlots(
   let currentMinutes = startHour * 60 + startMin;
   const endMinutes = endHour * 60 + endMin;
 
+  // Parse break times if provided
+  let breakStartMinutes = 0;
+  let breakEndMinutes = 0;
+  if (breakStartTime && breakEndTime) {
+    const [bsH, bsM] = breakStartTime.split(':').map(Number);
+    const [beH, beM] = breakEndTime.split(':').map(Number);
+    breakStartMinutes = bsH * 60 + bsM;
+    breakEndMinutes = beH * 60 + beM;
+    console.log('Break period:', { breakStartTime, breakEndTime, breakStartMinutes, breakEndMinutes });
+  }
+
   while (currentMinutes + durationMinutes <= endMinutes) {
+    const slotEnd = currentMinutes + durationMinutes;
+
+    // GHOST SLOT DEFENSE: Skip slots that overlap with break period
+    if (breakStartTime && breakEndTime && breakStartMinutes < breakEndMinutes) {
+      // Check if slot overlaps with break: slot_start < break_end AND slot_end > break_start
+      if (currentMinutes < breakEndMinutes && slotEnd > breakStartMinutes) {
+        // Jump to end of break
+        currentMinutes = breakEndMinutes;
+        continue;
+      }
+    }
+
     const slotStart = minutesToTime(currentMinutes);
-    const slotEnd = minutesToTime(currentMinutes + durationMinutes);
+    const slotEndStr = minutesToTime(slotEnd);
 
     // Check if this slot conflicts with existing appointments
     const hasConflict = existingAppointments.some(apt => {
@@ -274,13 +312,13 @@ function generateTimeSlots(
 
       return (
         (currentMinutes >= aptStartMinutes && currentMinutes < aptEndMinutes) ||
-        (currentMinutes + durationMinutes > aptStartMinutes && currentMinutes + durationMinutes <= aptEndMinutes) ||
-        (currentMinutes <= aptStartMinutes && currentMinutes + durationMinutes >= aptEndMinutes)
+        (slotEnd > aptStartMinutes && slotEnd <= aptEndMinutes) ||
+        (currentMinutes <= aptStartMinutes && slotEnd >= aptEndMinutes)
       );
     });
 
     if (!hasConflict) {
-      slots.push({ time: slotStart, endTime: slotEnd });
+      slots.push({ time: slotStart, endTime: slotEndStr });
     }
 
     currentMinutes += 15; // 15-minute increments

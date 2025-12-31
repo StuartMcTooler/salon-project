@@ -12,6 +12,13 @@ export interface BusinessHours {
   start_time: string;
   end_time: string;
   is_active: boolean;
+  break_start_time?: string | null;
+  break_end_time?: string | null;
+}
+
+export interface BreakHours {
+  start: string;
+  end: string;
 }
 
 export interface AvailabilityOverride {
@@ -140,7 +147,8 @@ export const getAvailableSlots = (
   startHour: number = 9,
   endHour: number = 18,
   availabilityOverride?: AvailabilityOverride | null,
-  minimumLeadHours: number = 0
+  minimumLeadHours: number = 0,
+  breakHours?: BreakHours | null
 ): Array<{ time: string; endTime: string }> => {
   const dayOfWeek = selectedDate.getDay();
   
@@ -174,7 +182,8 @@ export const getAvailableSlots = (
         serviceDuration,
         appointments,
         selectedDate,
-        minimumLeadHours
+        minimumLeadHours,
+        breakHours
       );
     }
   }
@@ -203,6 +212,9 @@ export const getAvailableSlots = (
   }
   
   // Check staff hours - these override/restrict business hours
+  // Also extract break hours if defined
+  let effectiveBreakHours: BreakHours | null = breakHours || null;
+  
   if (staffHours && staffHours.day_of_week === dayOfWeek) {
     if (!staffHours.is_active) {
       return []; // Staff not working this day
@@ -221,6 +233,14 @@ export const getAvailableSlots = (
     actualStartHour = Math.max(actualStartHour, staffStart);
     actualEndHour = Math.min(actualEndHour, staffEnd);
     hoursFound = true;
+    
+    // Extract break hours from staffHours if not already provided
+    if (!effectiveBreakHours && staffHours.break_start_time && staffHours.break_end_time) {
+      effectiveBreakHours = {
+        start: staffHours.break_start_time,
+        end: staffHours.break_end_time
+      };
+    }
   }
   
   // If no specific hours found for this day, return empty
@@ -234,7 +254,8 @@ export const getAvailableSlots = (
     serviceDuration,
     appointments,
     selectedDate,
-    minimumLeadHours
+    minimumLeadHours,
+    effectiveBreakHours
   );
 };
 
@@ -247,7 +268,8 @@ const generateSlotsForTimeRange = (
   serviceDuration: number,
   appointments: Appointment[],
   selectedDate: Date,
-  minimumLeadHours: number = 0
+  minimumLeadHours: number = 0,
+  breakHours?: BreakHours | null
 ): Array<{ time: string; endTime: string }> => {
   
   const availableSlots: Array<{ time: string; endTime: string }> = [];
@@ -288,10 +310,45 @@ const generateSlotsForTimeRange = (
     firstSlot: `${Math.floor(currentMinutes/60)}:${(currentMinutes%60).toString().padStart(2,'0')}`
   });
   
+  // Parse break hours once if defined
+  let breakStartMinutes = 0;
+  let breakEndMinutes = 0;
+  if (breakHours) {
+    const [bsH, bsM] = breakHours.start.split(':').map(Number);
+    const [beH, beM] = breakHours.end.split(':').map(Number);
+    breakStartMinutes = bsH * 60 + bsM;
+    breakEndMinutes = beH * 60 + beM;
+    console.log('[TimeSlots] Break period:', {
+      start: breakHours.start,
+      end: breakHours.end,
+      startMinutes: breakStartMinutes,
+      endMinutes: breakEndMinutes
+    });
+  }
+
   while (currentMinutes < closingMinutes) {
     const slotHour = Math.floor(currentMinutes / 60);
     const slotMin = currentMinutes % 60;
     const slotStr = `${slotHour.toString().padStart(2, '0')}:${slotMin.toString().padStart(2, '0')}`;
+    
+    // Calculate slot end time
+    const slotEndMinutes = currentMinutes + serviceDuration;
+    
+    // GHOST SLOT DEFENSE: Skip slots that overlap with break period
+    if (breakHours && breakStartMinutes < breakEndMinutes) {
+      // Check if slot overlaps with break: slot_start < break_end AND slot_end > break_start
+      if (currentMinutes < breakEndMinutes && slotEndMinutes > breakStartMinutes) {
+        // Jump to end of break (rounded to next 15-min)
+        const remainder = breakEndMinutes % 15;
+        if (remainder === 0) {
+          currentMinutes = breakEndMinutes;
+        } else {
+          currentMinutes = breakEndMinutes + (15 - remainder);
+        }
+        console.log('[TimeSlots] Skipping break period, jumping to:', `${Math.floor(currentMinutes/60)}:${(currentMinutes%60).toString().padStart(2,'0')}`);
+        continue;
+      }
+    }
     
     // Build full datetime for this slot to compare against earliest bookable time
     // This handles midnight crossing correctly (e.g., booking at 11 PM for 1 AM next day)
@@ -303,9 +360,6 @@ const generateSlotsForTimeRange = (
       currentMinutes += 30;
       continue;
     }
-    
-    // Calculate slot end time
-    const slotEndMinutes = currentMinutes + serviceDuration;
     
     // Skip if service would extend past closing
     if (slotEndMinutes > closingMinutes) {

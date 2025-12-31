@@ -17,6 +17,8 @@ import { StaffTerminalSettings } from "@/components/profile/StaffTerminalSetting
 import { SmartSlotSettings } from "@/components/admin/SmartSlotSettings";
 import { CalendarManager } from "@/components/profile/CalendarManager";
 import { PayoutActivationCard } from "@/components/dashboard/PayoutActivationCard";
+import { SoloAvailabilitySettings } from "@/components/dashboard/SoloAvailabilitySettings";
+import { StaffLeadTimeCard } from "@/components/profile/StaffLeadTimeCard";
 
 const MyProfile = () => {
   const navigate = useNavigate();
@@ -216,6 +218,8 @@ const MyProfile = () => {
 
           <TabsContent value="settings" className="space-y-6">
             <PayoutActivationCard staffId={staffMember.id} />
+            <SoloAvailabilitySettings staffId={staffMember.id} />
+            <StaffLeadTimeCard staffId={staffMember.id} />
             <StaffTerminalSettings staffId={staffMember.id} />
             <SmartSlotSettings staffId={staffMember.id} />
           </TabsContent>

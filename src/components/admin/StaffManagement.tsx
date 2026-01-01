@@ -504,11 +504,10 @@ export function StaffManagement() {
                   <span className="font-medium">Email:</span> {member.email}
                 </p>
               )}
-              {member.hourly_rate && (
-                <p className="text-sm">
-                  <span className="font-medium">Hourly Rate:</span> €{member.hourly_rate}
-                </p>
-              )}
+              <p className="text-sm">
+                <span className="font-medium">Hourly Rate:</span>{" "}
+                {member.hourly_rate ? `€${member.hourly_rate}` : <span className="text-muted-foreground">Not set</span>}
+              </p>
               <p className="text-sm">
                 <span className="font-medium">Status:</span>{" "}
                 <span className={member.is_active ? "text-green-600" : "text-red-600"}>

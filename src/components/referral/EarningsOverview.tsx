@@ -54,10 +54,13 @@ export const EarningsOverview = ({ staffMemberId }: EarningsOverviewProps) => {
       const proTotal = invites?.reduce((sum, inv) => sum + Number(inv.upfront_bonus_amount), 0) || 0;
       setProInviteEarnings(proTotal);
 
-      // C2C revenue share
+      // C2C revenue share - join with staff_members to get pro names
       const { data: c2cTxs } = await supabase
         .from('c2c_revenue_share')
-        .select('*')
+        .select(`
+          *,
+          invited_creative:staff_members!c2c_revenue_share_invited_creative_id_fkey(display_name)
+        `)
         .eq('inviter_creative_id', staffMemberId);
 
       const c2cTotal = c2cTxs?.reduce((sum, tx) => sum + Number(tx.share_amount), 0) || 0;
@@ -73,14 +76,17 @@ export const EarningsOverview = ({ staffMemberId }: EarningsOverviewProps) => {
           description: `Referral commission from ${tx.client_email}`,
           status: tx.status
         })),
-        ...(c2cTxs || []).map(tx => ({
-          id: tx.id,
-          created_at: tx.created_at,
-          amount: Number(tx.share_amount),
-          type: 'C2C Revenue Share',
-          description: `Revenue share from invited pro`,
-          status: tx.status
-        }))
+        ...(c2cTxs || []).map(tx => {
+          const proName = (tx.invited_creative as { display_name: string } | null)?.display_name || 'invited pro';
+          return {
+            id: tx.id,
+            created_at: tx.created_at,
+            amount: Number(tx.share_amount),
+            type: 'C2C Revenue Share',
+            description: `Revenue share from ${proName}`,
+            status: tx.status
+          };
+        })
       ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       setTransactions(allTxs);

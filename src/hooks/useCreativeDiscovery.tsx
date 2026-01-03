@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 interface AvailabilityStatus {
   staff_id: string;
   time_to_first_slot_days: number;
-  first_slot_timestamp: string;
   first_slot_display_time: string;
   first_slot_day_name: string;
 }
@@ -21,6 +20,7 @@ interface Creative {
   city: string | null;
   area: string | null;
   specialties: string[];
+  next_available_slot: string | null;
   lookbook: Array<{
     id: string;
     content_id: string;
@@ -43,6 +43,36 @@ interface Filters {
 }
 
 const tierPriority = { founder: 0, pro: 1, standard: 2 };
+
+// Helper to calculate days from now
+const getDaysFromNow = (dateString: string | null): number => {
+  if (!dateString) return 999;
+  const slotDate = new Date(dateString);
+  const now = new Date();
+  const diffTime = slotDate.getTime() - now.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return Math.max(0, diffDays);
+};
+
+// Helper to format time for display
+const formatDisplayTime = (dateString: string | null): string => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+};
+
+// Helper to get day name
+const getDayName = (dateString: string | null): string => {
+  if (!dateString) return '';
+  const slotDate = new Date(dateString);
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  
+  if (slotDate.toDateString() === today.toDateString()) return 'Today';
+  if (slotDate.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+  return slotDate.toLocaleDateString('en-US', { weekday: 'long' });
+};
 
 const sortCreatives = (
   creatives: Creative[],
@@ -67,8 +97,9 @@ const sortCreatives = (
 export const useCreativeDiscovery = (filters: Filters) => {
   return useQuery({
     queryKey: ['creative-discovery', filters],
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes - availability is now DB-cached
     queryFn: async () => {
-      // Use staff_members_public view to avoid exposing sensitive contact info
+      // Use staff_members_public view - now includes next_available_slot!
       let query = supabase
         .from('staff_members_public')
         .select(`
@@ -83,6 +114,7 @@ export const useCreativeDiscovery = (filters: Filters) => {
           city,
           area,
           specialties,
+          next_available_slot,
           lookbook:creative_lookbooks!creative_lookbooks_creative_id_fkey(
             id,
             content_id,
@@ -132,24 +164,21 @@ export const useCreativeDiscovery = (filters: Filters) => {
 
       if (error) throw error;
 
-      // Fetch availability for all creatives in parallel
-      const availabilityPromises = (creatives || []).map(async (creative) => {
-        const { data } = await supabase.functions.invoke('get-staff-availability', {
-          body: { staff_id: creative.id }
-        });
-        return {
+      // Build availability map from cached next_available_slot - NO MORE EDGE FUNCTION CALLS!
+      const availabilityMap = new Map<string, AvailabilityStatus>();
+      
+      (creatives || []).forEach((creative) => {
+        const nextSlot = creative.next_available_slot;
+        availabilityMap.set(creative.id, {
           staff_id: creative.id,
-          ...data?.availability_status
-        };
+          time_to_first_slot_days: getDaysFromNow(nextSlot),
+          first_slot_display_time: formatDisplayTime(nextSlot),
+          first_slot_day_name: getDayName(nextSlot),
+        });
       });
 
-      const availabilityResults = await Promise.all(availabilityPromises);
-      const availabilityMap = new Map<string, AvailabilityStatus>(
-        availabilityResults.map(result => [result.staff_id, result])
-      );
-
       // Apply "Available Today" filter
-      let filteredCreatives = creatives || [];
+      let filteredCreatives = (creatives || []) as Creative[];
       if (filters.availableToday) {
         filteredCreatives = filteredCreatives.filter(
           creative => availabilityMap.get(creative.id)?.time_to_first_slot_days === 0

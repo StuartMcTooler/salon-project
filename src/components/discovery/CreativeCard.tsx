@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { Star, Sparkles } from "lucide-react";
 import { TierBadge } from "@/components/referral/TierBadge";
 import { UrgencyBar } from "./UrgencyBar";
@@ -48,30 +48,31 @@ interface CreativeCardProps {
 
 export const CreativeCard = ({ creative, availability }: CreativeCardProps) => {
   const navigate = useNavigate();
-  const [portfolioImages, setPortfolioImages] = useState<Array<{ url: string; serviceId: string | null }>>([]);
+  const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
 
-  useEffect(() => {
-    const fetchImages = async () => {
-      if (creative.lookbook && creative.lookbook.length > 0) {
-        const imagePromises = creative.lookbook.slice(0, 3).map(async (item) => {
-          const path = item.content.enhanced_file_path || item.content.raw_file_path;
-          const { data } = await supabase.storage
-            .from('client-content-enhanced')
-            .createSignedUrl(path, 3600);
-          
-          return {
-            url: data?.signedUrl || '',
-            serviceId: item.service_id
-          };
-        });
-
-        const images = await Promise.all(imagePromises);
-        setPortfolioImages(images.filter(img => img.url));
-      }
-    };
-
-    fetchImages();
+  // Generate public URLs synchronously - NO MORE SIGNED URL ASYNC CALLS!
+  const portfolioImages = useMemo(() => {
+    if (!creative.lookbook || creative.lookbook.length === 0) return [];
+    
+    return creative.lookbook.slice(0, 3).map((item) => {
+      const path = item.content.enhanced_file_path || item.content.raw_file_path;
+      const { data } = supabase.storage
+        .from('client-content-enhanced')
+        .getPublicUrl(path);
+      
+      return {
+        url: data.publicUrl,
+        serviceId: item.service_id
+      };
+    });
   }, [creative.lookbook]);
+
+  // Filter out failed images
+  const validImages = portfolioImages.filter((_, index) => !failedImages.has(index));
+
+  const handleImageError = (index: number) => {
+    setFailedImages(prev => new Set(prev).add(index));
+  };
 
   const handleImageClick = (serviceId: string | null) => {
     if (serviceId) {
@@ -91,28 +92,35 @@ export const CreativeCard = ({ creative, availability }: CreativeCardProps) => {
     <div className="bg-card border border-border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       {/* Portfolio Carousel - 60% */}
       <div className="relative aspect-[4/5] bg-muted">
-        {portfolioImages.length > 0 ? (
+        {validImages.length > 0 ? (
           <Carousel className="w-full h-full">
             <CarouselContent>
-              {portfolioImages.map((image, index) => (
-                <CarouselItem key={index}>
-                  <div
-                    className="relative w-full h-full cursor-pointer"
-                    onClick={() => handleImageClick(image.serviceId)}
-                  >
-                    <img
-                      src={image.url}
-                      alt={`${creative.display_name} portfolio ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute bottom-2 right-2 bg-gradient-to-t from-black/60 to-transparent px-2 py-1 rounded text-white text-xs">
-                      Style by @{creative.display_name.toLowerCase().replace(/\s+/g, '')}
+              {portfolioImages.map((image, index) => {
+                // Skip rendering failed images
+                if (failedImages.has(index)) return null;
+                
+                return (
+                  <CarouselItem key={index}>
+                    <div
+                      className="relative w-full h-full cursor-pointer"
+                      onClick={() => handleImageClick(image.serviceId)}
+                    >
+                      <img
+                        src={image.url}
+                        alt={`${creative.display_name} portfolio ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={() => handleImageError(index)}
+                        loading="lazy"
+                      />
+                      <div className="absolute bottom-2 right-2 bg-gradient-to-t from-black/60 to-transparent px-2 py-1 rounded text-white text-xs">
+                        Style by @{creative.display_name.toLowerCase().replace(/\s+/g, '')}
+                      </div>
                     </div>
-                  </div>
-                </CarouselItem>
-              ))}
+                  </CarouselItem>
+                );
+              })}
             </CarouselContent>
-            {portfolioImages.length > 1 && (
+            {validImages.length > 1 && (
               <>
                 <CarouselPrevious className="left-2" />
                 <CarouselNext className="right-2" />
@@ -125,6 +133,7 @@ export const CreativeCard = ({ creative, availability }: CreativeCardProps) => {
             alt={creative.display_name}
             className="w-full h-full object-cover cursor-pointer"
             onClick={handleBookNow}
+            loading="lazy"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">

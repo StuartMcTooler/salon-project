@@ -298,7 +298,7 @@ export const SmartSlotsBusinessSettings = ({ businessId }: SmartSlotsBusinessSet
                               type="number"
                               min={0}
                               step={0.01}
-                              value={newRule.deposit_amount}
+                              value={newRule.deposit_amount === 0 ? '' : newRule.deposit_amount}
                               onChange={(e) => setNewRule({ ...newRule, deposit_amount: parseFloat(e.target.value) || 0 })}
                             />
                           </div>

@@ -899,7 +899,21 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
                   <p className="font-medium">{service.name}</p>
                   <p className="text-sm text-muted-foreground">{service.duration_minutes} minutes</p>
                 </div>
-                <p className="font-semibold">€{finalPrice.toFixed(2)}</p>
+                <div className="text-right">
+                  {smartPricingApplied && listPrice !== finalPrice ? (
+                    <div className="space-y-0.5">
+                      <p className="text-sm text-muted-foreground line-through">€{listPrice.toFixed(2)}</p>
+                      <p className="font-semibold">€{finalPrice.toFixed(2)}</p>
+                      {smartPricingLabel && (
+                        <p className={`text-xs font-medium ${finalPrice < listPrice ? 'text-green-600' : 'text-amber-600'}`}>
+                          {smartPricingLabel}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="font-semibold">€{finalPrice.toFixed(2)}</p>
+                  )}
+                </div>
               </div>
               
               <div className="border-t pt-3">
@@ -944,6 +958,8 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
             staffName={staff.display_name}
             duration={service.duration_minutes}
             price={finalPrice}
+            listPrice={listPrice}
+            smartPricingLabel={smartPricingLabel}
             depositAmount={depositAmount}
             onConfirm={() => createAppointment.mutate()}
             isLoading={createAppointment.isPending}

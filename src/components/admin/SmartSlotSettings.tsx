@@ -222,7 +222,7 @@ export const SmartSlotSettings = ({ staffId }: SmartSlotSettingsProps) => {
                         type="number"
                         min={1}
                         className="w-20"
-                        value={newRule.deposit_amount}
+                        value={newRule.deposit_amount === 0 ? '' : newRule.deposit_amount}
                         onChange={(e) => setNewRule(prev => ({ ...prev, deposit_amount: parseInt(e.target.value) || 0 }))}
                       />
                     </div>

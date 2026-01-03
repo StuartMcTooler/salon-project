@@ -2116,6 +2116,8 @@ export type Database = {
           is_active: boolean | null
           is_test_user: boolean | null
           minimum_booking_lead_hours: number | null
+          next_available_slot: string | null
+          next_available_slot_updated_at: string | null
           phone: string | null
           profile_image_url: string | null
           referral_discount_type:
@@ -2160,6 +2162,8 @@ export type Database = {
           is_active?: boolean | null
           is_test_user?: boolean | null
           minimum_booking_lead_hours?: number | null
+          next_available_slot?: string | null
+          next_available_slot_updated_at?: string | null
           phone?: string | null
           profile_image_url?: string | null
           referral_discount_type?:
@@ -2204,6 +2208,8 @@ export type Database = {
           is_active?: boolean | null
           is_test_user?: boolean | null
           minimum_booking_lead_hours?: number | null
+          next_available_slot?: string | null
+          next_available_slot_updated_at?: string | null
           phone?: string | null
           profile_image_url?: string | null
           referral_discount_type?:
@@ -2582,6 +2588,8 @@ export type Database = {
           display_name: string | null
           id: string | null
           is_active: boolean | null
+          next_available_slot: string | null
+          next_available_slot_updated_at: string | null
           profile_image_url: string | null
           specialties: string[] | null
           tier: Database["public"]["Enums"]["creative_tier"] | null
@@ -2597,6 +2605,8 @@ export type Database = {
           display_name?: string | null
           id?: string | null
           is_active?: boolean | null
+          next_available_slot?: string | null
+          next_available_slot_updated_at?: string | null
           profile_image_url?: string | null
           specialties?: string[] | null
           tier?: Database["public"]["Enums"]["creative_tier"] | null
@@ -2612,6 +2622,8 @@ export type Database = {
           display_name?: string | null
           id?: string | null
           is_active?: boolean | null
+          next_available_slot?: string | null
+          next_available_slot_updated_at?: string | null
           profile_image_url?: string | null
           specialties?: string[] | null
           tier?: Database["public"]["Enums"]["creative_tier"] | null
@@ -2633,6 +2645,10 @@ export type Database = {
       assign_front_desk_role: {
         Args: { _admin_user_id: string; _business_id: string; _user_id: string }
         Returns: undefined
+      }
+      calculate_next_available_slot: {
+        Args: { p_staff_id: string }
+        Returns: string
       }
       has_role: {
         Args: {

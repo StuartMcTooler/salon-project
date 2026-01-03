@@ -92,8 +92,9 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Super Admin Test Mode Warning Banner */}
+      {/* COMMENTED FOR VIDEO
       {isSuperAdmin && <TestModeWarningBanner />}
+      */}
       
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -138,7 +139,7 @@ export default function Admin() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            {/* Super Admin Dev Tools Dropdown */}
+            {/* COMMENTED FOR VIDEO - Super Admin Dev Tools Dropdown
             {isSuperAdmin && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -169,6 +170,7 @@ export default function Admin() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            */}
           </TabsList>
 
           <TabsContent value="schedule">
@@ -260,7 +262,7 @@ export default function Admin() {
             </>
           )}
 
-          {/* Super Admin Only Tabs */}
+          {/* COMMENTED FOR VIDEO - Super Admin Only Tabs
           {isSuperAdmin && (
             <>
               <TabsContent value="devtools">
@@ -289,6 +291,7 @@ export default function Admin() {
               </TabsContent>
             </>
           )}
+          */}
         </Tabs>
       </main>
     </div>

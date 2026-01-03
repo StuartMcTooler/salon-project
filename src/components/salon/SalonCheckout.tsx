@@ -55,8 +55,8 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   const [applyCreditOptOut, setApplyCreditOptOut] = useState(false);
   const [creditApplied, setCreditApplied] = useState<any>(null);
 
-  // Fetch smart slot rules for this staff member
-  const { rules: smartSlotRules } = usePublicSmartSlotRules(staff.id);
+  // Fetch smart slot rules for this staff member and business
+  const { rules: smartSlotRules } = usePublicSmartSlotRules(staff.id, businessId);
 
   // Overflow/Cover booking state
   const [overflowState, setOverflowState] = useState<{

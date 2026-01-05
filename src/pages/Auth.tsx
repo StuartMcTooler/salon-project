@@ -73,67 +73,42 @@ const Auth = () => {
         return "/admin";
       }
 
-      // Check if user is a staff member
-      const { data: staffMember } = await supabase
+      // Check if user is a staff member - use explicit query
+      const { data: staffMembers, error: staffError } = await supabase
         .from("staff_members")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
+        .select("id, display_name")
+        .eq("user_id", userId);
 
-      if (staffMember) {
-        // Staff members go to POS
+      if (staffError) {
+        console.error("Error checking staff member:", staffError);
+      }
+
+      // If user is linked to any staff member, go to POS
+      if (staffMembers && staffMembers.length > 0) {
         return "/pos";
       }
 
-      // Fallback: if an unlinked staff record matches the user's name (from auth metadata or profile), send to POS
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      let displayName = (currentUser?.user_metadata as any)?.name as string | undefined;
-      if (!displayName) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("name")
-          .eq("id", userId)
-          .maybeSingle();
-        displayName = profile?.name ?? undefined;
-      }
-      if (displayName) {
-        // Extract first and last name for more flexible matching
-        const nameParts = displayName.replace(/\./g, '').replace(/'/g, '').trim().split(/\s+/);
-        const firstName = nameParts[0]?.toLowerCase() || '';
-        
-        if (firstName) {
-          const searchTerm = firstName.length >= 2 ? firstName.slice(0, 2) : firstName;
-          const { data: nameMatch } = await supabase
-            .from("staff_members")
-            .select("id")
-            .ilike("display_name", `%${searchTerm}%`)
-            .is("user_id", null)
-            .eq("is_active", true)
-            .maybeSingle();
-
-          if (nameMatch) {
-            return "/pos";
-          }
-        }
-      }
-
-      // Check if user has a business account
-      const { data: business } = await supabase
+      // Check if user owns a business account
+      const { data: businesses, error: bizError } = await supabase
         .from("business_accounts")
-        .select("business_type, owner_user_id")
-        .eq("owner_user_id", userId)
-        .maybeSingle();
+        .select("id, business_type")
+        .eq("owner_user_id", userId);
 
-      if (!business) {
-        return "/onboarding";
+      if (bizError) {
+        console.error("Error checking business:", bizError);
       }
 
-      // Business owners route based on type
-      if (business.business_type === "solo_professional") {
-        return "/dashboard";
+      if (businesses && businesses.length > 0) {
+        const business = businesses[0];
+        // Business owners go to admin for multi-staff, dashboard for solo
+        if (business.business_type === "solo_professional") {
+          return "/dashboard";
+        }
+        return "/admin";
       }
 
-      return "/salon";
+      // No staff or business found - go to onboarding
+      return "/onboarding";
     } catch (error) {
       console.error("Error getting redirect path:", error);
       return "/onboarding";

@@ -242,7 +242,11 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
               Invite other professionals to join. As a Founder, you earn <strong>90% profit share</strong> on every booking they make for 24 months.
             </p>
             
-            <div className="grid grid-cols-2 gap-3 text-center">
+            {/* Clickable Stats Grid */}
+            <div 
+              className={`grid grid-cols-2 gap-3 text-center ${stats.proInvites > 0 ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+              onClick={() => stats.proInvites > 0 && setShowRecruitBreakdown(!showRecruitBreakdown)}
+            >
               <div className="p-3 bg-purple-100/50 dark:bg-purple-900/20 rounded-lg">
                 <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.proInvites}</p>
                 <p className="text-xs text-muted-foreground">Recruits</p>
@@ -252,6 +256,27 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
                 <p className="text-xs text-muted-foreground">Earnings</p>
               </div>
             </div>
+
+            {/* Expand/Collapse Toggle */}
+            {stats.proInvites > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950"
+                onClick={() => setShowRecruitBreakdown(!showRecruitBreakdown)}
+              >
+                {showRecruitBreakdown ? (
+                  <>Hide Recruit Details <ChevronUp className="ml-2 h-4 w-4" /></>
+                ) : (
+                  <>View Recruit Details <ChevronDown className="ml-2 h-4 w-4" /></>
+                )}
+              </Button>
+            )}
+
+            {/* Recruit Breakdown - Expanded View */}
+            {showRecruitBreakdown && stats.proInvites > 0 && (
+              <RecruitBreakdown staffMemberId={staffMemberId} />
+            )}
 
             {/* Fast-Track CTA */}
             <div className="p-3 border border-dashed border-purple-300 dark:border-purple-700 rounded-lg bg-purple-50/50 dark:bg-purple-950/20">

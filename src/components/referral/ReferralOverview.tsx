@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, HandCoins, UserPlus, ArrowRight, Lock, Crown, TrendingUp, Sparkles, Shield } from "lucide-react";
+import { Users, HandCoins, UserPlus, ArrowRight, Lock, Crown, TrendingUp, Sparkles, Shield, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useCreativeTier } from "@/hooks/useCreativeTier";
 import { TierBadge } from "./TierBadge";
+import { RecruitBreakdown } from "./RecruitBreakdown";
 
 interface ReferralOverviewProps {
   staffMemberId: string;
@@ -24,6 +25,7 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
     proInviteEarnings: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [showRecruitBreakdown, setShowRecruitBreakdown] = useState(false);
 
   useEffect(() => {
     loadStats();
@@ -329,8 +331,8 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
           </CardContent>
         </Card>
 
-        {/* Founder's Circle (Recruiting) */}
-        <Card className="border-purple-200 dark:border-purple-800">
+        {/* Founder's Circle (Recruiting) - Expandable */}
+        <Card className="border-purple-200 dark:border-purple-800 md:col-span-2 lg:col-span-1">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -344,22 +346,42 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
             <CardDescription className="text-xs">Recruiting</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-center p-2 bg-muted/50 rounded">
+            {/* Clickable Stats Grid */}
+            <div 
+              className="grid grid-cols-2 gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => setShowRecruitBreakdown(!showRecruitBreakdown)}
+            >
+              <div className="text-center p-2 bg-muted/50 rounded relative">
                 <p className="text-xl font-bold text-purple-600 dark:text-purple-400">{stats.proInvites}</p>
                 <p className="text-xs text-muted-foreground">Recruits</p>
               </div>
               <div className="text-center p-2 bg-muted/50 rounded">
-                <p className="text-xl font-bold text-purple-600 dark:text-purple-400">22mo</p>
-                <p className="text-xs text-muted-foreground">Remaining</p>
+                <p className="text-xl font-bold text-purple-600 dark:text-purple-400">€{stats.proInviteEarnings.toFixed(0)}</p>
+                <p className="text-xs text-muted-foreground">Earnings</p>
               </div>
             </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-3xl font-bold text-purple-600 dark:text-purple-400">
-                €{stats.proInviteEarnings.toFixed(0)}
-              </span>
-              <span className="text-sm text-muted-foreground">this month</span>
-            </div>
+            
+            {/* Expand/Collapse Toggle */}
+            {stats.proInvites > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950"
+                onClick={() => setShowRecruitBreakdown(!showRecruitBreakdown)}
+              >
+                {showRecruitBreakdown ? (
+                  <>Hide Recruit Details <ChevronUp className="ml-2 h-4 w-4" /></>
+                ) : (
+                  <>View Recruit Details <ChevronDown className="ml-2 h-4 w-4" /></>
+                )}
+              </Button>
+            )}
+            
+            {/* Recruit Breakdown - Expanded View */}
+            {showRecruitBreakdown && stats.proInvites > 0 && (
+              <RecruitBreakdown staffMemberId={staffMemberId} />
+            )}
+            
             <Button 
               variant="outline" 
               size="sm"

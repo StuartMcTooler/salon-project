@@ -52,12 +52,16 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
         clientsReferred = earned?.length || 0;
       }
 
-      // Pro invites completed
-      const { count: invitesCount } = await supabase
+      // Pro invites completed + upfront bonuses
+      const { data: invitesData } = await supabase
         .from('creative_invites')
-        .select('*', { count: 'exact', head: true })
+        .select('upfront_bonus_amount, upfront_bonus_paid, signup_completed_at')
         .eq('inviter_creative_id', staffMemberId)
         .not('signup_completed_at', 'is', null);
+
+      const invitesCount = invitesData?.length || 0;
+      const proBonusTotal = invitesData?.reduce((sum, inv) => 
+        sum + (inv.upfront_bonus_paid ? Number(inv.upfront_bonus_amount || 0) : 0), 0) || 0;
 
       // C2C revenue share earnings
       const { data: c2cEarnings } = await supabase
@@ -67,12 +71,15 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
 
       const totalC2C = c2cEarnings?.reduce((sum, tx) => sum + Number(tx.share_amount), 0) || 0;
 
+      // Total Founder's Circle earnings = Pro Bonuses + Revenue Share
+      const totalFoundersEarnings = proBonusTotal + totalC2C;
+
       setStats({
         customerReferrals: codesCount || 0,
         clientNetworkEarnings: totalEarned,
         clientsReferred,
-        proInvites: invitesCount || 0,
-        proInviteEarnings: totalC2C,
+        proInvites: invitesCount,
+        proInviteEarnings: totalFoundersEarnings,
       });
     } catch (error) {
       console.error('Error loading stats:', error);

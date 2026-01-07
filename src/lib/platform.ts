@@ -6,17 +6,43 @@ export const getPlatform = (): 'android' | 'ios' | 'web' => Capacitor.getPlatfor
 export const isAndroid = (): boolean => getPlatform() === 'android';
 export const isIOS = (): boolean => getPlatform() === 'ios';
 
-// Feature availability checks
+// Cached plugin availability check
+let stripeTerminalAvailable: boolean | null = null;
+
+// Check if Stripe Terminal plugin is available at runtime
+export const isStripeTerminalPluginAvailable = (): boolean => {
+  if (stripeTerminalAvailable !== null) return stripeTerminalAvailable;
+  
+  if (!isNativeApp()) {
+    stripeTerminalAvailable = false;
+    return false;
+  }
+  
+  try {
+    const CapacitorObj = (window as any).Capacitor;
+    stripeTerminalAvailable = !!CapacitorObj?.Plugins?.StripeTerminal;
+  } catch {
+    stripeTerminalAvailable = false;
+  }
+  
+  return stripeTerminalAvailable;
+};
+
+// Reset cache (for testing or when plugin loads late)
+export const resetPluginAvailabilityCache = (): void => {
+  stripeTerminalAvailable = null;
+};
+
+// Feature availability checks - now require plugin availability
 export const canUseTapToPay = (): boolean => {
   if (!isNativeApp()) return false;
-  // Tap to Pay requires native SDK on both iOS and Android
-  return true;
+  if (!isAndroid()) return false; // Tap to Pay on Android only for now
+  return isStripeTerminalPluginAvailable();
 };
 
 export const canUseBluetoothReader = (): boolean => {
   if (!isNativeApp()) return false;
-  // Bluetooth readers work on native apps only
-  return true;
+  return isStripeTerminalPluginAvailable();
 };
 
 export const canUseInternetReader = (): boolean => {
@@ -28,8 +54,10 @@ export const canUseInternetReader = (): boolean => {
 export const getAvailablePaymentMethods = () => {
   const methods: Array<'tap_to_pay' | 'bluetooth' | 'internet'> = ['internet'];
   
-  if (isNativeApp()) {
-    methods.unshift('tap_to_pay'); // Preferred on native
+  if (canUseTapToPay()) {
+    methods.unshift('tap_to_pay'); // Preferred when available
+  }
+  if (canUseBluetoothReader()) {
     methods.push('bluetooth');
   }
   

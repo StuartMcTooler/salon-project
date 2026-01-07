@@ -2,7 +2,7 @@
 // Updated: Forces GitHub sync
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { isNativeApp, getPlatform } from '@/lib/platform';
+import { isNativeApp, getPlatform, isStripeTerminalPluginAvailable } from '@/lib/platform';
 import { toast } from 'sonner';
 // Type definitions
 type ConnectionType = 'internet' | 'bluetooth' | 'tap_to_pay';
@@ -29,27 +29,8 @@ let TerminalConnectTypesEnum: any = {
   Internet: 'internet',
 };
 
-/**
- * Check if Stripe Terminal plugin is available (without throwing)
- */
-export const isStripeTerminalAvailable = (): boolean => {
-  if (StripeTerminalAvailable !== null) return StripeTerminalAvailable;
-  
-  if (!isNativeApp()) {
-    StripeTerminalAvailable = false;
-    return false;
-  }
-  
-  try {
-    const Capacitor = (window as any).Capacitor;
-    StripeTerminalAvailable = !!Capacitor?.Plugins?.StripeTerminal;
-    console.log('[TerminalPayment] StripeTerminal available:', StripeTerminalAvailable);
-  } catch {
-    StripeTerminalAvailable = false;
-  }
-  
-  return StripeTerminalAvailable;
-};
+// Re-export from platform.ts for backwards compatibility
+export { isStripeTerminalPluginAvailable as isStripeTerminalAvailable } from '@/lib/platform';
 
 /**
  * Load Stripe Terminal plugin at RUNTIME only in native context

@@ -12,5 +12,7 @@ export const usePlatform = () => {
     canUseBluetoothReader: Platform.canUseBluetoothReader(),
     canUseInternetReader: Platform.canUseInternetReader(),
     availablePaymentMethods: Platform.getAvailablePaymentMethods(),
+    // Expose raw plugin availability for UI messaging
+    isStripeTerminalPluginAvailable: Platform.isStripeTerminalPluginAvailable(),
   };
 };

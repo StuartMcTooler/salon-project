@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Smartphone, Bluetooth, Loader2, CheckCircle, Search, CreditCard, Wifi, Lock, MapPin } from 'lucide-react';
+import { Smartphone, Bluetooth, Loader2, CheckCircle, Search, CreditCard, Wifi, Lock, MapPin, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -17,7 +17,7 @@ interface StaffTerminalSettingsProps {
 
 export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) => {
   const { toast } = useToast();
-  const { isNative, canUseTapToPay, canUseBluetoothReader } = usePlatform();
+  const { isNative, canUseTapToPay, canUseBluetoothReader, isStripeTerminalPluginAvailable } = usePlatform();
   const { discoverReaders, connectReader, discoveredReaders, connectedReader, isProcessing } = useTerminalPayment();
   
   const [connectionType, setConnectionType] = useState<'tap_to_pay' | 'bluetooth' | 'internet'>('tap_to_pay');
@@ -265,6 +265,45 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
             <p className="text-xs text-muted-foreground">
               Download the app to use Tap to Pay or connect a Bluetooth reader.
             </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Native app but plugin not available (stale APK / hot reload)
+  if (isNative && !isStripeTerminalPluginAvailable) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Terminal & Hardware
+          </CardTitle>
+          <CardDescription>
+            Configure your personal card reader
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="p-4 border border-amber-300 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-8 w-8 text-amber-600 shrink-0" />
+              <div className="space-y-2">
+                <p className="font-medium text-amber-800 dark:text-amber-200">App Update Required</p>
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  Tap to Pay and Bluetooth readers require the latest app version with payment hardware support.
+                </p>
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  Please reinstall from the Play Store or rebuild with:
+                </p>
+                <code className="block text-xs bg-amber-100 dark:bg-amber-900/30 p-2 rounded">
+                  npm run build && npx cap sync android
+                </code>
+                <p className="text-xs text-muted-foreground mt-2">
+                  You can still use the shared WiFi reader configured by your business owner.
+                </p>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

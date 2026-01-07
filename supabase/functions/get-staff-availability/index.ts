@@ -150,8 +150,31 @@ Deno.serve(async (req) => {
     }
 
     // Check next 30 days for availability based on real hours
+    // Use Europe/Dublin timezone for proper local time comparison
     const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dublinFormatter = new Intl.DateTimeFormat('en-IE', {
+      timeZone: 'Europe/Dublin',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    
+    const parts = dublinFormatter.formatToParts(now);
+    const getPart = (type: string) => parts.find(p => p.type === type)?.value || '0';
+    const localHour = parseInt(getPart('hour'));
+    const localMinute = parseInt(getPart('minute'));
+    const currentLocalMinutes = localHour * 60 + localMinute;
+    
+    console.log('Current local time (Dublin):', `${localHour}:${localMinute}`, `(${currentLocalMinutes} minutes)`);
+
+    // Get today's date in Dublin timezone
+    const localYear = parseInt(getPart('year'));
+    const localMonth = parseInt(getPart('month')) - 1;
+    const localDay = parseInt(getPart('day'));
+    const startOfToday = new Date(localYear, localMonth, localDay);
 
     let firstAvailableSlot: { date: Date; time: string } | null = null;
 
@@ -184,13 +207,12 @@ Deno.serve(async (req) => {
         dayHours.break_end_time
       );
 
-      // If checking today, filter out past times
+      // If checking today, filter out past times using local time comparison
       const availableSlots = daysAhead === 0 
         ? slots.filter(slot => {
-            const slotTime = new Date(checkDate);
-            const [hours, minutes] = slot.time.split(':');
-            slotTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-            return slotTime > now;
+            const [hours, minutes] = slot.time.split(':').map(Number);
+            const slotMinutes = hours * 60 + minutes;
+            return slotMinutes > currentLocalMinutes;
           })
         : slots;
 

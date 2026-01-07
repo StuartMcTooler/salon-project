@@ -112,8 +112,15 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
     }
   }, [staff, customerLoyalty, finalPrice]);
 
-  // Auto-scroll when date is selected
+  // Clear time selection and overflow state when date changes
   useEffect(() => {
+    // Reset time selection when date changes
+    setTime("");
+    // Reset overflow state so it re-checks for new date
+    setOverflowState(null);
+    setSelectedCoverStaff(null);
+    
+    // Auto-scroll to time slots
     if (date && timeSlotsRef.current) {
       setTimeout(() => {
         timeSlotsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });

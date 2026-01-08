@@ -111,6 +111,9 @@ export const useTerminalPayment = () => {
       
       // Initialize without tokenProviderEndpoint (we provide tokens manually)
       console.log('[TerminalPayment] Initializing SDK...');
+      console.log('[TerminalPayment] Platform:', getPlatform());
+      console.log('[TerminalPayment] isTest: false (LIVE MODE)');
+      
       await StripeTerminal.initialize({
         isTest: false,
       });
@@ -118,8 +121,16 @@ export const useTerminalPayment = () => {
       setIsInitialized(true);
       console.log('[TerminalPayment] ✅ Native SDK initialized successfully');
     } catch (err: any) {
-      console.error('[TerminalPayment] ❌ Init error:', err);
-      setError(err.message);
+      // Comprehensive error logging for Stripe Terminal errors
+      console.error('[TerminalPayment] ❌ Init error - Full object:', JSON.stringify(err, null, 2));
+      console.error('[TerminalPayment] Error code:', err.code || 'NO_CODE');
+      console.error('[TerminalPayment] Error message:', err.message || 'NO_MESSAGE');
+      console.error('[TerminalPayment] Error name:', err.name || 'NO_NAME');
+      console.error('[TerminalPayment] Error data:', err.data || 'NO_DATA');
+      
+      const detailedError = `[${err.code || 'UNKNOWN'}] ${err.message || err}`;
+      setError(detailedError);
+      toast.error(`Terminal Init Error: ${detailedError}`);
       throw err;
     }
   }, [isInitialized, fetchConnectionToken]);
@@ -174,8 +185,17 @@ export const useTerminalPayment = () => {
       setDiscoveredReaders(result.readers || []);
       return result.readers || [];
     } catch (err: any) {
-      console.error('[TerminalPayment] ❌ Discovery error:', err);
-      setError(err.message);
+      // Comprehensive error logging - this is where "App Update Required" likely surfaces
+      console.error('[TerminalPayment] ❌ Discovery error - Full object:', JSON.stringify(err, null, 2));
+      console.error('[TerminalPayment] Error code:', err.code || 'NO_CODE');
+      console.error('[TerminalPayment] Error message:', err.message || 'NO_MESSAGE');
+      console.error('[TerminalPayment] Error name:', err.name || 'NO_NAME');
+      console.error('[TerminalPayment] Error data:', err.data || 'NO_DATA');
+      console.error('[TerminalPayment] Error localizedMessage:', err.localizedMessage || 'N/A');
+      
+      const detailedError = `[${err.code || 'UNKNOWN'}] ${err.message || err}`;
+      setError(detailedError);
+      toast.error(`Discovery Error: ${detailedError}`);
       return [];
     }
   }, [isInitialized, initializeNativeSDK]);
@@ -193,8 +213,13 @@ export const useTerminalPayment = () => {
       setConnectedReader(reader);
       console.log('[TerminalPayment] ✅ Connected to reader');
     } catch (err: any) {
-      console.error('[TerminalPayment] ❌ Connect error:', err);
-      setError(err.message);
+      console.error('[TerminalPayment] ❌ Connect error - Full object:', JSON.stringify(err, null, 2));
+      console.error('[TerminalPayment] Error code:', err.code || 'NO_CODE');
+      console.error('[TerminalPayment] Error message:', err.message || 'NO_MESSAGE');
+      
+      const detailedError = `[${err.code || 'UNKNOWN'}] ${err.message || err}`;
+      setError(detailedError);
+      toast.error(`Connect Error: ${detailedError}`);
       throw err;
     }
   }, []);

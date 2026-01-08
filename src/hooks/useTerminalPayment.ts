@@ -34,30 +34,39 @@ export { isStripeTerminalPluginAvailable as isStripeTerminalAvailable } from '@/
 
 /**
  * Load Stripe Terminal plugin at RUNTIME only in native context
- * Uses Capacitor.Plugins - NO static imports of the native module
+ * Uses dynamic import to load the plugin module
  */
 const loadStripeTerminal = async () => {
   if (!isNativeApp()) return null;
   if (StripeTerminalPlugin) return StripeTerminalPlugin;
   
   try {
-    // Access via Capacitor.Plugins at runtime (available in native builds)
-    const Capacitor = (window as any).Capacitor;
+    console.log('[TerminalPayment] Loading StripeTerminal via dynamic import...');
     
-    if (Capacitor?.Plugins?.StripeTerminal) {
-      StripeTerminalPlugin = Capacitor.Plugins.StripeTerminal;
-      console.log('[TerminalPayment] ✅ Loaded StripeTerminal via Capacitor.Plugins');
+    // Dynamic import of the plugin module - this registers the plugin properly
+    const module = await import('@capacitor-community/stripe-terminal');
+    
+    if (module?.StripeTerminal) {
+      StripeTerminalPlugin = module.StripeTerminal;
+      console.log('[TerminalPayment] ✅ Loaded StripeTerminal via dynamic import');
       console.log('[TerminalPayment] Available methods:', Object.keys(StripeTerminalPlugin));
       return StripeTerminalPlugin;
     }
     
-    // Plugin not found - provide detailed error
+    // Fallback: check Capacitor.Plugins
+    const Capacitor = (window as any).Capacitor;
+    if (Capacitor?.Plugins?.StripeTerminal) {
+      StripeTerminalPlugin = Capacitor.Plugins.StripeTerminal;
+      console.log('[TerminalPayment] ✅ Loaded StripeTerminal via Capacitor.Plugins fallback');
+      return StripeTerminalPlugin;
+    }
+    
+    // Plugin not found
     const availablePlugins = Object.keys(Capacitor?.Plugins || {});
-    console.error('[TerminalPayment] ❌ StripeTerminal NOT found in Capacitor.Plugins');
+    console.error('[TerminalPayment] ❌ StripeTerminal not available');
     console.error('[TerminalPayment] Available plugins:', availablePlugins);
     
-    const errorMsg = `StripeTerminal plugin not found. Available: [${availablePlugins.join(', ')}]. Rebuild with: npm run build && npx cap sync android`;
-    throw new Error(errorMsg);
+    throw new Error(`StripeTerminal plugin not found. Available: [${availablePlugins.join(', ')}]. Rebuild with: npm run build && npx cap sync android`);
   } catch (err: any) {
     console.error('[TerminalPayment] Failed to load Stripe Terminal plugin:', err);
     throw new Error(`Plugin load failed: ${err.message}`);

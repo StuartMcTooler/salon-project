@@ -6,34 +6,41 @@ export const getPlatform = (): 'android' | 'ios' | 'web' => Capacitor.getPlatfor
 export const isAndroid = (): boolean => getPlatform() === 'android';
 export const isIOS = (): boolean => getPlatform() === 'ios';
 
-// Cached plugin availability check
-let stripeTerminalAvailable: boolean | null = null;
-
 // Check if Stripe Terminal plugin is available at runtime
+// Note: NO CACHING - plugin may load after initial check during hot reload
 export const isStripeTerminalPluginAvailable = (): boolean => {
-  if (stripeTerminalAvailable !== null) return stripeTerminalAvailable;
-  
   if (!isNativeApp()) {
-    stripeTerminalAvailable = false;
     return false;
   }
   
   try {
+    // Check multiple possible plugin locations
     const CapacitorObj = (window as any).Capacitor;
-    stripeTerminalAvailable = !!CapacitorObj?.Plugins?.StripeTerminal;
-  } catch {
-    stripeTerminalAvailable = false;
+    
+    // Method 1: Check Capacitor.Plugins.StripeTerminal (registered plugins)
+    if (CapacitorObj?.Plugins?.StripeTerminal) {
+      console.log('[Platform] StripeTerminal found at Capacitor.Plugins.StripeTerminal');
+      return true;
+    }
+    
+    // Method 2: Check if plugin is registered via registerPlugin
+    // The plugin exports its instance which gets added to Capacitor
+    if (CapacitorObj?.registeredPlugins?.has?.('StripeTerminal')) {
+      console.log('[Platform] StripeTerminal found in registeredPlugins');
+      return true;
+    }
+    
+    // Method 3: Try dynamic import check (async would be better but keeping sync for now)
+    // If we reach here, plugin is not available
+    console.log('[Platform] StripeTerminal plugin not found');
+    return false;
+  } catch (e) {
+    console.error('[Platform] Error checking StripeTerminal:', e);
+    return false;
   }
-  
-  return stripeTerminalAvailable;
 };
 
-// Reset cache (for testing or when plugin loads late)
-export const resetPluginAvailabilityCache = (): void => {
-  stripeTerminalAvailable = null;
-};
-
-// Feature availability checks - now require plugin availability
+// Feature availability checks - require plugin availability
 export const canUseTapToPay = (): boolean => {
   if (!isNativeApp()) return false;
   if (!isAndroid()) return false; // Tap to Pay on Android only for now

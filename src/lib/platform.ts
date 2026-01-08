@@ -7,37 +7,19 @@ export const isAndroid = (): boolean => getPlatform() === 'android';
 export const isIOS = (): boolean => getPlatform() === 'ios';
 
 // Check if Stripe Terminal plugin is available at runtime
-// Note: NO CACHING - plugin may load after initial check during hot reload
+// IMPORTANT: For native Android, we assume plugin is available and defer actual
+// detection to the async loading phase in useTerminalPayment. This prevents
+// false "App Update Required" warnings from synchronous detection race conditions.
 export const isStripeTerminalPluginAvailable = (): boolean => {
   if (!isNativeApp()) {
     return false;
   }
   
-  try {
-    // Check multiple possible plugin locations
-    const CapacitorObj = (window as any).Capacitor;
-    
-    // Method 1: Check Capacitor.Plugins.StripeTerminal (registered plugins)
-    if (CapacitorObj?.Plugins?.StripeTerminal) {
-      console.log('[Platform] StripeTerminal found at Capacitor.Plugins.StripeTerminal');
-      return true;
-    }
-    
-    // Method 2: Check if plugin is registered via registerPlugin
-    // The plugin exports its instance which gets added to Capacitor
-    if (CapacitorObj?.registeredPlugins?.has?.('StripeTerminal')) {
-      console.log('[Platform] StripeTerminal found in registeredPlugins');
-      return true;
-    }
-    
-    // Method 3: Try dynamic import check (async would be better but keeping sync for now)
-    // If we reach here, plugin is not available
-    console.log('[Platform] StripeTerminal plugin not found');
-    return false;
-  } catch (e) {
-    console.error('[Platform] Error checking StripeTerminal:', e);
-    return false;
-  }
+  // On native platforms, assume plugin is available.
+  // Actual availability is verified during async initialization in useTerminalPayment.
+  // The plugin is dynamically loaded there, and any real errors will surface then.
+  console.log('[Platform] Native app detected - assuming StripeTerminal available (verified async)');
+  return true;
 };
 
 // Feature availability checks - require plugin availability

@@ -57,25 +57,6 @@ export const ReaderDiscoveryModal = ({ open, onClose, onReaderConnected }: Reade
         </DialogHeader>
 
         <div className="space-y-3 mt-4">
-          {/* Warning when native but plugin missing (stale APK) */}
-          {isNative && !isStripeTerminalPluginAvailable && (
-            <div className="p-4 border border-amber-300 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-amber-800 dark:text-amber-200">App Update Required</p>
-                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                    Tap to Pay and Bluetooth readers require the latest app version. 
-                    Please reinstall from the Play Store or rebuild with the latest code.
-                  </p>
-                  <code className="block text-xs bg-amber-100 dark:bg-amber-900/30 p-2 rounded mt-2">
-                    npm run build && npx cap sync android
-                  </code>
-                </div>
-              </div>
-            </div>
-          )}
-          
           {/* Tap to Pay option - Native only */}
           {canUseTapToPay && (
             <Button

@@ -43,17 +43,24 @@ const loadStripeTerminal = async () => {
   try {
     // Access via Capacitor.Plugins at runtime (available in native builds)
     const Capacitor = (window as any).Capacitor;
+    
     if (Capacitor?.Plugins?.StripeTerminal) {
       StripeTerminalPlugin = Capacitor.Plugins.StripeTerminal;
-      console.log('[TerminalPayment] Loaded StripeTerminal via Capacitor.Plugins');
+      console.log('[TerminalPayment] ✅ Loaded StripeTerminal via Capacitor.Plugins');
+      console.log('[TerminalPayment] Available methods:', Object.keys(StripeTerminalPlugin));
       return StripeTerminalPlugin;
     }
     
-    // If not available via Plugins, the native module isn't installed
-    throw new Error('StripeTerminal not found in Capacitor.Plugins');
-  } catch (err) {
+    // Plugin not found - provide detailed error
+    const availablePlugins = Object.keys(Capacitor?.Plugins || {});
+    console.error('[TerminalPayment] ❌ StripeTerminal NOT found in Capacitor.Plugins');
+    console.error('[TerminalPayment] Available plugins:', availablePlugins);
+    
+    const errorMsg = `StripeTerminal plugin not found. Available: [${availablePlugins.join(', ')}]. Rebuild with: npm run build && npx cap sync android`;
+    throw new Error(errorMsg);
+  } catch (err: any) {
     console.error('[TerminalPayment] Failed to load Stripe Terminal plugin:', err);
-    throw new Error('Stripe Terminal plugin not available. Please rebuild the native app with: npm run build && npx cap sync android');
+    throw new Error(`Plugin load failed: ${err.message}`);
   }
 };
 

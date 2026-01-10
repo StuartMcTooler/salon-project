@@ -116,6 +116,7 @@ android {
 Add these permissions inside the `<manifest>` tag (before `<application>`):
 
 ```xml
+<uses-permission android:name="android.permission.NFC" />
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
 <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
@@ -123,6 +124,8 @@ Add these permissions inside the `<manifest>` tag (before `<application>`):
 <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
 <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 ```
+
+**Important:** The NFC permission is **required** for Tap to Pay functionality.
 
 ### Step 6: Build the Web App
 
@@ -249,7 +252,7 @@ If you get errors related to Stripe Terminal:
 | targetSdkVersion | 34 | `android/variables.gradle` |
 | kotlin_version | 1.9.22+ | `android/variables.gradle` |
 | packagingOptions | See above | `android/app/build.gradle` |
-| Permissions | Location + Bluetooth | `AndroidManifest.xml` |
+| Permissions | NFC + Location + Bluetooth | `AndroidManifest.xml` |
 
 ---
 

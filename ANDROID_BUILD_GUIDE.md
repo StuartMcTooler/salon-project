@@ -123,9 +123,12 @@ Add these permissions inside the `<manifest>` tag (before `<application>`):
 <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
 <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
 <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+<!-- Required for Tap to Pay - declares NFC hardware dependency -->
+<uses-feature android:name="android.hardware.nfc" android:required="true" />
 ```
 
-**Important:** The NFC permission is **required** for Tap to Pay functionality.
+**Important:** The NFC permission AND feature tag are **required** for Tap to Pay functionality.
 
 ### Step 6: Build the Web App
 

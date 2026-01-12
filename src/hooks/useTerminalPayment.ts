@@ -137,12 +137,14 @@ export const useTerminalPayment = () => {
       }
       
       // Initialize without tokenProviderEndpoint (we provide tokens manually)
+      // TEMPORARY: Hardcoded to TEST MODE for hardware verification
+      // TODO: Change back to false for production release builds
       console.log('[TerminalPayment] Initializing SDK...');
       console.log('[TerminalPayment] Platform:', getPlatform());
-      console.log('[TerminalPayment] isTest: false (LIVE MODE)');
+      console.log('[TerminalPayment] isTest: true (TEST MODE - HARDWARE VERIFICATION)');
       
       await StripeTerminal.initialize({
-        isTest: false,
+        isTest: true,  // HARDCODED FOR TEST BUILD
       });
       
       setIsInitialized(true);

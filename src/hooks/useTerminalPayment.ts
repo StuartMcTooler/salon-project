@@ -113,17 +113,28 @@ export const useTerminalPayment = () => {
       terminalRef.current = StripeTerminal;
       
       // Set up connection token listener BEFORE initialize
+      // Note: addListener may not return a Promise in some Capacitor versions
       console.log('[TerminalPayment] Setting up token listener...');
-      StripeTerminal.addListener('requestedConnectionToken', async () => {
-        console.log('[TerminalPayment] Token requested by SDK');
-        try {
-          const token = await fetchConnectionToken();
-          await StripeTerminal.setConnectionToken({ token });
-          console.log('[TerminalPayment] Token provided to SDK');
-        } catch (err) {
-          console.error('[TerminalPayment] Failed to provide token:', err);
+      try {
+        const listenerResult = StripeTerminal.addListener('requestedConnectionToken', async () => {
+          console.log('[TerminalPayment] Token requested by SDK');
+          try {
+            const token = await fetchConnectionToken();
+            await StripeTerminal.setConnectionToken({ token });
+            console.log('[TerminalPayment] Token provided to SDK');
+          } catch (tokenErr) {
+            console.error('[TerminalPayment] Failed to provide token:', tokenErr);
+          }
+        });
+        // Handle both Promise and non-Promise returns from addListener
+        if (listenerResult && typeof listenerResult.then === 'function') {
+          await listenerResult;
         }
-      });
+        console.log('[TerminalPayment] Token listener set up successfully');
+      } catch (listenerErr) {
+        console.warn('[TerminalPayment] Listener setup warning (non-fatal):', listenerErr);
+        // Continue - some plugin versions don't require awaiting the listener
+      }
       
       // Initialize without tokenProviderEndpoint (we provide tokens manually)
       console.log('[TerminalPayment] Initializing SDK...');

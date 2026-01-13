@@ -9,6 +9,17 @@ interface VisualHistoryRequest {
   sessionToken: string;
 }
 
+// Demo images served from app's public folder
+const DEMO_IMAGES = [
+  '/demo-images/bob-1.png',
+  '/demo-images/bob-2.png',
+  '/demo-images/bob-3.png',
+  '/demo-images/bob-4.png',
+  '/demo-images/bob-5.png',
+  '/demo-images/bob-6.png',
+  '/demo-images/bob-7.png',
+];
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -93,7 +104,8 @@ Deno.serve(async (req) => {
           raw_file_path,
           enhanced_file_path,
           media_type,
-          created_at
+          created_at,
+          content_origin
         ),
         service:services(
           id,
@@ -106,7 +118,7 @@ Deno.serve(async (req) => {
       `)
       .eq('client_id', session.client_id)
       .in('visibility_scope', ['shared', 'public'])
-      .order('added_at', { ascending: false });
+      .order('display_order', { ascending: true });
 
     if (lookbooksError) {
       console.error('Error fetching lookbooks:', lookbooksError);
@@ -118,26 +130,42 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${lookbooks?.length || 0} visual history items`);
 
-    // Generate signed URLs for each image (more reliable than public URLs)
+    // Generate URLs for each image
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    
     const itemsWithUrls = await Promise.all(
-      (lookbooks || []).map(async (item: any) => {
-        const path = item.content.enhanced_file_path || item.content.raw_file_path;
-        const bucket = item.content.enhanced_file_path
-          ? 'client-content-enhanced'
-          : 'client-content-raw';
+      (lookbooks || []).map(async (item: any, index: number) => {
+        let imageUrl: string | null = null;
+        
+        // For demo_seed content, use static demo images from the app's public folder
+        if (item.content?.content_origin === 'demo_seed') {
+          // Use display_order to pick the right demo image (1-indexed)
+          const demoIndex = (item.display_order || index + 1) - 1;
+          if (demoIndex >= 0 && demoIndex < DEMO_IMAGES.length) {
+            // Return relative path - frontend will resolve it
+            imageUrl = DEMO_IMAGES[demoIndex];
+          }
+        } else if (item.content?.raw_file_path) {
+          // For real uploads, use signed URL
+          const path = item.content.enhanced_file_path || item.content.raw_file_path;
+          const bucket = item.content.enhanced_file_path
+            ? 'client-content-enhanced'
+            : 'client-content-raw';
 
-        // Use signed URL with service role for reliable access
-        const { data: urlData, error: urlError } = await supabaseAdmin.storage
-          .from(bucket)
-          .createSignedUrl(path, 3600); // 1 hour expiry
+          const { data: urlData, error: urlError } = await supabaseAdmin.storage
+            .from(bucket)
+            .createSignedUrl(path, 3600);
 
-        if (urlError) {
-          console.error(`Error generating signed URL for ${path}:`, urlError);
+          if (!urlError && urlData?.signedUrl) {
+            imageUrl = urlData.signedUrl;
+          } else {
+            console.error(`Error generating signed URL for ${path}:`, urlError);
+          }
         }
 
         return {
           ...item,
-          imageUrl: urlData?.signedUrl || null,
+          imageUrl,
         };
       })
     );

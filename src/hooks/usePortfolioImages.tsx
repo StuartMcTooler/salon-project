@@ -48,7 +48,7 @@ export const usePortfolioImages = (staffId: string, maxImages: number = 10) => {
           const filePath = lookbook.client_content.raw_file_path;
           
           const { data: urlData } = await supabase.storage
-            .from("client-content")
+            .from("client-content-raw")
             .createSignedUrl(filePath, 3600);
 
           return {

@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Clock, Users } from "lucide-react";
+import { ArrowLeft, Clock, Users, Images, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PortfolioCarousel } from "@/components/portfolio/PortfolioCarousel";
 
 interface AvailabilityStatus {
@@ -27,6 +28,7 @@ interface SalonStaffSelectionProps {
 
 export const SalonStaffSelection = ({ selectedService, onSelect, onBack, businessId }: SalonStaffSelectionProps) => {
   const [showingOverflowFor, setShowingOverflowFor] = useState<string | null>(null);
+  const [portfolioStaff, setPortfolioStaff] = useState<any | null>(null);
   const navigate = useNavigate();
   
   const { data: staffData, isLoading, error: staffError } = useQuery({
@@ -357,20 +359,6 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
           return (
             <Card key={staff.id} className="hover:shadow-lg transition-shadow">
               <CardHeader className="text-center space-y-4">
-                {/* Portfolio Carousel */}
-                <div className="w-full -mx-6 -mt-6 mb-2">
-                  <PortfolioCarousel 
-                    staffId={staff.id}
-                    maxImages={5}
-                    compact={true}
-                    onImageClick={(serviceId) => {
-                      if (serviceId) {
-                        navigate(`/book/${staff.id}?service=${serviceId}`);
-                      }
-                    }}
-                  />
-                </div>
-
                 <Avatar className="h-24 w-24 mx-auto">
                   <AvatarImage src={staff.profile_image_url} alt={staff.display_name} />
                   <AvatarFallback className="text-2xl">
@@ -404,11 +392,16 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Bio commented out to maintain consistent card sizes
-                {staff.bio && (
-                  <p className="text-sm text-muted-foreground line-clamp-2">{staff.bio}</p>
-                )}
-                */}
+                {/* View Portfolio Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setPortfolioStaff(staff)}
+                >
+                  <Images className="h-4 w-4 mr-2" />
+                  View Portfolio
+                </Button>
                 
                 {pricing !== null && (
                   <div className="text-center">
@@ -450,6 +443,42 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
           );
         })}
       </div>
+
+      {/* Portfolio Dialog */}
+      <Dialog open={!!portfolioStaff} onOpenChange={(open) => !open && setPortfolioStaff(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              {portfolioStaff && (
+                <>
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={portfolioStaff.profile_image_url} alt={portfolioStaff.display_name} />
+                    <AvatarFallback>
+                      {portfolioStaff.display_name.split(' ').map((n: string) => n[0]).join('')}
+                    </AvatarFallback>
+                  </Avatar>
+                  {portfolioStaff.display_name}'s Portfolio
+                </>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {portfolioStaff && (
+            <div className="mt-4">
+              <PortfolioCarousel 
+                staffId={portfolioStaff.id}
+                maxImages={10}
+                compact={false}
+                onImageClick={(serviceId) => {
+                  if (serviceId) {
+                    setPortfolioStaff(null);
+                    navigate(`/book/${portfolioStaff.id}?service=${serviceId}`);
+                  }
+                }}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -118,23 +118,29 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${lookbooks?.length || 0} visual history items`);
 
-    // Generate public URLs for each image (bucket is public)
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    
-    const itemsWithUrls = (lookbooks || []).map((item: any) => {
-      const path = item.content.enhanced_file_path || item.content.raw_file_path;
-      const bucket = item.content.enhanced_file_path
-        ? 'client-content-enhanced'
-        : 'client-content-raw';
+    // Generate signed URLs for each image (more reliable than public URLs)
+    const itemsWithUrls = await Promise.all(
+      (lookbooks || []).map(async (item: any) => {
+        const path = item.content.enhanced_file_path || item.content.raw_file_path;
+        const bucket = item.content.enhanced_file_path
+          ? 'client-content-enhanced'
+          : 'client-content-raw';
 
-      // Use public URL since bucket is public
-      const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
+        // Use signed URL with service role for reliable access
+        const { data: urlData, error: urlError } = await supabaseAdmin.storage
+          .from(bucket)
+          .createSignedUrl(path, 3600); // 1 hour expiry
 
-      return {
-        ...item,
-        imageUrl: publicUrl,
-      };
-    });
+        if (urlError) {
+          console.error(`Error generating signed URL for ${path}:`, urlError);
+        }
+
+        return {
+          ...item,
+          imageUrl: urlData?.signedUrl || null,
+        };
+      })
+    );
 
     // Update last_accessed_at for session
     await supabaseAdmin

@@ -213,10 +213,12 @@ export const PortalVisualHistory = ({ clientId, clientPhone }: PortalVisualHisto
                 <img
                   src={item.imageUrl}
                   alt="Visual history"
-                  className="w-full h-full object-cover opacity-0 transition-opacity duration-300"
+                  className="w-full h-full object-cover"
                   loading="lazy"
-                  decoding="async"
-                  onLoad={(e) => e.currentTarget.classList.replace('opacity-0', 'opacity-100')}
+                  onError={(e) => {
+                    console.error('Image failed to load:', item.imageUrl);
+                    e.currentTarget.style.display = 'none';
+                  }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">

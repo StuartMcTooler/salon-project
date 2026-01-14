@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePlatform } from '@/hooks/usePlatform';
 import { useTerminalPayment } from '@/hooks/useTerminalPayment';
+import { getTestModeHeaders } from '@/hooks/useTestModeOverride';
 
 interface StaffTerminalSettingsProps {
   staffId: string;
@@ -82,11 +83,15 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
 
       console.log('[StaffTerminalSettings] Creating Stripe Terminal Location...');
       
+      const headers = getTestModeHeaders();
+      console.log('[StaffTerminalSettings] Test mode headers:', headers);
+      
       const { data, error } = await supabase.functions.invoke('create-terminal-location', {
         body: {
           staffId,
           displayName: `${staffData?.display_name || 'Staff'} - Tap to Pay`,
         },
+        headers,
       });
 
       if (error) {

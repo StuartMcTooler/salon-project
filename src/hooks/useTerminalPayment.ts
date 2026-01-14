@@ -83,14 +83,19 @@ export const useTerminalPayment = () => {
   const terminalRef = useRef<any>(null);
 
   // Fetch connection token for native SDK
+  // CRITICAL: Must use TEST mode headers to match isTest: true in initialize()
   const fetchConnectionToken = useCallback(async (): Promise<string> => {
-    console.log('[TerminalPayment] Fetching connection token...');
-    const { data, error } = await supabase.functions.invoke('create-terminal-connection-token');
+    console.log('[TerminalPayment] Fetching connection token (TEST MODE)...');
+    const { data, error } = await supabase.functions.invoke('create-terminal-connection-token', {
+      headers: {
+        'x-force-test-mode': 'true', // MUST match isTest: true in SDK init
+      },
+    });
     if (error) {
       console.error('[TerminalPayment] Token fetch error:', error);
       throw new Error(error.message);
     }
-    console.log('[TerminalPayment] Token received');
+    console.log('[TerminalPayment] Token received, mode:', data.stripeMode);
     return data.secret;
   }, []);
 

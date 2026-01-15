@@ -539,6 +539,13 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
           </div>
         )}
 
+        {/* DEBUG: Show current state */}
+        <div className="text-xs text-muted-foreground p-2 bg-muted rounded">
+          <p>Debug: staffId={staffId}</p>
+          <p>existingSettings: {existingSettings ? 'loaded' : 'null'}</p>
+          <p>stripe_location_id: {existingSettings?.stripe_location_id || 'none'}</p>
+        </div>
+
         {/* Recreate Location Button - Always visible when location exists */}
         {existingSettings?.stripe_location_id && (
           <div className="border border-blue-300 bg-blue-50 dark:bg-blue-950/20 rounded-lg p-4 space-y-3">

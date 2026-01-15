@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Smartphone, Bluetooth, Loader2, CheckCircle, Search, CreditCard, Wifi, Lock, MapPin, AlertTriangle } from 'lucide-react';
+import { Smartphone, Bluetooth, Loader2, CheckCircle, Search, CreditCard, Wifi, Lock, MapPin, AlertTriangle, AlertCircle, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -71,7 +71,10 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
   };
 
   // Create Stripe Terminal Location for Tap to Pay
-  const createTerminalLocation = async (): Promise<string | null> => {
+  // Check if test mode is active
+  const isTestModeActive = localStorage.getItem("FORCE_STRIPE_MODE") === "test";
+
+  const createTerminalLocation = async (forceTestMode: boolean = false): Promise<string | null> => {
     setIsCreatingLocation(true);
     try {
       // Get staff display name for location
@@ -83,13 +86,16 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
 
       console.log('[StaffTerminalSettings] Creating Stripe Terminal Location...');
       
-      const headers = getTestModeHeaders();
-      console.log('[StaffTerminalSettings] Test mode headers:', headers);
+      // ALWAYS force test mode during testing, or use getTestModeHeaders()
+      const headers = forceTestMode 
+        ? { 'x-force-test-mode': 'true' } 
+        : getTestModeHeaders();
+      console.log('[StaffTerminalSettings] Test mode headers:', headers, 'forceTestMode:', forceTestMode);
       
       const { data, error } = await supabase.functions.invoke('create-terminal-location', {
         body: {
           staffId,
-          displayName: `${staffData?.display_name || 'Staff'} - Tap to Pay`,
+          displayName: `${staffData?.display_name || 'Staff'} - Tap to Pay (${forceTestMode || isTestModeActive ? 'TEST' : 'LIVE'})`,
         },
         headers,
       });
@@ -99,11 +105,11 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
         throw error;
       }
 
-      console.log('[StaffTerminalSettings] ✅ Location created:', data.locationId);
+      console.log('[StaffTerminalSettings] ✅ Location created:', data.locationId, 'mode:', data.stripeMode);
       
       toast({
         title: "Tap to Pay configured",
-        description: "Your payment location has been set up successfully.",
+        description: `Payment location created in ${data.stripeMode || 'unknown'} mode.`,
       });
 
       return data.locationId;
@@ -117,6 +123,29 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
       return null;
     } finally {
       setIsCreatingLocation(false);
+    }
+  };
+
+  // Recreate location specifically for test mode
+  const handleRecreateForTestMode = async () => {
+    console.log('[StaffTerminalSettings] Recreating location for TEST mode...');
+    const newLocationId = await createTerminalLocation(true);
+    if (newLocationId) {
+      // Update the existing settings with new location
+      try {
+        await supabase
+          .from('terminal_settings')
+          .upsert({
+            staff_id: staffId,
+            connection_type: 'tap_to_pay',
+            stripe_location_id: newLocationId,
+            is_active: true,
+          }, { onConflict: 'staff_id' });
+        
+        loadSettings(); // Refresh to show new location
+      } catch (err) {
+        console.error('[StaffTerminalSettings] Failed to update settings:', err);
+      }
     }
   };
 
@@ -507,6 +536,42 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
                 <span>Location: {existingSettings.stripe_location_id}</span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Test Mode Warning & Recreate Button */}
+        {isTestModeActive && existingSettings?.stripe_location_id && (
+          <div className="border border-orange-300 bg-orange-50 dark:bg-orange-950/20 rounded-lg p-4 space-y-3">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-5 w-5 text-orange-500 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-orange-700 dark:text-orange-400">
+                  Test Mode Active
+                </p>
+                <p className="text-xs text-orange-600 dark:text-orange-300 mt-1">
+                  Your location may have been created in Live mode. If Tap to Pay isn't working, recreate it for Test mode.
+                </p>
+              </div>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRecreateForTestMode}
+              disabled={isCreatingLocation}
+              className="w-full border-orange-300 text-orange-700 hover:bg-orange-100 dark:text-orange-400 dark:hover:bg-orange-900/30"
+            >
+              {isCreatingLocation ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating Test Location...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Recreate Location for Test Mode
+                </>
+              )}
+            </Button>
           </div>
         )}
 

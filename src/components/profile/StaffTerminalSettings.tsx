@@ -539,17 +539,18 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
           </div>
         )}
 
-        {/* Test Mode Warning & Recreate Button */}
-        {isTestModeActive && existingSettings?.stripe_location_id && (
-          <div className="border border-orange-300 bg-orange-50 dark:bg-orange-950/20 rounded-lg p-4 space-y-3">
+        {/* Recreate Location Button - Always visible when location exists */}
+        {existingSettings?.stripe_location_id && (
+          <div className="border border-blue-300 bg-blue-50 dark:bg-blue-950/20 rounded-lg p-4 space-y-3">
             <div className="flex items-start gap-2">
-              <AlertCircle className="h-5 w-5 text-orange-500 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-orange-700 dark:text-orange-400">
-                  Test Mode Active
+                <p className="text-sm font-medium text-blue-700 dark:text-blue-400">
+                  Location Mode Mismatch?
                 </p>
-                <p className="text-xs text-orange-600 dark:text-orange-300 mt-1">
-                  Your location may have been created in Live mode. If Tap to Pay isn't working, recreate it for Test mode.
+                <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
+                  If Tap to Pay shows "not available", your location may be in the wrong Stripe mode. 
+                  {isTestModeActive ? " You're in TEST mode." : " You're in LIVE mode."}
                 </p>
               </div>
             </div>
@@ -558,17 +559,17 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
               size="sm" 
               onClick={handleRecreateForTestMode}
               disabled={isCreatingLocation}
-              className="w-full border-orange-300 text-orange-700 hover:bg-orange-100 dark:text-orange-400 dark:hover:bg-orange-900/30"
+              className="w-full border-blue-300 text-blue-700 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30"
             >
               {isCreatingLocation ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating Test Location...
+                  Creating Location...
                 </>
               ) : (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Recreate Location for Test Mode
+                  Recreate Location {isTestModeActive ? "(Test Mode)" : "(Current Mode)"}
                 </>
               )}
             </Button>

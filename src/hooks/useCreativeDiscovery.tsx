@@ -44,12 +44,21 @@ interface Filters {
 
 const tierPriority = { founder: 0, pro: 1, standard: 2 };
 
-// Helper to calculate days from now
+// Helper to calculate days from now - accounts for past slots on same day
 const getDaysFromNow = (dateString: string | null): number => {
   if (!dateString) return 999;
   const slotDate = new Date(dateString);
   const now = new Date();
-  const diffTime = slotDate.getTime() - now.getTime();
+  
+  // If the slot time has already passed, return 999 (unavailable)
+  if (slotDate.getTime() < now.getTime()) {
+    return 999;
+  }
+  
+  // Calculate days difference based on date only (for "Today" vs "Tomorrow" logic)
+  const slotDay = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate());
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffTime = slotDay.getTime() - today.getTime();
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
   return Math.max(0, diffDays);
 };

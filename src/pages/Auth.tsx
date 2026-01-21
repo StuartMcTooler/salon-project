@@ -25,11 +25,14 @@ const Auth = () => {
   const [authView, setAuthView] = useState<AuthView>('sign_in');
   const [resetEmailSent, setResetEmailSent] = useState(false);
 
-  // Get the app URL for redirects - handles Capacitor mobile compatibility
+  // Get the app URL for redirects - use current origin for proper domain handling
   const getAppUrl = () => {
-    const baseUrl = import.meta.env.VITE_APP_URL || 'https://744b93d1-b5ba-4b6b-84e8-4219b1a2924b.lovableproject.com';
-    // Remove trailing slash if present to avoid double slashes
-    return baseUrl.replace(/\/$/, '');
+    // In browser, use the current origin (works for both preview and production)
+    if (typeof window !== 'undefined') {
+      return window.location.origin;
+    }
+    // Fallback for SSR or edge cases
+    return import.meta.env.VITE_APP_URL || 'https://bookd.ie';
   };
 
   useEffect(() => {

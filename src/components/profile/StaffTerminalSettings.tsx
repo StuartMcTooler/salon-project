@@ -253,6 +253,15 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
     }
   };
 
+  // Debug logging for platform detection
+  console.log('[StaffTerminalSettings] Platform state:', {
+    isNative,
+    canUseTapToPay,
+    canUseBluetoothReader,
+    isStripeTerminalPluginAvailable,
+    allowedTerminalTypes,
+  });
+
   if (loading) {
     return (
       <Card>

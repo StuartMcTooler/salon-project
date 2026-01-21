@@ -209,12 +209,14 @@ export const useCreativeDiscovery = (filters: Filters) => {
         const freshResults = await Promise.all(freshPromises);
         
         freshResults.forEach(({ staffId, data }) => {
-          if (data) {
+          // Data is nested inside availability_status from the edge function
+          const avail = data?.availability_status;
+          if (avail) {
             availabilityMap.set(staffId, {
               staff_id: staffId,
-              time_to_first_slot_days: data.time_to_first_slot_days ?? 999,
-              first_slot_display_time: data.first_slot_display_time || '',
-              first_slot_day_name: data.first_slot_day_name || '',
+              time_to_first_slot_days: avail.time_to_first_slot_days ?? 999,
+              first_slot_display_time: avail.first_slot_display_time || '',
+              first_slot_day_name: avail.first_slot_day_name || '',
             });
           } else {
             availabilityMap.set(staffId, {

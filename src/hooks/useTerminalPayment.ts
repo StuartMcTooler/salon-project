@@ -1,5 +1,4 @@
 // useTerminalPayment - Native/Web payment processing hook
-// Updated: Added runtime location permission request for Android
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { isNativeApp, getPlatform, isStripeTerminalPluginAvailable } from '@/lib/platform';
@@ -7,44 +6,6 @@ import { toast } from 'sonner';
 
 // Type definitions
 type ConnectionType = 'internet' | 'bluetooth' | 'tap_to_pay';
-
-/**
- * Request location permission for Android - required for Stripe Terminal reader discovery
- * Returns true if permission granted, false otherwise
- */
-const requestLocationPermission = async (): Promise<boolean> => {
-  if (!isNativeApp()) return true; // Web doesn't need this
-  
-  try {
-    // Dynamically import Geolocation plugin
-    const { Geolocation } = await import('@capacitor/geolocation');
-    
-    // Check current permission status
-    const status = await Geolocation.checkPermissions();
-    console.log('[TerminalPayment] Location permission status:', status.location);
-    
-    if (status.location === 'granted') {
-      return true;
-    }
-    
-    // Request permission
-    console.log('[TerminalPayment] Requesting location permission...');
-    const result = await Geolocation.requestPermissions({ permissions: ['location'] });
-    console.log('[TerminalPayment] Permission request result:', result.location);
-    
-    if (result.location === 'granted') {
-      return true;
-    }
-    
-    // Permission denied
-    toast.error('Location permission is required for Tap to Pay. Please enable it in Settings.');
-    return false;
-  } catch (err: any) {
-    console.error('[TerminalPayment] Permission request error:', err);
-    // If geolocation plugin not available, try to proceed anyway
-    return true;
-  }
-};
 
 interface TerminalConfig {
   connectionType: ConnectionType;
@@ -218,12 +179,6 @@ export const useTerminalPayment = () => {
     }
     
     try {
-      // Request location permission FIRST - required for Android NFC/Bluetooth discovery
-      const hasPermission = await requestLocationPermission();
-      if (!hasPermission) {
-        throw new Error('Location permission is required to discover readers. Please enable it in your device settings.');
-      }
-      
       if (!isInitialized) {
         console.log('[TerminalPayment] SDK not initialized, initializing now...');
         await initializeNativeSDK();

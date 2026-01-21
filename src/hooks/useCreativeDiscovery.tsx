@@ -106,7 +106,7 @@ const sortCreatives = (
 export const useCreativeDiscovery = (filters: Filters) => {
   return useQuery({
     queryKey: ['creative-discovery', filters],
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes - availability is now DB-cached
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     queryFn: async () => {
       // Use staff_members_public view - now includes next_available_slot!
       let query = supabase
@@ -173,17 +173,71 @@ export const useCreativeDiscovery = (filters: Filters) => {
 
       if (error) throw error;
 
-      // Build availability map from cached next_available_slot - NO MORE EDGE FUNCTION CALLS!
+      // Build availability map - check if cached data is stale
       const availabilityMap = new Map<string, AvailabilityStatus>();
+      const now = new Date();
+      
+      // Identify creatives with stale cache (next_available_slot is in the past)
+      const staleStaffIds: string[] = [];
       
       (creatives || []).forEach((creative) => {
         const nextSlot = creative.next_available_slot;
-        availabilityMap.set(creative.id, {
-          staff_id: creative.id,
-          time_to_first_slot_days: getDaysFromNow(nextSlot),
-          first_slot_display_time: formatDisplayTime(nextSlot),
-          first_slot_day_name: getDayName(nextSlot),
+        if (nextSlot) {
+          const slotDate = new Date(nextSlot);
+          if (slotDate.getTime() < now.getTime()) {
+            staleStaffIds.push(creative.id);
+          }
+        } else {
+          // No slot cached - might need fresh data too
+          staleStaffIds.push(creative.id);
+        }
+      });
+
+      // Fetch fresh availability for stale entries via edge function
+      if (staleStaffIds.length > 0) {
+        const freshPromises = staleStaffIds.map(async (staffId) => {
+          try {
+            const { data } = await supabase.functions.invoke('get-staff-availability', {
+              body: { staff_id: staffId }
+            });
+            return { staffId, data };
+          } catch {
+            return { staffId, data: null };
+          }
         });
+        
+        const freshResults = await Promise.all(freshPromises);
+        
+        freshResults.forEach(({ staffId, data }) => {
+          if (data) {
+            availabilityMap.set(staffId, {
+              staff_id: staffId,
+              time_to_first_slot_days: data.time_to_first_slot_days ?? 999,
+              first_slot_display_time: data.first_slot_display_time || '',
+              first_slot_day_name: data.first_slot_day_name || '',
+            });
+          } else {
+            availabilityMap.set(staffId, {
+              staff_id: staffId,
+              time_to_first_slot_days: 999,
+              first_slot_display_time: '',
+              first_slot_day_name: '',
+            });
+          }
+        });
+      }
+
+      // For non-stale entries, use cached data
+      (creatives || []).forEach((creative) => {
+        if (!availabilityMap.has(creative.id)) {
+          const nextSlot = creative.next_available_slot;
+          availabilityMap.set(creative.id, {
+            staff_id: creative.id,
+            time_to_first_slot_days: getDaysFromNow(nextSlot),
+            first_slot_display_time: formatDisplayTime(nextSlot),
+            first_slot_day_name: getDayName(nextSlot),
+          });
+        }
       });
 
       // Apply "Available Today" filter

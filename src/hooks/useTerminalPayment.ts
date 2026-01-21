@@ -266,13 +266,17 @@ export const useTerminalPayment = () => {
     customerEmail?: string,
     locationId?: string
   ): Promise<PaymentResult> => {
-    const StripeTerminal = terminalRef.current;
-    if (!StripeTerminal) {
-      console.log('[TerminalPayment] SDK not ready, initializing...');
+    // ALWAYS ensure SDK is initialized before any operation
+    // This prevents the "first tap fails, second tap works" race condition
+    if (!isInitialized || !terminalRef.current) {
+      console.log('[TerminalPayment] SDK not ready, initializing first...');
       await initializeNativeSDK();
+      // Wait a moment for SDK to fully stabilize after initialization
+      await new Promise(resolve => setTimeout(resolve, 300));
       if (!terminalRef.current) {
         throw new Error('Terminal not initialized');
       }
+      console.log('[TerminalPayment] SDK initialization complete, proceeding with payment');
     }
 
     // Step 1: Ensure we have a connected reader

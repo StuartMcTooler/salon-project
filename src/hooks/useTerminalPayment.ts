@@ -1,7 +1,7 @@
 // useTerminalPayment - Native/Web payment processing hook
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { isNativeApp, getPlatform, isStripeTerminalPluginAvailable } from '@/lib/platform';
+import { isNativeApp, getPlatform, isStripeTerminalPluginAvailable, isAndroid } from '@/lib/platform';
 import { toast } from 'sonner';
 
 // Type definitions
@@ -169,6 +169,47 @@ export const useTerminalPayment = () => {
     }
   }, [isInitialized, fetchConnectionToken]);
 
+  // Request Android location permissions using Capacitor Geolocation plugin
+  const requestLocationPermission = useCallback(async (): Promise<boolean> => {
+    if (!isAndroid()) {
+      console.log('[TerminalPayment] Not Android, skipping location permission request');
+      return true; // iOS handles permissions differently
+    }
+
+    try {
+      console.log('[TerminalPayment] 📍 Requesting Android location permission...');
+      
+      // Dynamic import to avoid breaking the bundle
+      const { Geolocation } = await import('@capacitor/geolocation');
+      
+      // Check current permission status
+      const permStatus = await Geolocation.checkPermissions();
+      console.log('[TerminalPayment] Current permission status:', permStatus.location);
+      
+      if (permStatus.location === 'granted') {
+        console.log('[TerminalPayment] ✅ Location permission already granted');
+        return true;
+      }
+      
+      // Request permission
+      const result = await Geolocation.requestPermissions();
+      console.log('[TerminalPayment] Permission request result:', result.location);
+      
+      if (result.location === 'granted') {
+        console.log('[TerminalPayment] ✅ Location permission granted');
+        return true;
+      } else {
+        console.warn('[TerminalPayment] ⚠️ Location permission denied:', result.location);
+        toast.error('Location permission is required for Tap to Pay. Please enable it in Settings.');
+        return false;
+      }
+    } catch (err: any) {
+      console.error('[TerminalPayment] Location permission error:', err);
+      // Don't block the flow - let the SDK handle it and show its own error
+      return true;
+    }
+  }, []);
+
   // Discover readers based on connection type
   const discoverReaders = useCallback(async (connectionType: ConnectionType, locationId?: string) => {
     setError(null);
@@ -179,6 +220,15 @@ export const useTerminalPayment = () => {
     }
     
     try {
+      // Request location permission on Android BEFORE SDK operations
+      if (isAndroid() && (connectionType === 'tap_to_pay' || connectionType === 'bluetooth')) {
+        const hasPermission = await requestLocationPermission();
+        if (!hasPermission) {
+          setError('Location permission denied');
+          return [];
+        }
+      }
+
       if (!isInitialized) {
         console.log('[TerminalPayment] SDK not initialized, initializing now...');
         await initializeNativeSDK();
@@ -232,7 +282,7 @@ export const useTerminalPayment = () => {
       toast.error(`Discovery Error: ${detailedError}`);
       return [];
     }
-  }, [isInitialized, initializeNativeSDK]);
+  }, [isInitialized, initializeNativeSDK, requestLocationPermission]);
 
   // Connect to a reader
   const connectReader = useCallback(async (reader: any) => {

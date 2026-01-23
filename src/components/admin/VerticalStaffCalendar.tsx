@@ -249,14 +249,17 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
             appointment.duration_minutes
           );
 
+          // Determine if this is a compact appointment (30min or less = 2 rows or less)
+          const isCompact = rowSpan <= 2;
+
           return (
             <div
               key={appointment.id}
               className={`${getStatusColor(appointment.status || 'pending', appointment.is_blocked)} ${
                 appointment.is_blocked ? 'text-gray-700' : 'text-white'
-              } p-2 rounded cursor-pointer hover:opacity-90 transition-opacity border-l-4 ${
+              } ${isCompact ? 'px-2 py-0.5' : 'p-2'} rounded cursor-pointer hover:opacity-90 transition-opacity border-l-4 ${
                 appointment.is_blocked ? 'border-gray-500' : 'border-white/50'
-              } shadow-sm overflow-hidden`}
+              } shadow-sm overflow-hidden flex flex-col justify-center`}
               style={{
                 gridColumn: staffIndex + 2,
                 gridRow: `${rowStart} / span ${rowSpan}`,
@@ -269,27 +272,44 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
                 setSelectedAppointment(appointment);
                 setDialogOpen(true);
               }}
+              title={`${appointment.customer_name} - ${appointment.service_name} (${appointment.duration_minutes}m)`}
             >
               {appointment.is_blocked ? (
                 // Block display
-                <>
-                  <div className="flex items-center gap-1 text-xs font-semibold">
-                    <Ban className="h-3 w-3" />
+                isCompact ? (
+                  <div className="flex items-center gap-1 text-[10px] leading-tight font-medium">
+                    <Ban className="h-2.5 w-2.5 flex-shrink-0" />
                     <span className="truncate">{appointment.service_name}</span>
                   </div>
-                  <div className="text-xs opacity-75">
-                    {format(new Date(appointment.appointment_date!), 'h:mm a')} • {appointment.duration_minutes}m
-                  </div>
-                </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-1 text-xs font-semibold">
+                      <Ban className="h-3 w-3" />
+                      <span className="truncate">{appointment.service_name}</span>
+                    </div>
+                    <div className="text-xs opacity-75">
+                      {format(new Date(appointment.appointment_date!), 'h:mm a')} • {appointment.duration_minutes}m
+                    </div>
+                  </>
+                )
               ) : (
                 // Regular appointment display
-                <>
-                  <div className="text-xs font-semibold truncate">{appointment.customer_name}</div>
-                  <div className="text-xs truncate opacity-90">{appointment.service_name}</div>
-                  <div className="text-xs opacity-75">
-                    {format(new Date(appointment.appointment_date!), 'h:mm a')} • {appointment.duration_minutes}m
+                isCompact ? (
+                  // Single-line compact view for short appointments
+                  <div className="flex items-center gap-1.5 text-[10px] leading-tight">
+                    <span className="font-semibold truncate">{appointment.customer_name}</span>
+                    <span className="opacity-75 flex-shrink-0">• {appointment.duration_minutes}m</span>
                   </div>
-                </>
+                ) : (
+                  // Full multi-line view for longer appointments
+                  <>
+                    <div className="text-xs font-semibold truncate">{appointment.customer_name}</div>
+                    <div className="text-xs truncate opacity-90">{appointment.service_name}</div>
+                    <div className="text-xs opacity-75">
+                      {format(new Date(appointment.appointment_date!), 'h:mm a')} • {appointment.duration_minutes}m
+                    </div>
+                  </>
+                )
               )}
             </div>
           );

@@ -481,24 +481,26 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       const [hours, minutes] = time.split(':');
       appointmentDateTime.setHours(parseInt(hours), parseInt(minutes));
 
-      // Find or create client record
+      // Find or create client record - normalize phone for consistent matching
       let clientId: string | null = null;
+      const normalizedPhone = normalizePhoneNumber(customerPhone);
       
+      // Try to find client by normalized phone (handles both 087... and +353... formats)
       const { data: existingClient } = await supabase
         .from('clients')
         .select('id')
-        .eq('phone', customerPhone)
+        .or(`phone.eq.${normalizedPhone},phone.eq.${customerPhone}`)
         .maybeSingle();
 
       if (existingClient) {
         clientId = existingClient.id;
       } else {
-        // Create new client
+        // Create new client with normalized phone format
         const { data: newClient, error: clientError } = await supabase
           .from('clients')
           .insert([{
             name: customerName,
-            phone: customerPhone,
+            phone: normalizedPhone, // Store in E.164 format for consistency
             email: null,
             primary_creative_id: staff.id,
           }])

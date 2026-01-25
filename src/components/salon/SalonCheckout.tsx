@@ -49,6 +49,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   // Smart slot pricing state
   const [smartPricingApplied, setSmartPricingApplied] = useState(false);
   const [smartPricingLabel, setSmartPricingLabel] = useState<string | null>(null);
+  const [smartPricedBase, setSmartPricedBase] = useState(pricing.custom_price); // Smart-adjusted price before discounts
   
   // Credit management
   const [availableCredits, setAvailableCredits] = useState<any[]>([]);
@@ -316,21 +317,19 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
     return enrichSlotsWithPricing(baseSlots, pricing.custom_price, date, smartSlotRules);
   }, [baseSlots, pricing.custom_price, date, smartSlotRules]);
 
-  // Apply smart pricing when time is selected
+
+  // Apply smart pricing when time is selected - ALWAYS calculate the smart base price
   useEffect(() => {
     if (!time || !date) {
       setSmartPricingApplied(false);
       setSmartPricingLabel(null);
+      setSmartPricedBase(pricing.custom_price);
       return;
     }
 
     const smartPricing = applySmartPricing(pricing.custom_price, time, date, smartSlotRules);
     setListPrice(smartPricing.listPrice);
-    
-    // Only apply smart pricing if no referral discount or credit is active
-    if (!discountApplied && !creditApplied) {
-      setFinalPrice(smartPricing.finalPrice);
-    }
+    setSmartPricedBase(smartPricing.finalPrice); // This is the smart-adjusted price
     
     setSmartPricingApplied(smartPricing.hasDiscount || smartPricing.hasSurge);
     setSmartPricingLabel(smartPricing.label);
@@ -340,7 +339,25 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       setRequiresDeposit(true);
       setDepositAmount(prev => Math.max(prev, smartPricing.depositAmount));
     }
-  }, [time, date, pricing.custom_price, smartSlotRules, discountApplied, creditApplied]);
+  }, [time, date, pricing.custom_price, smartSlotRules]);
+
+  // Calculate final price: start with smart-priced base, then apply discounts/credits
+  useEffect(() => {
+    let price = smartPricedBase;
+    
+    // Apply referral discount (fixed €10)
+    if (discountApplied && referralCode) {
+      const CLIENT_REFERRAL_DISCOUNT_AMOUNT = 10;
+      price = Math.max(0, price - CLIENT_REFERRAL_DISCOUNT_AMOUNT);
+    }
+    
+    // Apply credit if opted in
+    if (creditApplied && !applyCreditOptOut) {
+      price = Math.max(0, price - creditApplied.amount);
+    }
+    
+    setFinalPrice(price);
+  }, [smartPricedBase, discountApplied, referralCode, creditApplied, applyCreditOptOut]);
 
   // Check for overflow when date changes
   useEffect(() => {
@@ -387,22 +404,16 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
     checkOverflow();
   }, [date, service, staff.id, availableSlots.length]);
 
-  // Load referral discount - Fixed €10 credit
+  // Mark referral discount as applied (actual calculation happens in consolidated effect)
   useEffect(() => {
     if (!referralCode || discountApplied) return;
-
-    // Fixed €10 discount for all new customer referrals
-    const CLIENT_REFERRAL_DISCOUNT_AMOUNT = 10;
-    const discount = CLIENT_REFERRAL_DISCOUNT_AMOUNT;
-    const newPrice = Math.max(0, pricing.custom_price - discount);
-    setFinalPrice(newPrice);
+    
     setDiscountApplied(true);
-
     toast({
       title: "Referral discount applied!",
-      description: `You saved €${discount.toFixed(2)}`,
+      description: "You saved €10.00",
     });
-  }, [referralCode, pricing.custom_price, discountApplied, toast]);
+  }, [referralCode, discountApplied, toast]);
 
   // Pre-fill customer info if logged in or from portal
   useEffect(() => {
@@ -421,6 +432,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
     const checkCreditsAndCustomer = async () => {
       if (!customerPhone) {
         setAvailableCredits([]);
+        setCreditApplied(null);
         return;
       }
 
@@ -451,21 +463,18 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       setAvailableCredits(data || []);
       
       // Auto-apply first credit if available and not opted out
+      // (actual price calculation happens in consolidated pricing effect)
       if (data && data.length > 0 && !applyCreditOptOut) {
         const credit = data[0];
-        const discount = (pricing.custom_price * credit.discount_percentage) / 100;
-        const newPrice = pricing.custom_price - discount;
-        setFinalPrice(newPrice);
-        setCreditApplied(credit);
+        // Store credit with calculated amount based on smartPricedBase
+        setCreditApplied({ ...credit, amount: (smartPricedBase * credit.discount_percentage) / 100 });
       } else {
-        // No credits available or opted out - use original price
-        setFinalPrice(discountApplied ? finalPrice : pricing.custom_price);
         setCreditApplied(null);
       }
     };
 
     checkCreditsAndCustomer();
-  }, [customerPhone, applyCreditOptOut, pricing.custom_price]);
+  }, [customerPhone, applyCreditOptOut, smartPricedBase]);
 
   const createAppointment = useMutation({
     mutationFn: async () => {

@@ -210,7 +210,43 @@ export const useTerminalPayment = () => {
     }
   }, []);
 
-  // Discover readers based on connection type
+  // Internal discovery function (called after permissions/init are handled)
+  const discoverReadersInternal = useCallback(async (connectionType: ConnectionType, locationId?: string) => {
+    const StripeTerminal = terminalRef.current;
+    if (!StripeTerminal) throw new Error('Terminal not initialized');
+    
+    // Map our connection type to plugin's TerminalConnectTypes
+    let terminalType: string;
+    switch (connectionType) {
+      case 'tap_to_pay':
+        terminalType = TerminalConnectTypesEnum?.TapToPay || 'tap-to-pay';
+        break;
+      case 'bluetooth':
+        terminalType = TerminalConnectTypesEnum?.Bluetooth || 'bluetooth';
+        break;
+      default:
+        terminalType = TerminalConnectTypesEnum?.Internet || 'internet';
+    }
+    
+    const discoveryConfig: any = { 
+      type: terminalType,
+      isSimulated: false, // Real hardware discovery
+    };
+    if (locationId) {
+      discoveryConfig.locationId = locationId;
+    }
+    
+    console.log(`[TerminalPayment] 🔍 Discovering readers with config:`, discoveryConfig);
+    console.log(`[TerminalPayment] Platform: ${getPlatform()}, ConnectionType: ${connectionType}`);
+    
+    const result = await StripeTerminal.discoverReaders(discoveryConfig);
+    
+    console.log(`[TerminalPayment] ✅ Found ${result.readers?.length || 0} readers`);
+    setDiscoveredReaders(result.readers || []);
+    return result.readers || [];
+  }, []);
+
+  // Public discover readers function (handles permissions + init + discovery)
   const discoverReaders = useCallback(async (connectionType: ConnectionType, locationId?: string) => {
     setError(null);
     
@@ -232,57 +268,21 @@ export const useTerminalPayment = () => {
       if (!isInitialized) {
         console.log('[TerminalPayment] SDK not initialized, initializing now...');
         await initializeNativeSDK();
+        await new Promise(resolve => setTimeout(resolve, 500)); // Stabilization delay
       }
       
-      const StripeTerminal = terminalRef.current;
-      if (!StripeTerminal) throw new Error('Terminal not initialized');
-      
-      // Map our connection type to plugin's TerminalConnectTypes
-      let terminalType: string;
-      switch (connectionType) {
-        case 'tap_to_pay':
-          terminalType = TerminalConnectTypesEnum?.TapToPay || 'tap-to-pay';
-          break;
-        case 'bluetooth':
-          terminalType = TerminalConnectTypesEnum?.Bluetooth || 'bluetooth';
-          break;
-        default:
-          terminalType = TerminalConnectTypesEnum?.Internet || 'internet';
-      }
-      
-      const discoveryConfig: any = { 
-        type: terminalType,
-        // Force real hardware discovery - required for Tap to Pay on Android
-        // even when Stripe account is in Test Mode
-        isSimulated: false,
-      };
-      if (locationId) {
-        discoveryConfig.locationId = locationId;
-      }
-      
-      console.log(`[TerminalPayment] 🔍 Discovering readers with config:`, discoveryConfig);
-      console.log(`[TerminalPayment] Platform: ${getPlatform()}, ConnectionType: ${connectionType}`);
-      
-      const result = await StripeTerminal.discoverReaders(discoveryConfig);
-      
-      console.log(`[TerminalPayment] ✅ Found ${result.readers?.length || 0} readers`);
-      setDiscoveredReaders(result.readers || []);
-      return result.readers || [];
+      return await discoverReadersInternal(connectionType, locationId);
     } catch (err: any) {
-      // Comprehensive error logging - this is where "App Update Required" likely surfaces
       console.error('[TerminalPayment] ❌ Discovery error - Full object:', JSON.stringify(err, null, 2));
       console.error('[TerminalPayment] Error code:', err.code || 'NO_CODE');
       console.error('[TerminalPayment] Error message:', err.message || 'NO_MESSAGE');
-      console.error('[TerminalPayment] Error name:', err.name || 'NO_NAME');
-      console.error('[TerminalPayment] Error data:', err.data || 'NO_DATA');
-      console.error('[TerminalPayment] Error localizedMessage:', err.localizedMessage || 'N/A');
       
       const detailedError = `[${err.code || 'UNKNOWN'}] ${err.message || err}`;
       setError(detailedError);
       toast.error(`Discovery Error: ${detailedError}`);
       return [];
     }
-  }, [isInitialized, initializeNativeSDK, requestLocationPermission]);
+  }, [isInitialized, initializeNativeSDK, requestLocationPermission, discoverReadersInternal]);
 
   // Connect to a reader
   const connectReader = useCallback(async (reader: any) => {
@@ -316,29 +316,39 @@ export const useTerminalPayment = () => {
     customerEmail?: string,
     locationId?: string
   ): Promise<PaymentResult> => {
-    // ALWAYS ensure SDK is initialized before any operation
+    // Step 0: Request location permission FIRST on Android (before SDK init)
+    if (isAndroid() && (connectionType === 'tap_to_pay' || connectionType === 'bluetooth')) {
+      console.log('[TerminalPayment] Checking Android permissions before SDK init...');
+      const hasPermission = await requestLocationPermission();
+      if (!hasPermission) {
+        throw new Error('Location permission is required for Tap to Pay');
+      }
+    }
+
+    // Step 1: ALWAYS ensure SDK is initialized before any operation
     // This prevents the "first tap fails, second tap works" race condition
     if (!isInitialized || !terminalRef.current) {
       console.log('[TerminalPayment] SDK not ready, initializing first...');
       await initializeNativeSDK();
-      // Wait a moment for SDK to fully stabilize after initialization
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Wait for SDK to fully stabilize after initialization
+      await new Promise(resolve => setTimeout(resolve, 500));
       if (!terminalRef.current) {
-        throw new Error('Terminal not initialized');
+        throw new Error('Terminal not initialized after init attempt');
       }
       console.log('[TerminalPayment] SDK initialization complete, proceeding with payment');
     }
 
-    // Step 1: Ensure we have a connected reader
+    // Step 2: Ensure we have a connected reader
     if (!connectedReader) {
       console.log('[TerminalPayment] No connected reader, discovering...');
       console.log(`[TerminalPayment] Using locationId: "${locationId || 'NOT PROVIDED'}"`);
       
-      const readers = await discoverReaders(connectionType, locationId);
+      // discoverReaders no longer needs to check permissions - we did it above
+      const readers = await discoverReadersInternal(connectionType, locationId);
       
       if (readers.length === 0) {
         const errorMsg = connectionType === 'tap_to_pay' 
-          ? `Tap to Pay is not available. Make sure NFC is enabled. LocationId: ${locationId || 'MISSING'}` 
+          ? `Tap to Pay is not available. Make sure NFC is enabled in Settings and Google Wallet is installed.` 
           : 'No Bluetooth readers found nearby';
         throw new Error(errorMsg);
       }

@@ -73,6 +73,9 @@ const loadStripeTerminal = async () => {
   }
 };
 
+// Initialization mutex - prevents concurrent initialization attempts
+let initializationPromise: Promise<void> | null = null;
+
 export const useTerminalPayment = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -99,75 +102,88 @@ export const useTerminalPayment = () => {
     return data.secret;
   }, []);
 
-  // Initialize native SDK
+  // Initialize native SDK with mutex to prevent concurrent init attempts
   const initializeNativeSDK = useCallback(async () => {
     if (!isNativeApp()) {
       console.log('[TerminalPayment] Not native app, skipping SDK init');
       return;
     }
-    if (isInitialized) {
-      console.log('[TerminalPayment] Already initialized');
+    
+    // If already initialized (check ref synchronously, not state)
+    if (terminalRef.current) {
+      console.log('[TerminalPayment] Already initialized (terminalRef populated)');
       return;
     }
     
-    try {
-      console.log('[TerminalPayment] Loading Stripe Terminal plugin...');
-      const StripeTerminal = await loadStripeTerminal();
-      if (!StripeTerminal) throw new Error('Failed to load Stripe Terminal plugin');
-      
-      terminalRef.current = StripeTerminal;
-      
-      // Set up connection token listener BEFORE initialize
-      // Note: addListener may not return a Promise in some Capacitor versions
-      console.log('[TerminalPayment] Setting up token listener...');
-      try {
-        const listenerResult = StripeTerminal.addListener('requestedConnectionToken', async () => {
-          console.log('[TerminalPayment] Token requested by SDK');
-          try {
-            const token = await fetchConnectionToken();
-            await StripeTerminal.setConnectionToken({ token });
-            console.log('[TerminalPayment] Token provided to SDK');
-          } catch (tokenErr) {
-            console.error('[TerminalPayment] Failed to provide token:', tokenErr);
-          }
-        });
-        // Handle both Promise and non-Promise returns from addListener
-        if (listenerResult && typeof listenerResult.then === 'function') {
-          await listenerResult;
-        }
-        console.log('[TerminalPayment] Token listener set up successfully');
-      } catch (listenerErr) {
-        console.warn('[TerminalPayment] Listener setup warning (non-fatal):', listenerErr);
-        // Continue - some plugin versions don't require awaiting the listener
-      }
-      
-      // Initialize without tokenProviderEndpoint (we provide tokens manually)
-      // TEMPORARY: Hardcoded to TEST MODE for hardware verification
-      // TODO: Change back to false for production release builds
-      console.log('[TerminalPayment] Initializing SDK...');
-      console.log('[TerminalPayment] Platform:', getPlatform());
-      console.log('[TerminalPayment] isTest: true (TEST MODE - HARDWARE VERIFICATION)');
-      
-      await StripeTerminal.initialize({
-        isTest: true,  // HARDCODED FOR TEST BUILD
-      });
-      
-      setIsInitialized(true);
-      console.log('[TerminalPayment] ✅ Native SDK initialized successfully');
-    } catch (err: any) {
-      // Comprehensive error logging for Stripe Terminal errors
-      console.error('[TerminalPayment] ❌ Init error - Full object:', JSON.stringify(err, null, 2));
-      console.error('[TerminalPayment] Error code:', err.code || 'NO_CODE');
-      console.error('[TerminalPayment] Error message:', err.message || 'NO_MESSAGE');
-      console.error('[TerminalPayment] Error name:', err.name || 'NO_NAME');
-      console.error('[TerminalPayment] Error data:', err.data || 'NO_DATA');
-      
-      const detailedError = `[${err.code || 'UNKNOWN'}] ${err.message || err}`;
-      setError(detailedError);
-      toast.error(`Terminal Init Error: ${detailedError}`);
-      throw err;
+    // If initialization is already in progress, wait for it
+    if (initializationPromise) {
+      console.log('[TerminalPayment] Initialization already in progress, waiting...');
+      await initializationPromise;
+      return;
     }
-  }, [isInitialized, fetchConnectionToken]);
+    
+    // Start initialization with mutex lock
+    initializationPromise = (async () => {
+      try {
+        console.log('[TerminalPayment] Loading Stripe Terminal plugin...');
+        const StripeTerminal = await loadStripeTerminal();
+        if (!StripeTerminal) throw new Error('Failed to load Stripe Terminal plugin');
+        
+        terminalRef.current = StripeTerminal;
+        
+        // Set up connection token listener BEFORE initialize
+        console.log('[TerminalPayment] Setting up token listener...');
+        try {
+          const listenerResult = StripeTerminal.addListener('requestedConnectionToken', async () => {
+            console.log('[TerminalPayment] Token requested by SDK');
+            try {
+              const token = await fetchConnectionToken();
+              await StripeTerminal.setConnectionToken({ token });
+              console.log('[TerminalPayment] Token provided to SDK');
+            } catch (tokenErr) {
+              console.error('[TerminalPayment] Failed to provide token:', tokenErr);
+            }
+          });
+          // Handle both Promise and non-Promise returns from addListener
+          if (listenerResult && typeof listenerResult.then === 'function') {
+            await listenerResult;
+          }
+          console.log('[TerminalPayment] Token listener set up successfully');
+        } catch (listenerErr) {
+          console.warn('[TerminalPayment] Listener setup warning (non-fatal):', listenerErr);
+        }
+        
+        // Initialize SDK
+        console.log('[TerminalPayment] Initializing SDK...');
+        console.log('[TerminalPayment] Platform:', getPlatform());
+        console.log('[TerminalPayment] isTest: true (TEST MODE - HARDWARE VERIFICATION)');
+        
+        await StripeTerminal.initialize({
+          isTest: true,  // HARDCODED FOR TEST BUILD
+        });
+        
+        setIsInitialized(true);
+        console.log('[TerminalPayment] ✅ Native SDK initialized successfully');
+      } catch (err: any) {
+        // Clear terminalRef on failure so retry is possible
+        terminalRef.current = null;
+        
+        console.error('[TerminalPayment] ❌ Init error - Full object:', JSON.stringify(err, null, 2));
+        console.error('[TerminalPayment] Error code:', err.code || 'NO_CODE');
+        console.error('[TerminalPayment] Error message:', err.message || 'NO_MESSAGE');
+        
+        const detailedError = `[${err.code || 'UNKNOWN'}] ${err.message || err}`;
+        setError(detailedError);
+        toast.error(`Terminal Init Error: ${detailedError}`);
+        throw err;
+      } finally {
+        // Release the mutex
+        initializationPromise = null;
+      }
+    })();
+    
+    await initializationPromise;
+  }, [fetchConnectionToken]);
 
   // Request Android location permissions using Capacitor Geolocation plugin
   const requestLocationPermission = useCallback(async (): Promise<boolean> => {
@@ -284,10 +300,15 @@ export const useTerminalPayment = () => {
         }
       }
 
-      if (!isInitialized) {
+      // Use terminalRef for synchronous check (not async React state)
+      if (!terminalRef.current) {
         console.log('[TerminalPayment] SDK not initialized, initializing now...');
         await initializeNativeSDK();
-        await new Promise(resolve => setTimeout(resolve, 500)); // Stabilization delay
+        // Increased stabilization delay for native bridge settling
+        await new Promise(resolve => setTimeout(resolve, 800));
+        if (!terminalRef.current) {
+          throw new Error('Terminal initialization failed');
+        }
       }
       
       return await discoverReadersInternal(connectionType, locationId);
@@ -345,12 +366,13 @@ export const useTerminalPayment = () => {
     }
 
     // Step 1: ALWAYS ensure SDK is initialized before any operation
+    // Use terminalRef (synchronous) not isInitialized (async React state)
     // This prevents the "first tap fails, second tap works" race condition
-    if (!isInitialized || !terminalRef.current) {
+    if (!terminalRef.current) {
       console.log('[TerminalPayment] SDK not ready, initializing first...');
       await initializeNativeSDK();
-      // Wait for SDK to fully stabilize after initialization
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Increased stabilization delay (800ms) for native bridge settling
+      await new Promise(resolve => setTimeout(resolve, 800));
       if (!terminalRef.current) {
         throw new Error('Terminal not initialized after init attempt');
       }

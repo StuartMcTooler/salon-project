@@ -555,40 +555,66 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
           <p>stripe_location_id: {existingSettings?.stripe_location_id || 'none'}</p>
         </div>
 
-        {/* Recreate Location Button - Always visible when location exists */}
+        {/* Recreate Location Buttons - Always visible when location exists */}
         {existingSettings?.stripe_location_id && (
-          <div className="border border-blue-300 bg-blue-50 dark:bg-blue-950/20 rounded-lg p-4 space-y-3">
+          <div className="border border-amber-300 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 space-y-3">
             <div className="flex items-start gap-2">
-              <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-blue-700 dark:text-blue-400">
-                  Location Mode Mismatch?
+                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                  NFC Not Available?
                 </p>
-                <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
-                  If Tap to Pay shows "not available", your location may be in the wrong Stripe mode. 
-                  {isTestModeActive ? " You're in TEST mode." : " You're in LIVE mode."}
+                <p className="text-xs text-amber-600 dark:text-amber-300 mt-1">
+                  Your location was likely created in the wrong Stripe environment. 
+                  Choose the mode matching your current testing setup:
                 </p>
               </div>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleRecreateForTestMode}
-              disabled={isCreatingLocation}
-              className="w-full border-blue-300 text-blue-700 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30"
-            >
-              {isCreatingLocation ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating Location...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Recreate Location {isTestModeActive ? "(Test Mode)" : "(Current Mode)"}
-                </>
-              )}
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => createTerminalLocation(true).then(locId => {
+                  if (locId) {
+                    supabase.from('terminal_settings')
+                      .update({ stripe_location_id: locId })
+                      .eq('id', existingSettings.id)
+                      .then(() => loadSettings());
+                  }
+                })}
+                disabled={isCreatingLocation}
+                className="border-orange-400 text-orange-700 hover:bg-orange-100 dark:text-orange-400 dark:hover:bg-orange-900/30"
+              >
+                {isCreatingLocation ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>🧪 Test Mode</>
+                )}
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => createTerminalLocation(false).then(locId => {
+                  if (locId) {
+                    supabase.from('terminal_settings')
+                      .update({ stripe_location_id: locId })
+                      .eq('id', existingSettings.id)
+                      .then(() => loadSettings());
+                  }
+                })}
+                disabled={isCreatingLocation}
+                className="border-green-400 text-green-700 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30"
+              >
+                {isCreatingLocation ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>💳 Live Mode</>
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Current location: {existingSettings.stripe_location_id}
+            </p>
           </div>
         )}
 

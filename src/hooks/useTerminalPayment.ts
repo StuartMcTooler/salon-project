@@ -215,6 +215,24 @@ export const useTerminalPayment = () => {
     const StripeTerminal = terminalRef.current;
     if (!StripeTerminal) throw new Error('Terminal not initialized');
     
+    // For Tap to Pay, check device capability first
+    if (connectionType === 'tap_to_pay' && isAndroid()) {
+      console.log('[TerminalPayment] 📱 Checking Tap to Pay device capability...');
+      try {
+        // The plugin may have a method to check NFC availability
+        if (typeof StripeTerminal.isDeviceCapable === 'function') {
+          const capable = await StripeTerminal.isDeviceCapable();
+          console.log('[TerminalPayment] Device capable:', capable);
+          if (!capable) {
+            throw new Error('This device does not support Tap to Pay. Check: 1) NFC enabled in Settings, 2) Google Wallet installed with payment card, 3) Device supports HCE');
+          }
+        }
+      } catch (capErr: any) {
+        console.warn('[TerminalPayment] Capability check:', capErr.message);
+        // Continue anyway - let the SDK give us the real error
+      }
+    }
+    
     // Map our connection type to plugin's TerminalConnectTypes
     let terminalType: string;
     switch (connectionType) {
@@ -238,6 +256,7 @@ export const useTerminalPayment = () => {
     
     console.log(`[TerminalPayment] 🔍 Discovering readers with config:`, discoveryConfig);
     console.log(`[TerminalPayment] Platform: ${getPlatform()}, ConnectionType: ${connectionType}`);
+    console.log(`[TerminalPayment] LocationId: ${locationId || 'NOT PROVIDED'}`);
     
     const result = await StripeTerminal.discoverReaders(discoveryConfig);
     

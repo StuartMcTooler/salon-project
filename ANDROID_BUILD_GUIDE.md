@@ -130,6 +130,26 @@ Add these permissions inside the `<manifest>` tag (before `<application>`):
 
 **Important:** The NFC permission AND feature tag are **required** for Tap to Pay functionality.
 
+#### 5d. Enable Live Mode on Debug Builds (Optional)
+
+If you need to test **Live Mode** Tap to Pay on a debug build, Stripe's SDK will block NFC transactions for security reasons. To bypass this, you must mark the debug build as non-debuggable:
+
+Open `android/app/build.gradle` and add inside the `android { }` block:
+
+```gradle
+android {
+    // ... existing configuration ...
+
+    buildTypes {
+        debug {
+            debuggable false  // Required for Stripe Tap to Pay in Live Mode
+        }
+    }
+}
+```
+
+⚠️ **Note:** This disables Android Studio's debugger for this build variant. For development debugging, you may want to create a separate build variant or only apply this when testing live payments.
+
 ### Step 6: Build the Web App
 
 ```bash

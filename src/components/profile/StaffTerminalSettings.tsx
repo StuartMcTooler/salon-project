@@ -548,25 +548,17 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
           </div>
         )}
 
-        {/* DEBUG: Show current state */}
-        <div className="text-xs text-muted-foreground p-2 bg-muted rounded">
-          <p>Debug: staffId={staffId}</p>
-          <p>existingSettings: {existingSettings ? 'loaded' : 'null'}</p>
-          <p>stripe_location_id: {existingSettings?.stripe_location_id || 'none'}</p>
-        </div>
-
-        {/* Recreate Location Buttons - Always visible when location exists */}
-        {existingSettings?.stripe_location_id && (
+        {/* Environment Sync Buttons - ALWAYS show for Tap to Pay to fix mode mismatch */}
+        {connectionType === 'tap_to_pay' && (
           <div className="border border-amber-300 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 space-y-3">
             <div className="flex items-start gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+              <RefreshCw className="h-5 w-5 text-amber-600 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                  NFC Not Available?
+                  Sync Payment Environment
                 </p>
                 <p className="text-xs text-amber-600 dark:text-amber-300 mt-1">
-                  Your location was likely created in the wrong Stripe environment. 
-                  Choose the mode matching your current testing setup:
+                  If you see "NFC not available" error, recreate your location in the correct mode:
                 </p>
               </div>
             </div>
@@ -576,10 +568,10 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
                 size="sm" 
                 onClick={() => createTerminalLocation(true).then(locId => {
                   if (locId) {
-                    supabase.from('terminal_settings')
-                      .update({ stripe_location_id: locId })
-                      .eq('id', existingSettings.id)
-                      .then(() => loadSettings());
+                    const updateSettings = existingSettings?.id 
+                      ? supabase.from('terminal_settings').update({ stripe_location_id: locId }).eq('id', existingSettings.id)
+                      : supabase.from('terminal_settings').insert({ staff_id: staffId, connection_type: 'tap_to_pay', stripe_location_id: locId, is_active: true });
+                    updateSettings.then(() => loadSettings());
                   }
                 })}
                 disabled={isCreatingLocation}
@@ -596,10 +588,10 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
                 size="sm" 
                 onClick={() => createTerminalLocation(false).then(locId => {
                   if (locId) {
-                    supabase.from('terminal_settings')
-                      .update({ stripe_location_id: locId })
-                      .eq('id', existingSettings.id)
-                      .then(() => loadSettings());
+                    const updateSettings = existingSettings?.id 
+                      ? supabase.from('terminal_settings').update({ stripe_location_id: locId }).eq('id', existingSettings.id)
+                      : supabase.from('terminal_settings').insert({ staff_id: staffId, connection_type: 'tap_to_pay', stripe_location_id: locId, is_active: true });
+                    updateSettings.then(() => loadSettings());
                   }
                 })}
                 disabled={isCreatingLocation}
@@ -612,9 +604,11 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
                 )}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground text-center">
-              Current location: {existingSettings.stripe_location_id}
-            </p>
+            {existingSettings?.stripe_location_id && (
+              <p className="text-xs text-muted-foreground text-center">
+                Current: {existingSettings.stripe_location_id}
+              </p>
+            )}
           </div>
         )}
 

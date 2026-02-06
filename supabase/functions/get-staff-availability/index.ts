@@ -172,6 +172,10 @@ Deno.serve(async (req) => {
     const currentLocalMinutes = localHour * 60 + localMinute;
     
     console.log('Current local time (Dublin):', `${localHour}:${localMinute}`, `(${currentLocalMinutes} minutes)`);
+    
+    // Calculate the earliest bookable time considering lead time
+    const earliestBookableMinutes = currentLocalMinutes + (leadTimeHours * 60);
+    console.log('Earliest bookable time (with lead time):', earliestBookableMinutes, 'minutes');
 
     // Get today's date in Dublin timezone
     const localYear = parseInt(getPart('year'));

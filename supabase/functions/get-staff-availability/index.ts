@@ -40,14 +40,17 @@ Deno.serve(async (req) => {
 
     console.log('Checking availability for staff:', staff_id);
 
-    // Get staff details
+    // Get staff details including minimum_booking_lead_hours
     const { data: staff, error: staffError } = await supabaseClient
       .from('staff_members')
-      .select('*, business_id')
+      .select('*, business_id, minimum_booking_lead_hours')
       .eq('id', staff_id)
       .single();
 
     if (staffError) throw staffError;
+
+    const leadTimeHours = staff.minimum_booking_lead_hours || 0;
+    console.log('Staff lead time hours:', leadTimeHours);
 
     // If this staff member is in simulated fully booked mode, always
     // report as fully booked regardless of underlying appointments.

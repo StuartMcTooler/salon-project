@@ -90,7 +90,16 @@ export const AppointmentDetailsDialog = ({
 
       if (error) throw error;
       
-      return { staffId: appointment.staff_id, appointmentId: appointment.id };
+      return { 
+        staffId: appointment.staff_id, 
+        appointmentId: appointment.id,
+        customerPhone: appointment.customer_phone,
+        customerName: appointment.customer_name,
+        serviceName: appointment.service_name,
+        appointmentDate: appointment.appointment_date,
+        staffName: appointment.staff?.display_name || 'your stylist',
+        businessId: appointment.business_id
+      };
     },
     onSuccess: (data) => {
       // Send cancellation email to creator (non-blocking)
@@ -102,13 +111,41 @@ export const AppointmentDetailsDialog = ({
         }
       }).catch(err => console.error('[CANCEL] Failed to send creator email:', err));
       
+      // Send cancellation SMS to customer (non-blocking)
+      if (data.customerPhone) {
+        const appointmentDate = new Date(data.appointmentDate);
+        const formattedDate = appointmentDate.toLocaleDateString('en-IE', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long'
+        });
+        const formattedTime = appointmentDate.toLocaleTimeString('en-IE', {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        const bookingLink = `${window.location.origin}/book/${data.staffId}`;
+        const message = `Hi ${data.customerName}, your appointment for ${data.serviceName} on ${formattedDate} at ${formattedTime} has been cancelled. We apologise for any inconvenience. Rebook here: ${bookingLink}`;
+        
+        supabase.functions.invoke('send-whatsapp', {
+          body: {
+            to: data.customerPhone,
+            message,
+            businessId: data.businessId,
+            messageType: 'booking_cancelled'
+          }
+        }).catch(err => console.error('[CANCEL] Failed to send customer SMS:', err));
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['timeline-appointments'] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['visual-calendar'] });
       queryClient.invalidateQueries({ queryKey: ['todays-appointments'] });
       toast({
         title: "Appointment Cancelled",
-        description: "The appointment has been cancelled successfully.",
+        description: data.customerPhone 
+          ? "The appointment has been cancelled and the customer has been notified."
+          : "The appointment has been cancelled.",
       });
       onOpenChange(false);
     },

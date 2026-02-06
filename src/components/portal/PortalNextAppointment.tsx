@@ -159,8 +159,24 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
         .eq("id", appointment.id);
 
       if (error) throw error;
+      
+      return {
+        staffId: appointment.staff_id,
+        appointmentId: appointment.id
+      };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Notify the staff member that customer cancelled
+      if (data?.staffId && data?.appointmentId) {
+        supabase.functions.invoke('send-creator-email', {
+          body: {
+            staffId: data.staffId,
+            appointmentId: data.appointmentId,
+            notificationType: 'booking_cancelled'
+          }
+        }).catch(err => console.error('[Portal] Failed to notify staff of cancellation:', err));
+      }
+      
       queryClient.invalidateQueries({ queryKey: ["next-appointment", clientId] });
       toast.success("Appointment cancelled");
       setShowCancel(false);

@@ -63,14 +63,51 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
         .single();
 
       if (error) throw error;
-      return data;
+      return { ...data, newStatus: status };
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['todays-appointments', staffId] });
+      
+      // If cancelling, send SMS to customer
+      if (variables.status === 'cancelled' && data.customer_phone) {
+        const appointmentDate = new Date(data.appointment_date);
+        const formattedDate = appointmentDate.toLocaleDateString('en-IE', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long'
+        });
+        const formattedTime = appointmentDate.toLocaleTimeString('en-IE', {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        const bookingLink = `${window.location.origin}/book/${staffId}`;
+        const message = `Hi ${data.customer_name}, your appointment for ${data.service_name} on ${formattedDate} at ${formattedTime} has been cancelled. We apologise for any inconvenience. Rebook here: ${bookingLink}`;
+        
+        supabase.functions.invoke('send-whatsapp', {
+          body: {
+            to: data.customer_phone,
+            message,
+            messageType: 'booking_cancelled'
+          }
+        }).catch(err => console.error('[TodaysAppts] Failed to send cancellation SMS:', err));
+        
+        // Also send email to creator
+        supabase.functions.invoke('send-creator-email', {
+          body: {
+            staffId: staffId,
+            appointmentId: data.id,
+            notificationType: 'booking_cancelled'
+          }
+        }).catch(err => console.error('[TodaysAppts] Failed to send creator email:', err));
+      }
+      
       const statusMessages: Record<string, string> = {
         checked_in: "Client checked in",
         no_show: "Marked as no-show",
-        cancelled: "Appointment cancelled",
+        cancelled: data.customer_phone 
+          ? "Appointment cancelled & customer notified" 
+          : "Appointment cancelled",
       };
       toast({
         title: statusMessages[variables.status] || "Status updated",

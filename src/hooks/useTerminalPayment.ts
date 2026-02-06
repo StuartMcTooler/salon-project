@@ -199,8 +199,15 @@ export const useTerminalPayment = () => {
       const { Geolocation } = await import('@capacitor/geolocation');
       
       // Check current permission status
-      const permStatus = await Geolocation.checkPermissions();
-      console.log('[TerminalPayment] Current permission status:', permStatus.location);
+      let permStatus;
+      try {
+        permStatus = await Geolocation.checkPermissions();
+        console.log('[TerminalPayment] Current permission status:', permStatus.location);
+      } catch (checkErr) {
+        console.warn('[TerminalPayment] Permission check failed, requesting directly:', checkErr);
+        // Proceed to request anyway
+        permStatus = { location: 'prompt' };
+      }
       
       if (permStatus.location === 'granted') {
         console.log('[TerminalPayment] ✅ Location permission already granted');
@@ -208,7 +215,8 @@ export const useTerminalPayment = () => {
       }
       
       // Request permission
-      const result = await Geolocation.requestPermissions();
+      console.log('[TerminalPayment] Requesting permission...');
+      const result = await Geolocation.requestPermissions({ permissions: ['location'] });
       console.log('[TerminalPayment] Permission request result:', result.location);
       
       if (result.location === 'granted') {
@@ -216,13 +224,16 @@ export const useTerminalPayment = () => {
         return true;
       } else {
         console.warn('[TerminalPayment] ⚠️ Location permission denied:', result.location);
-        toast.error('Location permission is required for Tap to Pay. Please enable it in Settings.');
+        toast.error('Location permission is required to discover readers.');
         return false;
       }
     } catch (err: any) {
       console.error('[TerminalPayment] Location permission error:', err);
-      // Don't block the flow - let the SDK handle it and show its own error
-      return true;
+      console.error('[TerminalPayment] Error details:', JSON.stringify(err, null, 2));
+      
+      // Show error to user - don't silently continue
+      toast.error(`Location permission error: ${err.message || 'Unknown error'}`);
+      return false;
     }
   }, []);
 

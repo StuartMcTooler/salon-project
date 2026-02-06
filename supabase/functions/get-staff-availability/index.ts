@@ -40,14 +40,17 @@ Deno.serve(async (req) => {
 
     console.log('Checking availability for staff:', staff_id);
 
-    // Get staff details
+    // Get staff details including minimum_booking_lead_hours
     const { data: staff, error: staffError } = await supabaseClient
       .from('staff_members')
-      .select('*, business_id')
+      .select('*, business_id, minimum_booking_lead_hours')
       .eq('id', staff_id)
       .single();
 
     if (staffError) throw staffError;
+
+    const leadTimeHours = staff.minimum_booking_lead_hours || 0;
+    console.log('Staff lead time hours:', leadTimeHours);
 
     // If this staff member is in simulated fully booked mode, always
     // report as fully booked regardless of underlying appointments.
@@ -169,6 +172,10 @@ Deno.serve(async (req) => {
     const currentLocalMinutes = localHour * 60 + localMinute;
     
     console.log('Current local time (Dublin):', `${localHour}:${localMinute}`, `(${currentLocalMinutes} minutes)`);
+    
+    // Calculate the earliest bookable time considering lead time
+    const earliestBookableMinutes = currentLocalMinutes + (leadTimeHours * 60);
+    console.log('Earliest bookable time (with lead time):', earliestBookableMinutes, 'minutes');
 
     // Get today's date in Dublin timezone
     const localYear = parseInt(getPart('year'));
@@ -207,14 +214,29 @@ Deno.serve(async (req) => {
         dayHours.break_end_time
       );
 
-      // If checking today, filter out past times using local time comparison
-      const availableSlots = daysAhead === 0 
-        ? slots.filter(slot => {
-            const [hours, minutes] = slot.time.split(':').map(Number);
-            const slotMinutes = hours * 60 + minutes;
-            return slotMinutes > currentLocalMinutes;
-          })
-        : slots;
+      // If checking today, filter out slots that don't meet lead time requirement
+      // Also need to handle lead time that spills into tomorrow
+      let availableSlots: TimeSlot[];
+      
+      if (daysAhead === 0) {
+        // For today: slot must be after current time + lead time hours
+        availableSlots = slots.filter(slot => {
+          const [hours, minutes] = slot.time.split(':').map(Number);
+          const slotMinutes = hours * 60 + minutes;
+          return slotMinutes > earliestBookableMinutes;
+        });
+      } else if (daysAhead === 1 && earliestBookableMinutes > 24 * 60) {
+        // Lead time spills into tomorrow - need to check tomorrow's slots too
+        const spilloverMinutes = earliestBookableMinutes - (24 * 60);
+        availableSlots = slots.filter(slot => {
+          const [hours, minutes] = slot.time.split(':').map(Number);
+          const slotMinutes = hours * 60 + minutes;
+          return slotMinutes > spilloverMinutes;
+        });
+      } else {
+        // For future days beyond lead time window, all slots are valid
+        availableSlots = slots;
+      }
 
       if (availableSlots.length > 0) {
         firstAvailableSlot = {

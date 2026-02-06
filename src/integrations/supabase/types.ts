@@ -1716,6 +1716,8 @@ export type Database = {
           payment_status: string | null
           price: number
           remaining_balance: number | null
+          reminder_24h_sent_at: string | null
+          reminder_72h_sent_at: string | null
           service_id: string | null
           service_name: string
           staff_id: string | null
@@ -1745,6 +1747,8 @@ export type Database = {
           payment_status?: string | null
           price: number
           remaining_balance?: number | null
+          reminder_24h_sent_at?: string | null
+          reminder_72h_sent_at?: string | null
           service_id?: string | null
           service_name: string
           staff_id?: string | null
@@ -1774,6 +1778,8 @@ export type Database = {
           payment_status?: string | null
           price?: number
           remaining_balance?: number | null
+          reminder_24h_sent_at?: string | null
+          reminder_72h_sent_at?: string | null
           service_id?: string | null
           service_name?: string
           staff_id?: string | null

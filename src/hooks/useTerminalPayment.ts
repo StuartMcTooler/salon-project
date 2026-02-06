@@ -204,36 +204,44 @@ export const useTerminalPayment = () => {
         permStatus = await Geolocation.checkPermissions();
         console.log('[TerminalPayment] Current permission status:', permStatus.location);
       } catch (checkErr) {
-        console.warn('[TerminalPayment] Permission check failed, requesting directly:', checkErr);
-        // Proceed to request anyway
+        console.warn('[TerminalPayment] Permission check failed, will request:', checkErr);
         permStatus = { location: 'prompt' };
       }
       
-      if (permStatus.location === 'granted') {
-        console.log('[TerminalPayment] ✅ Location permission already granted');
+      // Accept any non-denied state as potentially granted
+      if (permStatus.location === 'granted' || permStatus.location === 'limited') {
+        console.log('[TerminalPayment] ✅ Location permission already granted:', permStatus.location);
         return true;
       }
       
-      // Request permission
+      // If denied, we can't proceed
+      if (permStatus.location === 'denied') {
+        console.warn('[TerminalPayment] ⚠️ Location permission was denied previously');
+        toast.error('Location permission denied. Please enable in Settings > Apps > salon-project > Permissions.');
+        return false;
+      }
+      
+      // Request permission (status is 'prompt' or 'prompt-with-rationale')
       console.log('[TerminalPayment] Requesting permission...');
       const result = await Geolocation.requestPermissions({ permissions: ['location'] });
       console.log('[TerminalPayment] Permission request result:', result.location);
       
-      if (result.location === 'granted') {
-        console.log('[TerminalPayment] ✅ Location permission granted');
+      // Accept any non-denied result
+      if (result.location !== 'denied') {
+        console.log('[TerminalPayment] ✅ Location permission granted:', result.location);
         return true;
       } else {
-        console.warn('[TerminalPayment] ⚠️ Location permission denied:', result.location);
-        toast.error('Location permission is required to discover readers.');
+        console.warn('[TerminalPayment] ⚠️ Location permission denied');
+        toast.error('Location permission is required for Tap to Pay.');
         return false;
       }
     } catch (err: any) {
       console.error('[TerminalPayment] Location permission error:', err);
-      console.error('[TerminalPayment] Error details:', JSON.stringify(err, null, 2));
       
-      // Show error to user - don't silently continue
-      toast.error(`Location permission error: ${err.message || 'Unknown error'}`);
-      return false;
+      // If Geolocation plugin fails, try to proceed anyway
+      // The Stripe SDK will give us the real error if location is truly needed
+      console.warn('[TerminalPayment] ⚠️ Geolocation plugin error, proceeding anyway...');
+      return true;
     }
   }, []);
 

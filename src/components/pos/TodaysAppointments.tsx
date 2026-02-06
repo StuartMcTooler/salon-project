@@ -88,7 +88,6 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
           body: {
             to: data.customer_phone,
             message,
-            businessId: data.business_id,
             messageType: 'booking_cancelled'
           }
         }).catch(err => console.error('[TodaysAppts] Failed to send cancellation SMS:', err));

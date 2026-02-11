@@ -65,8 +65,26 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
       }
 
       // Solo professionals automatically get all payment methods (no admin to grant them)
-      const isSolo = (businessResult.data as any)?.business_accounts?.business_type === 'solo_professional';
+      // Use multiple detection methods for robustness
+      let isSolo = false;
       const allMethods = ['tap_to_pay', 'bluetooth', 'business_reader'];
+      
+      if (businessResult.data) {
+        isSolo = (businessResult.data as any)?.business_accounts?.business_type === 'solo_professional';
+      }
+      
+      // Fallback: if the join query failed, check business type directly
+      if (!isSolo && staffResult.data?.business_id) {
+        console.log('[StaffTerminalSettings] Business join may have failed, checking directly...');
+        const { data: bizData } = await supabase
+          .from('business_accounts')
+          .select('business_type')
+          .eq('id', staffResult.data.business_id)
+          .single();
+        isSolo = bizData?.business_type === 'solo_professional';
+      }
+      
+      console.log('[StaffTerminalSettings] isSolo:', isSolo, 'businessResult:', businessResult.data, businessResult.error);
       
       if (isSolo) {
         setAllowedTerminalTypes(allMethods);

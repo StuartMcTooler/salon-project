@@ -96,8 +96,13 @@ serve(async (req) => {
       console.log('Using existing Stripe Connect account:', accountId);
     }
 
-    // Get the origin for return URLs
-    const origin = req.headers.get('origin') || Deno.env.get('FRONTEND_URL') || 'https://lovable.dev';
+    // Get the origin for return URLs - use published URL for livemode compatibility
+    // Native apps send localhost as origin which Stripe rejects in livemode
+    const rawOrigin = req.headers.get('origin') || '';
+    const isLocalhost = rawOrigin.includes('localhost') || rawOrigin.includes('127.0.0.1') || !rawOrigin;
+    const origin = isLocalhost 
+      ? (Deno.env.get('FRONTEND_URL') || 'https://bookd.ie')
+      : rawOrigin;
 
     // Create an account link for onboarding
     const accountLink = await stripe.accountLinks.create({

@@ -10,17 +10,44 @@ const Index = () => {
 
   useEffect(() => {
     const handleRouting = async () => {
-      // If this is a recovery redirect, don't interfere - let PasswordRecoveryHandler handle it
+      // Check URL for auth recovery params (both implicit hash and PKCE query)
       const hash = window.location.hash;
-      if (hash && hash.includes('type=recovery')) {
+      const searchParams = new URLSearchParams(window.location.search);
+      const hasRecoveryHash = hash.includes('type=recovery');
+      const hasAuthCode = searchParams.has('code');
+
+      // Set up a recovery detection flag BEFORE getSession triggers auth init
+      let isRecoveryFlow = false;
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          isRecoveryFlow = true;
+        }
+      });
+
+      const isNative = isNativeApp();
+      
+      // getSession() waits for auth initialization, which processes URL tokens
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // Clean up the listener
+      subscription.unsubscribe();
+
+      // If recovery was detected via auth event or URL params, redirect to reset password
+      if (isRecoveryFlow || hasRecoveryHash) {
+        navigate("/reset-password", { replace: true });
         setChecking(false);
         return;
       }
 
-      const isNative = isNativeApp();
-      
-      // Check if user is already logged in
-      const { data: { session } } = await supabase.auth.getSession();
+      // If there's a PKCE auth code and a session was just established,
+      // give the PasswordRecoveryHandler a moment to catch the event
+      if (hasAuthCode && session) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        if (window.location.pathname === '/reset-password') {
+          setChecking(false);
+          return;
+        }
+      }
       
       if (isNative) {
         // Native app is for staff/salon owners only

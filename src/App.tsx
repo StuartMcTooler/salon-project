@@ -29,6 +29,7 @@ import ImageProcessingTest from "./pages/ImageProcessingTest";
 import AcceptInvite from "./pages/AcceptInvite";
 import MyProfile from "./pages/MyProfile";
 import ResetPassword from "./pages/ResetPassword";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 const queryClient = new QueryClient();
 
@@ -78,6 +79,7 @@ const App = () => (
           <Route path="/test/image-processing" element={<ImageProcessingTest />} />
           <Route path="/accept-invite" element={<AcceptInvite />} />
           <Route path="/my-profile" element={<MyProfile />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

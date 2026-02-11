@@ -54,6 +54,7 @@ export const SoloSetup = () => {
           hourly_rate: formData.hourlyRate ? parseFloat(formData.hourlyRate) : null,
           is_active: true,
           tier: 'standard',
+          allowed_terminal_types: ['tap_to_pay', 'bluetooth', 'business_reader'],
         });
 
       if (staffError) throw staffError;

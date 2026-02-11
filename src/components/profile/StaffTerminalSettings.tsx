@@ -37,7 +37,7 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
   const loadSettings = async () => {
     try {
       // Load both terminal settings and staff permissions
-      const [terminalResult, staffResult] = await Promise.all([
+      const [terminalResult, staffResult, businessResult] = await Promise.all([
         supabase
           .from('terminal_settings')
           .select('*')
@@ -46,7 +46,12 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
           .maybeSingle(),
         supabase
           .from('staff_members')
-          .select('allowed_terminal_types, display_name')
+          .select('allowed_terminal_types, display_name, business_id')
+          .eq('id', staffId)
+          .single(),
+        supabase
+          .from('staff_members')
+          .select('business_id, business_accounts!inner(business_type)')
           .eq('id', staffId)
           .single()
       ]);
@@ -59,8 +64,21 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
         setReaderId(terminalResult.data.reader_id || '');
       }
 
-      // Set allowed terminal types (default to business_reader if not set)
-      if (staffResult.data?.allowed_terminal_types) {
+      // Solo professionals automatically get all payment methods (no admin to grant them)
+      const isSolo = (businessResult.data as any)?.business_accounts?.business_type === 'solo_professional';
+      const allMethods = ['tap_to_pay', 'bluetooth', 'business_reader'];
+      
+      if (isSolo) {
+        setAllowedTerminalTypes(allMethods);
+        // Auto-fix if DB doesn't have the right permissions yet
+        if (!staffResult.data?.allowed_terminal_types || 
+            !staffResult.data.allowed_terminal_types.includes('tap_to_pay')) {
+          await supabase
+            .from('staff_members')
+            .update({ allowed_terminal_types: allMethods })
+            .eq('id', staffId);
+        }
+      } else if (staffResult.data?.allowed_terminal_types) {
         setAllowedTerminalTypes(staffResult.data.allowed_terminal_types);
       }
     } catch (error) {

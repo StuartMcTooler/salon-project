@@ -19,6 +19,7 @@ import { CalendarManager } from "@/components/profile/CalendarManager";
 import { PayoutActivationCard } from "@/components/dashboard/PayoutActivationCard";
 import { SoloAvailabilitySettings } from "@/components/dashboard/SoloAvailabilitySettings";
 import { StaffLeadTimeCard } from "@/components/profile/StaffLeadTimeCard";
+import { ServiceManager } from "@/components/dashboard/ServiceManager";
 
 const MyProfile = () => {
   const navigate = useNavigate();
@@ -206,6 +207,8 @@ const MyProfile = () => {
                 )}
               </CardContent>
             </Card>
+
+            <ServiceManager staffId={staffMember.id} />
           </TabsContent>
 
           <TabsContent value="calendar">

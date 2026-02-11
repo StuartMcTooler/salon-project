@@ -10,6 +10,13 @@ const Index = () => {
 
   useEffect(() => {
     const handleRouting = async () => {
+      // If this is a recovery redirect, don't interfere - let PasswordRecoveryHandler handle it
+      const hash = window.location.hash;
+      if (hash && hash.includes('type=recovery')) {
+        setChecking(false);
+        return;
+      }
+
       const isNative = isNativeApp();
       
       // Check if user is already logged in

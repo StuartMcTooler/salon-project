@@ -27,7 +27,9 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
   const [loading, setLoading] = useState(true);
   const [existingSettings, setExistingSettings] = useState<any>(null);
   const [isDiscovering, setIsDiscovering] = useState(false);
-  const [allowedTerminalTypes, setAllowedTerminalTypes] = useState<string[]>(['business_reader']);
+  // Default to all methods - will be refined after DB load
+  // This prevents a flash of "Business Reader Only" for solo professionals
+  const [allowedTerminalTypes, setAllowedTerminalTypes] = useState<string[]>(['tap_to_pay', 'bluetooth', 'business_reader']);
   const [isCreatingLocation, setIsCreatingLocation] = useState(false);
 
   useEffect(() => {

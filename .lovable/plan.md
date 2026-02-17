@@ -1,126 +1,53 @@
 
-# Fix Tap to Pay Initialization Race Condition and Live Mode Debug Build
 
-## Problem Summary
+# Appointment Reminders: Final Implementation Plan
 
-You've confirmed two distinct issues:
+## What We're Keeping From the Suggestion
+- Range queries using `.gte()` and `.lt()` on `appointment_date` (timestamptz) -- this is the correct approach
+- Business hours guard (9am-6pm Dublin time)
+- The 2-day / 1-day reminder concept
 
-1. **Race Condition (First Tap)**: Location permission error on first tap despite permissions being granted. This happens because the SDK initialization isn't fully awaited before reader discovery begins.
+## What We're Fixing From the Suggestion
+The suggested code had several mismatches with your actual database:
 
-2. **Security Block (Second Tap)**: "Tap to Pay not available" in Live Mode because Stripe's SDK blocks transactions on debug builds for security reasons.
+| Suggested Code | Your Actual Setup |
+|---|---|
+| Table: `appointments` | Table: `salon_appointments` |
+| Join: `profiles:client_id(*)` | Direct columns: `customer_name`, `customer_phone` |
+| Mock SMS logging | Real SMS via `send-whatsapp` edge function |
+| `.lte('T23:59:59')` | `.lt('next day T00:00:00')` (no missed edge cases) |
+| Heavily commented timezone experiments | Clean implementation |
 
----
+## Implementation
 
-## Solution
+### File: `supabase/functions/send-appointment-reminders/index.ts`
 
-### Part 1: Fix the Initialization Race Condition
+Complete rewrite of the function logic:
 
-**File**: `src/hooks/useTerminalPayment.ts`
+1. **Business hours guard**: Get current hour in `Europe/Dublin` using `Intl.DateTimeFormat`. If before 9 or 18+, return early with a 200 response.
 
-The current flow checks `isInitialized` React state, but React state updates are asynchronous. Even after `await initializeNativeSDK()` completes, the state may not reflect the change immediately.
+2. **Day boundary calculation**: 
+   - Get today's date string in Dublin timezone using `Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Dublin' })`
+   - For 2-day reminder: target = today + 2 days
+   - For 1-day reminder: target = today + 1 day
+   - Range: `.gte(targetDate + 'T00:00:00+00:00')` and `.lt(nextDate + 'T00:00:00+00:00')`
+   - UTC boundaries are acceptable since Ireland is UTC+0 (winter) or UTC+1 (summer), and all appointments are during business hours (9am-6pm)
 
-**Changes**:
-- Use a synchronous flag (`initializationPromise`) to track ongoing initialization
-- Ensure only one initialization can run at a time (prevent duplicate parallel inits)
-- Add explicit verification that `terminalRef.current` is populated before proceeding
-- Increase stabilization delay after initialization to 800ms for more reliable native bridge settling
+3. **2-day reminder query**:
+   - Table: `salon_appointments`
+   - Columns: `id, customer_name, customer_phone, service_name, appointment_date, staff_id, duration_minutes, price`
+   - Filters: status in ('pending', 'confirmed'), `reminder_72h_sent_at` is null, date in 2-day range
+   - Send via `send-whatsapp` with message: "Your appointment with {staff} is in 2 days..."
+   - Mark `reminder_72h_sent_at` on success
 
-### Part 2: Enable Live Mode on Debug Builds
+4. **1-day reminder query**: Same structure but for tomorrow, using `reminder_24h_sent_at` column, message says "Tomorrow!"
 
-**File**: `ANDROID_BUILD_GUIDE.md`
+5. **Staff name lookup**: Reuse existing cache pattern from current code (query `staff_members.display_name`)
 
-Add a new section with the `debuggable false` configuration that you should apply locally to your `android/app/build.gradle`:
+6. **SMS sending**: Call existing `send-whatsapp` edge function (which handles test user simulation, rate limiting, and Twilio SMS delivery)
 
-```gradle
-android {
-    buildTypes {
-        debug {
-            debuggable false  // Required for Stripe Tap to Pay in Live Mode
-        }
-    }
-}
-```
+### No Other Changes Needed
+- No database migrations (reusing existing columns)
+- No cron job changes (hourly schedule continues)
+- No other files affected
 
-This tells Stripe's SDK that the build should be treated as a release build for security purposes, allowing Live Mode transactions.
-
----
-
-## Technical Details
-
-### Race Condition Fix
-
-```text
-BEFORE:
-┌─────────────────────┐     ┌──────────────────┐
-│ processNativePayment│────▶│ Check isInitialized │
-│ called              │     │ (React state)       │
-└─────────────────────┘     └──────────────────┘
-                                     │
-                            ┌────────▼────────┐
-                            │ initializeNativeSDK │
-                            │ (async)            │
-                            └────────────────────┘
-                                     │
-                            ┌────────▼────────┐
-                            │ 500ms delay      │
-                            └────────────────────┘
-                                     │
-                            ┌────────▼────────┐
-                            │ discoverReaders  │◀── May run before
-                            │ (fails!)         │    init fully complete
-                            └────────────────────┘
-
-AFTER:
-┌─────────────────────┐     ┌──────────────────────┐
-│ processNativePayment│────▶│ Check terminalRef    │
-│ called              │     │ (synchronous ref)     │
-└─────────────────────┘     └──────────────────────┘
-                                     │
-                            ┌────────▼────────────┐
-                            │ initializeNativeSDK  │
-                            │ with mutex lock      │
-                            └──────────────────────┘
-                                     │
-                            ┌────────▼────────┐
-                            │ 800ms delay      │
-                            └────────────────────┘
-                                     │
-                            ┌────────▼────────────┐
-                            │ VERIFY terminalRef   │
-                            │ is populated         │
-                            └──────────────────────┘
-                                     │
-                            ┌────────▼────────┐
-                            │ discoverReaders  │◀── Guaranteed init complete
-                            │ (succeeds!)      │
-                            └────────────────────┘
-```
-
-### Key Changes to `useTerminalPayment.ts`:
-
-1. Add initialization mutex using a ref to track ongoing init
-2. Update `initializeNativeSDK` to prevent concurrent initialization attempts
-3. Increase post-init stabilization delay from 500ms to 800ms
-4. Add explicit terminalRef verification after initialization
-
-### Build Guide Update:
-
-Add new section "Step 5d: Enable Live Mode on Debug Builds (Optional)" with the `debuggable false` configuration.
-
----
-
-## Files to Modify
-
-1. `src/hooks/useTerminalPayment.ts` - Fix race condition with initialization mutex
-2. `ANDROID_BUILD_GUIDE.md` - Add debuggable false configuration instructions
-
----
-
-## After Implementation
-
-After applying these changes:
-
-1. Run: `npm run build && npx cap sync android`
-2. Apply the `debuggable false` change to your local `android/app/build.gradle`
-3. Rebuild the APK in Android Studio
-4. Test Tap to Pay - first tap should now work reliably

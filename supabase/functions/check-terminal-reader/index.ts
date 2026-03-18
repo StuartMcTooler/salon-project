@@ -38,7 +38,7 @@ serve(async (req) => {
       console.log("💳 STRIPE: Using default key");
     }
 
-    const { readerId } = await req.json();
+    
 
     if (!readerId) {
       // If no readerId provided, just return mode info

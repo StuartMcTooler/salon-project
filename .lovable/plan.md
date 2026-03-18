@@ -1,57 +1,53 @@
 
 
-# Fix Stripe Terminal Test/Live Mode Mismatch
+# Appointment Reminders: Final Implementation Plan
 
-## Problem
-The native Android app sends `forceStripeMode` in the request body, but all 5 terminal edge functions only check headers (`x-force-test-mode`, `x-force-live-mode`) for mode selection. This causes PaymentIntents to be created in LIVE mode even when the app is in TEST mode, resulting in `live_mode_test_card` errors.
+## What We're Keeping From the Suggestion
+- Range queries using `.gte()` and `.lt()` on `appointment_date` (timestamptz) -- this is the correct approach
+- Business hours guard (9am-6pm Dublin time)
+- The 2-day / 1-day reminder concept
 
-## Changes
+## What We're Fixing From the Suggestion
+The suggested code had several mismatches with your actual database:
 
-### 5 Edge Functions to Update
+| Suggested Code | Your Actual Setup |
+|---|---|
+| Table: `appointments` | Table: `salon_appointments` |
+| Join: `profiles:client_id(*)` | Direct columns: `customer_name`, `customer_phone` |
+| Mock SMS logging | Real SMS via `send-whatsapp` edge function |
+| `.lte('T23:59:59')` | `.lt('next day T00:00:00')` (no missed edge cases) |
+| Heavily commented timezone experiments | Clean implementation |
 
-Each function gets the same small change: read `forceStripeMode` from the JSON body and combine it with the existing header checks.
+## Implementation
 
-**1. `supabase/functions/create-terminal-connection-token/index.ts`**
-- Currently does NOT parse a request body at all
-- Add: `const { forceStripeMode } = await req.json().catch(() => ({}));`
-- Update mode detection to also check `forceStripeMode === "test"` / `"live"`
+### File: `supabase/functions/send-appointment-reminders/index.ts`
 
-**2. `supabase/functions/create-terminal-payment-intent/index.ts`**
-- Already parses body for `amount`, `currency`, etc.
-- Add `forceStripeMode` to the destructured body
-- Update mode detection booleans
+Complete rewrite of the function logic:
 
-**3. `supabase/functions/create-terminal-payment/index.ts`**
-- Already parses body for `amount`, `readerId`, etc.
-- Add `forceStripeMode` to the destructured body
-- Update mode detection booleans
+1. **Business hours guard**: Get current hour in `Europe/Dublin` using `Intl.DateTimeFormat`. If before 9 or 18+, return early with a 200 response.
 
-**4. `supabase/functions/create-terminal-location/index.ts`**
-- Already parses body for `staffId`, `displayName`, etc.
-- Add `forceStripeMode` to the destructured body
-- Update mode detection booleans
+2. **Day boundary calculation**: 
+   - Get today's date string in Dublin timezone using `Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Dublin' })`
+   - For 2-day reminder: target = today + 2 days
+   - For 1-day reminder: target = today + 1 day
+   - Range: `.gte(targetDate + 'T00:00:00+00:00')` and `.lt(nextDate + 'T00:00:00+00:00')`
+   - UTC boundaries are acceptable since Ireland is UTC+0 (winter) or UTC+1 (summer), and all appointments are during business hours (9am-6pm)
 
-**5. `supabase/functions/check-terminal-reader/index.ts`**
-- Already parses body for `readerId`
-- Add `forceStripeMode` to the destructured body
-- Update mode detection booleans
+3. **2-day reminder query**:
+   - Table: `salon_appointments`
+   - Columns: `id, customer_name, customer_phone, service_name, appointment_date, staff_id, duration_minutes, price`
+   - Filters: status in ('pending', 'confirmed'), `reminder_72h_sent_at` is null, date in 2-day range
+   - Send via `send-whatsapp` with message: "Your appointment with {staff} is in 2 days..."
+   - Mark `reminder_72h_sent_at` on success
 
-### The Pattern (same in all 5)
+4. **1-day reminder query**: Same structure but for tomorrow, using `reminder_24h_sent_at` column, message says "Tomorrow!"
 
-```typescript
-// Before:
-const forceTestMode = req.headers.get("x-force-test-mode") === "true";
-const forceLiveMode = req.headers.get("x-force-live-mode") === "true";
+5. **Staff name lookup**: Reuse existing cache pattern from current code (query `staff_members.display_name`)
 
-// After:
-const forceTestMode =
-  req.headers.get("x-force-test-mode") === "true" || forceStripeMode === "test";
-const forceLiveMode =
-  req.headers.get("x-force-live-mode") === "true" || forceStripeMode === "live";
-```
+6. **SMS sending**: Call existing `send-whatsapp` edge function (which handles test user simulation, rate limiting, and Twilio SMS delivery)
 
-### Deploy & Verify
-- Deploy all 5 functions
-- Test each to confirm they return the correct `stripeMode` when `forceStripeMode: "test"` is in the body
-- After this fix, PaymentIntent will return `livemode: false` in test mode, and the `live_mode_test_card` error will stop
+### No Other Changes Needed
+- No database migrations (reusing existing columns)
+- No cron job changes (hourly schedule continues)
+- No other files affected
 

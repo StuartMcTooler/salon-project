@@ -12,9 +12,11 @@ serve(async (req) => {
   }
 
   try {
-    // Determine which Stripe key to use based on header
-    const forceTestMode = req.headers.get("x-force-test-mode") === "true";
-    const forceLiveMode = req.headers.get("x-force-live-mode") === "true";
+    const { readerId, forceStripeMode } = await req.json().catch(() => ({ readerId: undefined, forceStripeMode: undefined }));
+
+    // Determine which Stripe key to use based on header or body
+    const forceTestMode = req.headers.get("x-force-test-mode") === "true" || forceStripeMode === "test";
+    const forceLiveMode = req.headers.get("x-force-live-mode") === "true" || forceStripeMode === "live";
 
     let stripeSecretKey: string;
     let modeLabel: string;
@@ -36,7 +38,7 @@ serve(async (req) => {
       console.log("💳 STRIPE: Using default key");
     }
 
-    const { readerId } = await req.json();
+    
 
     if (!readerId) {
       // If no readerId provided, just return mode info

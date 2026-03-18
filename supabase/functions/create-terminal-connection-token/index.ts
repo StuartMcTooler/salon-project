@@ -12,9 +12,11 @@ serve(async (req) => {
   }
 
   try {
-    // Determine which Stripe key to use based on header
-    const forceTestMode = req.headers.get("x-force-test-mode") === "true";
-    const forceLiveMode = req.headers.get("x-force-live-mode") === "true";
+    const { forceStripeMode } = await req.json().catch(() => ({ forceStripeMode: undefined }));
+
+    // Determine which Stripe key to use based on header or body
+    const forceTestMode = req.headers.get("x-force-test-mode") === "true" || forceStripeMode === "test";
+    const forceLiveMode = req.headers.get("x-force-live-mode") === "true" || forceStripeMode === "live";
 
     let stripeKey: string;
     let modeLabel: string;

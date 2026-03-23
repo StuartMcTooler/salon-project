@@ -2,6 +2,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { isNativeApp, getPlatform, isStripeTerminalPluginAvailable, isAndroid } from '@/lib/platform';
+import { StripeTapToPay as StripeTapToPayNative } from '@/lib/stripeTapToPay';
 import { toast } from 'sonner';
 
 // Type definitions
@@ -20,9 +21,24 @@ interface PaymentResult {
   error?: string;
 }
 
+const withTimeout = async <T>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`));
+    }, ms);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
+
 // Native plugin reference - loaded dynamically at runtime only
-let StripeTerminalPlugin: any = null;
-let StripeTerminalAvailable: boolean | null = null; // Cache availability check
+let StripeTapToPayPlugin: any = null;
+let StripeTapToPayAvailable: boolean | null = null; // Cache availability check
 let TerminalConnectTypesEnum: any = {
   TapToPay: 'tap-to-pay',
   Bluetooth: 'bluetooth',
@@ -36,37 +52,39 @@ export { isStripeTerminalPluginAvailable as isStripeTerminalAvailable } from '@/
  * Load Stripe Terminal plugin at RUNTIME only in native context
  * Uses dynamic import to load the plugin module
  */
-const loadStripeTerminal = async () => {
+const loadStripeTapToPay = () => {
   if (!isNativeApp()) return null;
-  if (StripeTerminalPlugin) return StripeTerminalPlugin;
+  if (StripeTapToPayPlugin) return StripeTapToPayPlugin;
   
   try {
-    console.log('[TerminalPayment] Loading StripeTerminal via dynamic import...');
-    
-    // Dynamic import of the plugin module - this registers the plugin properly
-    const module = await import('@capacitor-community/stripe-terminal');
-    
-    if (module?.StripeTerminal) {
-      StripeTerminalPlugin = module.StripeTerminal;
-      console.log('[TerminalPayment] ✅ Loaded StripeTerminal via dynamic import');
-      console.log('[TerminalPayment] Available methods:', Object.keys(StripeTerminalPlugin));
-      return StripeTerminalPlugin;
-    }
-    
-    // Fallback: check Capacitor.Plugins
     const Capacitor = (window as any).Capacitor;
-    if (Capacitor?.Plugins?.StripeTerminal) {
-      StripeTerminalPlugin = Capacitor.Plugins.StripeTerminal;
-      console.log('[TerminalPayment] ✅ Loaded StripeTerminal via Capacitor.Plugins fallback');
-      return StripeTerminalPlugin;
+    const pluginCandidate = Capacitor?.Plugins?.StripeTapToPay || StripeTapToPayNative;
+    if (pluginCandidate) {
+      StripeTapToPayPlugin = pluginCandidate;
+      const methodProbe = {
+        initialize: typeof pluginCandidate.initialize,
+        addListener: typeof pluginCandidate.addListener,
+        setConnectionToken: typeof pluginCandidate.setConnectionToken,
+        discoverReaders: typeof pluginCandidate.discoverReaders,
+        connectReader: typeof pluginCandidate.connectReader,
+        disconnectReader: typeof pluginCandidate.disconnectReader,
+        collectPaymentMethod: typeof pluginCandidate.collectPaymentMethod,
+        confirmPaymentIntent: typeof pluginCandidate.confirmPaymentIntent,
+        cancelPaymentIntent: typeof pluginCandidate.cancelPaymentIntent,
+        isDeviceCapable: typeof pluginCandidate.isDeviceCapable,
+      };
+      console.log('[TerminalPayment] ✅ Loaded StripeTapToPay via Capacitor.Plugins');
+      console.log('[TerminalPayment] Method probe:', methodProbe);
+      console.log('[TerminalPayment] Own property names:', Object.getOwnPropertyNames(pluginCandidate));
+      return StripeTapToPayPlugin;
     }
     
     // Plugin not found
     const availablePlugins = Object.keys(Capacitor?.Plugins || {});
-    console.error('[TerminalPayment] ❌ StripeTerminal not available');
+    console.error('[TerminalPayment] ❌ StripeTapToPay not available');
     console.error('[TerminalPayment] Available plugins:', availablePlugins);
     
-    throw new Error(`StripeTerminal plugin not found. Available: [${availablePlugins.join(', ')}]. Rebuild with: npm run build && npx cap sync android`);
+    throw new Error(`StripeTapToPay plugin not found. Available: [${availablePlugins.join(', ')}]. Rebuild with: npm run build && npx cap sync`);
   } catch (err: any) {
     console.error('[TerminalPayment] Failed to load Stripe Terminal plugin:', err);
     throw new Error(`Plugin load failed: ${err.message}`);
@@ -75,6 +93,7 @@ const loadStripeTerminal = async () => {
 
 // Initialization mutex - prevents concurrent initialization attempts
 let initializationPromise: Promise<void> | null = null;
+let initializationStartedAt: number | null = null;
 
 export const useTerminalPayment = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -82,6 +101,7 @@ export const useTerminalPayment = () => {
   const [connectedReader, setConnectedReader] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [discoveredReaders, setDiscoveredReaders] = useState<any[]>([]);
+  const [debugStage, setDebugStage] = useState<string>('idle');
   
   const terminalRef = useRef<any>(null);
 
@@ -104,51 +124,77 @@ export const useTerminalPayment = () => {
 
   // Initialize native SDK with mutex to prevent concurrent init attempts
   const initializeNativeSDK = useCallback(async () => {
+    console.log('[TerminalPayment] initializeNativeSDK() entered');
+    setDebugStage('enter initializeNativeSDK');
     if (!isNativeApp()) {
       console.log('[TerminalPayment] Not native app, skipping SDK init');
+      setDebugStage('skip initializeNativeSDK (not native)');
       return;
     }
     
     // If already initialized (check ref synchronously, not state)
     if (terminalRef.current) {
       console.log('[TerminalPayment] Already initialized (terminalRef populated)');
+      setDebugStage('already initialized');
       return;
     }
     
-    // If initialization is already in progress, wait for it
+    // If initialization is already in progress, give it a short window to complete.
+    // If it looks stale, clear it so a fresh init can start instead of hanging forever.
     if (initializationPromise) {
-      console.log('[TerminalPayment] Initialization already in progress, waiting...');
-      await initializationPromise;
-      return;
+      const ageMs = initializationStartedAt ? Date.now() - initializationStartedAt : null;
+      console.log('[TerminalPayment] Initialization already in progress, waiting...', { ageMs });
+      setDebugStage(ageMs && ageMs > 5000 ? 'stale initialization detected' : 'waiting for existing initialization');
+
+      try {
+        await withTimeout(initializationPromise, 5000, 'existing initialization');
+        return;
+      } catch (waitErr) {
+        console.warn('[TerminalPayment] Existing initialization timed out or failed, resetting and retrying...', waitErr);
+        initializationPromise = null;
+        initializationStartedAt = null;
+        terminalRef.current = null;
+        setIsInitialized(false);
+        setDebugStage('reset stale initialization');
+      }
     }
     
     // Start initialization with mutex lock
+    initializationStartedAt = Date.now();
     initializationPromise = (async () => {
       try {
         console.log('[TerminalPayment] Loading Stripe Terminal plugin...');
-        const StripeTerminal = await loadStripeTerminal();
-        if (!StripeTerminal) throw new Error('Failed to load Stripe Terminal plugin');
+        setDebugStage('loading plugin');
+        const StripeTapToPay = loadStripeTapToPay();
+        if (!StripeTapToPay) throw new Error('Failed to load StripeTapToPay plugin');
         
-        terminalRef.current = StripeTerminal;
+        terminalRef.current = StripeTapToPay;
         
         // Set up connection token listener BEFORE initialize
         console.log('[TerminalPayment] Setting up token listener...');
+        setDebugStage('setting token listener');
         try {
-          const listenerResult = StripeTerminal.addListener('requestedConnectionToken', async () => {
+          const listenerResult = StripeTapToPay.addListener('requestedConnectionToken', async () => {
             console.log('[TerminalPayment] Token requested by SDK');
             try {
               const token = await fetchConnectionToken();
-              await StripeTerminal.setConnectionToken({ token });
+              await StripeTapToPay.setConnectionToken({ token });
               console.log('[TerminalPayment] Token provided to SDK');
             } catch (tokenErr) {
               console.error('[TerminalPayment] Failed to provide token:', tokenErr);
             }
           });
-          // Handle both Promise and non-Promise returns from addListener
+
+          // Capacitor listener registration can return a thenable proxy on iOS; don't let it block init.
           if (listenerResult && typeof listenerResult.then === 'function') {
-            await listenerResult;
+            Promise.resolve(listenerResult)
+              .then(() => console.log('[TerminalPayment] Token listener registration confirmed'))
+              .catch((listenerErr: any) => console.warn('[TerminalPayment] Listener setup warning (non-fatal):', listenerErr));
+          } else {
+            console.log('[TerminalPayment] Token listener registered synchronously');
           }
-          console.log('[TerminalPayment] Token listener set up successfully');
+
+          console.log('[TerminalPayment] Continuing without waiting for token listener promise');
         } catch (listenerErr) {
           console.warn('[TerminalPayment] Listener setup warning (non-fatal):', listenerErr);
         }
@@ -158,12 +204,21 @@ export const useTerminalPayment = () => {
         console.log('[TerminalPayment] Platform:', getPlatform());
         console.log('[TerminalPayment] isTest: true (TEST MODE - HARDWARE VERIFICATION)');
         
-        await StripeTerminal.initialize({
-          isTest: true,  // HARDCODED FOR TEST BUILD
-        });
+        console.log('[TerminalPayment] Calling native initialize()...');
+        setDebugStage('calling native initialize');
+        await withTimeout(
+          StripeTapToPay.initialize({
+            isTest: true,
+          }),
+          12000,
+          'initialize'
+        );
+        console.log('[TerminalPayment] Native initialize() resolved');
+        setDebugStage('native initialize resolved');
         
         setIsInitialized(true);
         console.log('[TerminalPayment] ✅ Native SDK initialized successfully');
+        setDebugStage('initialized');
       } catch (err: any) {
         // Clear terminalRef on failure so retry is possible
         terminalRef.current = null;
@@ -174,15 +229,19 @@ export const useTerminalPayment = () => {
         
         const detailedError = `[${err.code || 'UNKNOWN'}] ${err.message || err}`;
         setError(detailedError);
+        setDebugStage(`init failed: ${detailedError}`);
         toast.error(`Terminal Init Error: ${detailedError}`);
         throw err;
       } finally {
         // Release the mutex
         initializationPromise = null;
+        initializationStartedAt = null;
       }
     })();
     
     await initializationPromise;
+    console.log('[TerminalPayment] initializeNativeSDK() complete');
+    setDebugStage('initializeNativeSDK complete');
   }, [fetchConnectionToken]);
 
   // Request Android location permissions using Capacitor Geolocation plugin
@@ -249,18 +308,23 @@ export const useTerminalPayment = () => {
   const discoverReadersInternal = useCallback(async (connectionType: ConnectionType, locationId?: string) => {
     const StripeTerminal = terminalRef.current;
     if (!StripeTerminal) throw new Error('Terminal not initialized');
+    console.log('[TerminalPayment] discoverReadersInternal start', { connectionType, locationId });
+    setDebugStage(`discover start: ${connectionType}`);
     
     // For Tap to Pay, check device capability first
-    if (connectionType === 'tap_to_pay' && isAndroid()) {
+    if (connectionType === 'tap_to_pay') {
       console.log('[TerminalPayment] 📱 Checking Tap to Pay device capability...');
       try {
-        // The plugin may have a method to check NFC availability
         if (typeof StripeTerminal.isDeviceCapable === 'function') {
+          setDebugStage('checking device capability');
           const capable = await StripeTerminal.isDeviceCapable();
           console.log('[TerminalPayment] Device capable:', capable);
-          if (!capable) {
+          const capableValue = typeof capable === 'object' && capable !== null && 'value' in capable ? capable.value : capable;
+          if (!capableValue) {
             throw new Error('This device does not support Tap to Pay. Check: 1) NFC enabled in Settings, 2) Google Wallet installed with payment card, 3) Device supports HCE');
           }
+        } else {
+          console.warn('[TerminalPayment] isDeviceCapable is not a function on plugin');
         }
       } catch (capErr: any) {
         console.warn('[TerminalPayment] Capability check:', capErr.message);
@@ -293,9 +357,16 @@ export const useTerminalPayment = () => {
     console.log(`[TerminalPayment] Platform: ${getPlatform()}, ConnectionType: ${connectionType}`);
     console.log(`[TerminalPayment] LocationId: ${locationId || 'NOT PROVIDED'}`);
     
-    const result = await StripeTerminal.discoverReaders(discoveryConfig);
+    console.log('[TerminalPayment] Calling native discoverReaders()...');
+    setDebugStage('calling native discoverReaders');
+    const result = await withTimeout(
+      StripeTerminal.discoverReaders(discoveryConfig),
+      15000,
+      'discoverReaders'
+    );
     
     console.log(`[TerminalPayment] ✅ Found ${result.readers?.length || 0} readers`);
+    setDebugStage(`discover resolved: ${result.readers?.length || 0} readers`);
     setDiscoveredReaders(result.readers || []);
     return result.readers || [];
   }, []);
@@ -405,6 +476,7 @@ export const useTerminalPayment = () => {
       
       // discoverReaders no longer needs to check permissions - we did it above
       const readers = await discoverReadersInternal(connectionType, locationId);
+      console.log('[TerminalPayment] discoverReadersInternal returned', readers);
       
       if (readers.length === 0) {
         const errorMsg = connectionType === 'tap_to_pay' 
@@ -483,22 +555,27 @@ export const useTerminalPayment = () => {
     appointmentId?: string,
     customerEmail?: string
   ): Promise<PaymentResult> => {
+    console.log('[TerminalPayment] processPayment() called', { amount, config, appointmentId });
     setIsProcessing(true);
     setError(null);
 
     try {
+      setDebugStage(`processPayment start: ${config.connectionType}`);
       if (isNativeApp() && (config.connectionType === 'tap_to_pay' || config.connectionType === 'bluetooth')) {
         // === NATIVE PATH: Use Stripe Terminal SDK ===
         console.log('[TerminalPayment] Using NATIVE SDK path');
+        setDebugStage(`native path: ${config.connectionType}`);
         return await processNativePayment(amount, config.connectionType, appointmentId, customerEmail, config.locationId);
       } else {
         // === WEB PATH: Use Server-Driven API ===
         console.log('[TerminalPayment] Using SERVER-DRIVEN path');
+        setDebugStage('server-driven path');
         return await processServerDrivenPayment(amount, config.readerId!, appointmentId, customerEmail);
       }
     } catch (err: any) {
       console.error('[TerminalPayment] Payment error:', err);
       setError(err.message);
+      setDebugStage(`payment failed: ${err.message}`);
       return { success: false, error: err.message };
     } finally {
       setIsProcessing(false);
@@ -512,6 +589,7 @@ export const useTerminalPayment = () => {
     connectedReader,
     discoveredReaders,
     error,
+    debugStage,
     
     // Actions
     initializeNativeSDK,

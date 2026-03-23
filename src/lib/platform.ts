@@ -25,7 +25,6 @@ export const isStripeTerminalPluginAvailable = (): boolean => {
 // Feature availability checks - require plugin availability
 export const canUseTapToPay = (): boolean => {
   if (!isNativeApp()) return false;
-  if (!isAndroid()) return false; // Tap to Pay on Android only for now
   return isStripeTerminalPluginAvailable();
 };
 

@@ -19,6 +19,10 @@ import { useRef, ChangeEvent } from "react";
 import { isNativeApp, getPlatform } from "@/lib/platform";
 import { useTerminalPayment } from "@/hooks/useTerminalPayment";
 
+// Build timestamp - injected at build time by Vite
+declare const __BUILD_TIMESTAMP__: string;
+const BUILD_TIMESTAMP = typeof __BUILD_TIMESTAMP__ !== 'undefined' ? __BUILD_TIMESTAMP__ : 'dev';
+
 interface QuickCustomerFormProps {
   service: any;
   staffMember: any;
@@ -56,10 +60,20 @@ export const QuickCustomerForm = ({
   const [clientId, setClientId] = useState<string | null>(null);
   const [showPhonePrompt, setShowPhonePrompt] = useState(false);
   const [shouldOpenCameraAfterPhone, setShouldOpenCameraAfterPhone] = useState(false);
+  const [forceStripeMode, setForceStripeMode] = useState<string>("default");
+  const [chosenPath, setChosenPath] = useState<string>("unknown");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   
   // Native terminal payment hook for Tap to Pay
-  const { processPayment, initializeNativeSDK, isProcessing } = useTerminalPayment();
+  const { processPayment, initializeNativeSDK, isProcessing, debugStage, error: terminalError } = useTerminalPayment();
+
+  useEffect(() => {
+    try {
+      setForceStripeMode(localStorage.getItem("FORCE_STRIPE_MODE") ?? "default");
+    } catch {
+      setForceStripeMode("default");
+    }
+  }, []);
 
   useEffect(() => {
     const checkCreditsAndCustomer = async () => {
@@ -424,11 +438,54 @@ export const QuickCustomerForm = ({
         const allowedTypes = staffData.allowed_terminal_types || ['business_reader'];
         const canUseTapToPay = allowedTypes.includes('tap_to_pay');
         const isConfiguredTapToPay = staffTerminal?.connection_type === 'tap_to_pay';
+        const prefersTapToPay = isNative && canUseTapToPay;
 
         console.log('[QuickCustomerForm] Staff terminal:', staffTerminal, 'canUseTapToPay:', canUseTapToPay);
 
-        if (canUseTapToPay && (!staffTerminal || isConfiguredTapToPay)) {
+        // Hard-prefer Tap to Pay on iOS to avoid falling back to S700
+        if (isNative && currentPlatform === 'ios' && canUseTapToPay) {
+          console.log('[QuickCustomerForm] Forcing Tap to Pay on iOS');
+          setChosenPath('tap_to_pay');
+          toast({
+            title: "Initializing Tap to Pay",
+            description: "Please wait...",
+          });
+          console.log('[QuickCustomerForm] About to call initializeNativeSDK() for forced iOS Tap to Pay');
+          await initializeNativeSDK();
+          console.log('[QuickCustomerForm] initializeNativeSDK() resolved for forced iOS Tap to Pay');
+          const locationId = staffTerminal?.stripe_location_id;
+          console.log('[QuickCustomerForm] About to call processPayment() for forced iOS Tap to Pay', {
+            amount: Number(adjustedPrice),
+            locationId,
+            appointmentId: apptId,
+          });
+          const result = await processPayment(
+            Number(adjustedPrice),
+            { connectionType: 'tap_to_pay', locationId },
+            apptId,
+            customerEmail || undefined
+          );
+          console.log('[QuickCustomerForm] processPayment() resolved for forced iOS Tap to Pay', result);
+          if (result.success) {
+            await supabase
+              .from('salon_appointments')
+              .update({ payment_processed_by: staffData.id })
+              .eq('id', apptId);
+
+            toast({
+              title: "Payment Successful",
+              description: "Card payment completed!",
+            });
+            await handlePaymentComplete(apptId);
+          } else {
+            throw new Error(result.error || 'Payment failed');
+          }
+          return;
+        }
+
+        if (prefersTapToPay) {
           console.log('[QuickCustomerForm] Using native Tap to Pay');
+          setChosenPath('tap_to_pay');
           
           toast({
             title: "Initializing Tap to Pay",
@@ -436,16 +493,24 @@ export const QuickCustomerForm = ({
           });
 
           // Initialize native SDK
+          console.log('[QuickCustomerForm] About to call initializeNativeSDK() for native Tap to Pay');
           await initializeNativeSDK();
+          console.log('[QuickCustomerForm] initializeNativeSDK() resolved for native Tap to Pay');
 
           // Process payment via native SDK
           const locationId = staffTerminal?.stripe_location_id;
+          console.log('[QuickCustomerForm] About to call processPayment() for native Tap to Pay', {
+            amount: Number(adjustedPrice),
+            locationId,
+            appointmentId: apptId,
+          });
           const result = await processPayment(
             Number(adjustedPrice),
             { connectionType: 'tap_to_pay', locationId },
             apptId,
             customerEmail || undefined
           );
+          console.log('[QuickCustomerForm] processPayment() resolved for native Tap to Pay', result);
 
           if (result.success) {
             // Record payment audit
@@ -484,6 +549,7 @@ export const QuickCustomerForm = ({
         throw new Error('No terminal reader configured. Please set up Tap to Pay in Settings → Terminal & Hardware, or contact your business owner.');
       }
 
+      setChosenPath('internet_reader');
       setCurrentReaderId(readerId);
 
       // Check reader health before processing payment
@@ -835,11 +901,21 @@ export const QuickCustomerForm = ({
           <Loader2 className="h-16 w-16 animate-spin text-primary" />
           <div className="text-center space-y-2">
             <h3 className="text-xl font-semibold">Processing Payment</h3>
-            <p className="text-muted-foreground">Present card to the Stripe S700 reader</p>
+            <p className="text-muted-foreground">
+              {chosenPath === 'tap_to_pay' ? 'Preparing Tap to Pay on iPhone' : 'Present card to the Stripe S700 reader'}
+            </p>
             <p className="text-2xl font-bold mt-4">€{Number(service.custom_price).toFixed(2)}</p>
             <p className="text-xs text-muted-foreground mt-2">
               This may take up to 2 minutes
             </p>
+            <div className="mt-3 w-full rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-left text-xs text-amber-900">
+              Stage: {debugStage}
+            </div>
+            {terminalError ? (
+              <div className="w-full rounded-md border border-red-300 bg-red-50 px-3 py-2 text-left text-xs text-red-900">
+                Terminal error: {terminalError}
+              </div>
+            ) : null}
           </div>
           <Button
             variant="destructive"
@@ -857,10 +933,22 @@ export const QuickCustomerForm = ({
   if (showPaymentMethods && appointmentId) {
     return (
       <div className="space-y-6">
-        <Button variant="ghost" onClick={() => setShowPaymentMethods(false)}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
+        <Button
+          variant="outline"
+          size="lg"
+          className="w-full h-12 text-base justify-start"
+          onClick={() => setShowPaymentMethods(false)}
+        >
+          <ArrowLeft className="mr-2 h-5 w-5" />
+          Back to payment options
         </Button>
+
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Build: {BUILD_TIMESTAMP} • Mode: {forceStripeMode} • Native: {String(isNativeApp())} • Platform: {getPlatform()}
+        </div>
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+          Payment path: {chosenPath}
+        </div>
 
         <Card>
           <CardHeader>
@@ -939,9 +1027,14 @@ export const QuickCustomerForm = ({
 
   return (
     <div className="space-y-6">
-      <Button variant="ghost" onClick={onBack}>
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Services
+      <Button
+        variant="outline"
+        size="lg"
+        className="w-full h-12 text-base justify-start"
+        onClick={onBack}
+      >
+        <ArrowLeft className="mr-2 h-5 w-5" />
+        Back to services
       </Button>
 
       {/* Customer Details Form */}

@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.744b93d1b5ba4b6b84e84219b1a2924b',
+  appId: 'com.stuartmcmullen.salonproject',
   appName: 'salon-project',
   webDir: 'dist',
   plugins: {

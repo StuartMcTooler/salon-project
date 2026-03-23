@@ -115,11 +115,13 @@ const MyProfile = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Button
-                variant="ghost"
-                size="icon"
+                variant="outline"
+                size="lg"
+                className="h-12 px-4"
                 onClick={() => navigate(-1)}
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-5 w-5 mr-2" />
+                Back
               </Button>
               <div>
                 <h1 className="text-2xl font-bold">My Profile</h1>

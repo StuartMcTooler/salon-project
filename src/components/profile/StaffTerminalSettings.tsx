@@ -604,14 +604,19 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => createTerminalLocation(true).then(locId => {
+                onClick={() => {
+                  try {
+                    localStorage.setItem("FORCE_STRIPE_MODE", "test");
+                  } catch {}
+                  createTerminalLocation(true).then(locId => {
                   if (locId) {
                     const updateSettings = existingSettings?.id 
                       ? supabase.from('terminal_settings').update({ stripe_location_id: locId }).eq('id', existingSettings.id)
                       : supabase.from('terminal_settings').insert({ staff_id: staffId, connection_type: 'tap_to_pay', stripe_location_id: locId, is_active: true });
                     updateSettings.then(() => loadSettings());
                   }
-                })}
+                  });
+                }}
                 disabled={isCreatingLocation}
                 className="border-orange-400 text-orange-700 hover:bg-orange-100 dark:text-orange-400 dark:hover:bg-orange-900/30"
               >
@@ -624,14 +629,19 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => createTerminalLocation(false).then(locId => {
+                onClick={() => {
+                  try {
+                    localStorage.setItem("FORCE_STRIPE_MODE", "live");
+                  } catch {}
+                  createTerminalLocation(false).then(locId => {
                   if (locId) {
                     const updateSettings = existingSettings?.id 
                       ? supabase.from('terminal_settings').update({ stripe_location_id: locId }).eq('id', existingSettings.id)
                       : supabase.from('terminal_settings').insert({ staff_id: staffId, connection_type: 'tap_to_pay', stripe_location_id: locId, is_active: true });
                     updateSettings.then(() => loadSettings());
                   }
-                })}
+                  });
+                }}
                 disabled={isCreatingLocation}
                 className="border-green-400 text-green-700 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30"
               >

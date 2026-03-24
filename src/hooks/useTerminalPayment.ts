@@ -22,6 +22,11 @@ interface PaymentResult {
   error?: string;
 }
 
+const isCanceledTerminalError = (err: any): boolean => {
+  const message = err?.errorMessage || err?.message || String(err || '');
+  return message.includes('The command was canceled') || message.includes('error_code=2020');
+};
+
 const withTimeout = async <T>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -615,6 +620,13 @@ export const useTerminalPayment = () => {
         return await processServerDrivenPayment(amount, config.readerId!, appointmentId, customerEmail);
       }
     } catch (err: any) {
+      if (isCanceledTerminalError(err)) {
+        console.warn('[TerminalPayment] Payment canceled:', err);
+        setError('Payment canceled');
+        setDebugStage('payment canceled');
+        return { success: false, error: 'Payment canceled' };
+      }
+
       console.error('[TerminalPayment] Payment error:', err);
       setError(err.message);
       setDebugStage(`payment failed: ${err.message}`);

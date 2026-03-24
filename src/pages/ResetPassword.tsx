@@ -22,7 +22,14 @@ const ResetPassword = () => {
     let timeoutId: NodeJS.Timeout;
     let isSessionReady = false;
 
-    // Set up auth state listener FIRST (following Supabase best practices)
+    // Check if we have recovery tokens in the URL (hash or query params)
+    const hash = window.location.hash;
+    const searchParams = new URLSearchParams(window.location.search);
+    const hasRecoveryHash = hash.includes('type=recovery') || hash.includes('access_token');
+    const hasAuthCode = searchParams.has('code');
+    const hasRecoveryTokens = hasRecoveryHash || hasAuthCode;
+
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('ResetPassword: Auth event:', event, 'Has session:', !!session);
       if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || session) {
@@ -39,17 +46,34 @@ const ResetPassword = () => {
         isSessionReady = true;
         setSessionReady(true);
         setError(null);
-      } else if (sessionError) {
+      } else if (sessionError && !hasRecoveryTokens) {
+        // Only show error if there are no tokens to process
         setError('Failed to verify reset link. Please try again.');
       }
     });
 
-    // Timeout fallback - if still verifying after 5 seconds, show error
+    // If we have recovery tokens in the URL, give the Supabase client more time
+    // to process them before showing an error. The client needs to extract tokens
+    // from the URL hash and exchange them for a session.
+    const timeoutDuration = hasRecoveryTokens ? 15000 : 5000;
+
     timeoutId = setTimeout(() => {
       if (!isSessionReady) {
-        setError('Reset link may have expired or is invalid. Please request a new one.');
+        // If tokens are present but session still not ready, try one more getSession
+        if (hasRecoveryTokens) {
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+              setSessionReady(true);
+              setError(null);
+            } else {
+              setError('Reset link may have expired or is invalid. Please request a new one.');
+            }
+          });
+        } else {
+          setError('Reset link may have expired or is invalid. Please request a new one.');
+        }
       }
-    }, 5000);
+    }, timeoutDuration);
 
     return () => {
       subscription.unsubscribe();
@@ -60,7 +84,6 @@ const ResetPassword = () => {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
     if (newPassword.length < 6) {
       toast({
         title: "Password too short",
@@ -94,7 +117,6 @@ const ResetPassword = () => {
         description: "Your password has been reset successfully.",
       });
 
-      // Redirect to auth after short delay
       setTimeout(() => {
         navigate("/auth");
       }, 2000);

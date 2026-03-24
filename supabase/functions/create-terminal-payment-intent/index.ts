@@ -13,11 +13,11 @@ serve(async (req) => {
   }
 
   try {
-    const { amount, currency = "eur", appointmentId, customerEmail } = await req.json();
+    const { amount, currency = "eur", appointmentId, customerEmail, forceStripeMode } = await req.json();
 
-    // Determine which Stripe key to use based on header
-    const forceTestMode = req.headers.get("x-force-test-mode") === "true";
-    const forceLiveMode = req.headers.get("x-force-live-mode") === "true";
+    // Determine which Stripe key to use based on header or explicit body override
+    const forceTestMode = req.headers.get("x-force-test-mode") === "true" || forceStripeMode === "test";
+    const forceLiveMode = req.headers.get("x-force-live-mode") === "true" || forceStripeMode === "live";
 
     let stripeKey: string;
     let modeLabel: string;

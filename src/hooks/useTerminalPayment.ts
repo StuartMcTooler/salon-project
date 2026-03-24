@@ -3,6 +3,7 @@ import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { isNativeApp, getPlatform, isStripeTerminalPluginAvailable, isAndroid } from '@/lib/platform';
 import { StripeTapToPay as StripeTapToPayNative } from '@/lib/stripeTapToPay';
+import { getTestModeHeaders, type StripeMode } from '@/hooks/useTestModeOverride';
 import { toast } from 'sonner';
 
 // Type definitions
@@ -97,6 +98,18 @@ let initializationStartedAt: number | null = null;
 let tokenListenerRegistered = false;
 let inFlightConnectionTokenPromise: Promise<string> | null = null;
 
+const getForcedStripeMode = (): StripeMode => {
+  try {
+    const storedMode = localStorage.getItem('FORCE_STRIPE_MODE');
+    if (storedMode === 'test' || storedMode === 'live') {
+      return storedMode;
+    }
+  } catch {
+    // Ignore localStorage access failures in native/webview edge cases
+  }
+  return 'default';
+};
+
 export const useTerminalPayment = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -116,11 +129,11 @@ export const useTerminalPayment = () => {
     }
 
     inFlightConnectionTokenPromise = (async () => {
-      console.log('[TerminalPayment] Fetching connection token (TEST MODE)...');
+      const headers = getTestModeHeaders();
+      const stripeMode = getForcedStripeMode();
+      console.log('[TerminalPayment] Fetching connection token...', { stripeMode, headers });
       const { data, error } = await supabase.functions.invoke('create-terminal-connection-token', {
-        headers: {
-          'x-force-test-mode': 'true', // MUST match isTest: true in SDK init
-        },
+        headers,
       });
       if (error) {
         console.error('[TerminalPayment] Token fetch error:', error);
@@ -222,13 +235,15 @@ export const useTerminalPayment = () => {
         // Initialize SDK
         console.log('[TerminalPayment] Initializing SDK...');
         console.log('[TerminalPayment] Platform:', getPlatform());
-        console.log('[TerminalPayment] isTest: true (TEST MODE - HARDWARE VERIFICATION)');
+        const stripeMode = getForcedStripeMode();
+        const isTest = stripeMode !== 'live';
+        console.log('[TerminalPayment] initialize() mode:', { stripeMode, isTest });
         
         console.log('[TerminalPayment] Calling native initialize()...');
         setDebugStage('calling native initialize');
         await withTimeout(
           StripeTapToPay.initialize({
-            isTest: true,
+            isTest,
           }),
           12000,
           'initialize'
@@ -513,13 +528,13 @@ export const useTerminalPayment = () => {
 
     // Step 2: Create PaymentIntent on server
     console.log('[TerminalPayment] Creating PaymentIntent on server...');
+    const paymentHeaders = getTestModeHeaders();
+    const stripeMode = getForcedStripeMode();
     const { data: intentData, error: intentError } = await supabase.functions.invoke(
       'create-terminal-payment-intent',
       {
-        headers: {
-          'x-force-test-mode': 'true',
-        },
-        body: { amount, appointmentId, customerEmail, forceStripeMode: 'test' }
+        headers: paymentHeaders,
+        body: { amount, appointmentId, customerEmail, forceStripeMode: stripeMode }
       }
     );
     

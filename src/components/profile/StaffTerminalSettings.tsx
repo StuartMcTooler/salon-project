@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { usePlatform } from '@/hooks/usePlatform';
 import { useTerminalPayment } from '@/hooks/useTerminalPayment';
 import { getTestModeHeaders } from '@/hooks/useTestModeOverride';
+import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 
 interface StaffTerminalSettingsProps {
   staffId: string;
@@ -20,6 +21,7 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
   const { toast } = useToast();
   const { isNative, canUseTapToPay, canUseBluetoothReader, isStripeTerminalPluginAvailable } = usePlatform();
   const { discoverReaders, connectReader, discoveredReaders, connectedReader, isProcessing } = useTerminalPayment();
+  const { isSuperAdmin } = useSuperAdmin();
   
   const [connectionType, setConnectionType] = useState<'tap_to_pay' | 'bluetooth' | 'internet'>('tap_to_pay');
   const [readerId, setReaderId] = useState('');
@@ -586,8 +588,8 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
           </div>
         )}
 
-        {/* Environment Sync Buttons - ALWAYS show for Tap to Pay to fix mode mismatch */}
-        {connectionType === 'tap_to_pay' && (
+        {/* Environment Sync Buttons - super admin only for internal testing */}
+        {connectionType === 'tap_to_pay' && isSuperAdmin && (
           <div className="border border-amber-300 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 space-y-3">
             <div className="flex items-start gap-2">
               <RefreshCw className="h-5 w-5 text-amber-600 mt-0.5" />
@@ -659,6 +661,12 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
             )}
           </div>
         )}
+
+        {connectionType === 'tap_to_pay' && !isSuperAdmin ? (
+          <p className="text-xs text-muted-foreground">
+            Tap to Pay will use the app&apos;s default Stripe environment for normal users.
+          </p>
+        ) : null}
 
         {/* Save Button */}
         <Button 

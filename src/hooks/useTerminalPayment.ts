@@ -94,6 +94,8 @@ const loadStripeTapToPay = () => {
 // Initialization mutex - prevents concurrent initialization attempts
 let initializationPromise: Promise<void> | null = null;
 let initializationStartedAt: number | null = null;
+let tokenListenerRegistered = false;
+let inFlightConnectionTokenPromise: Promise<string> | null = null;
 
 export const useTerminalPayment = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -108,18 +110,31 @@ export const useTerminalPayment = () => {
   // Fetch connection token for native SDK
   // CRITICAL: Must use TEST mode headers to match isTest: true in initialize()
   const fetchConnectionToken = useCallback(async (): Promise<string> => {
-    console.log('[TerminalPayment] Fetching connection token (TEST MODE)...');
-    const { data, error } = await supabase.functions.invoke('create-terminal-connection-token', {
-      headers: {
-        'x-force-test-mode': 'true', // MUST match isTest: true in SDK init
-      },
-    });
-    if (error) {
-      console.error('[TerminalPayment] Token fetch error:', error);
-      throw new Error(error.message);
+    if (inFlightConnectionTokenPromise) {
+      console.log('[TerminalPayment] Reusing in-flight connection token request');
+      return inFlightConnectionTokenPromise;
     }
-    console.log('[TerminalPayment] Token received, mode:', data.stripeMode);
-    return data.secret;
+
+    inFlightConnectionTokenPromise = (async () => {
+      console.log('[TerminalPayment] Fetching connection token (TEST MODE)...');
+      const { data, error } = await supabase.functions.invoke('create-terminal-connection-token', {
+        headers: {
+          'x-force-test-mode': 'true', // MUST match isTest: true in SDK init
+        },
+      });
+      if (error) {
+        console.error('[TerminalPayment] Token fetch error:', error);
+        throw new Error(error.message);
+      }
+      console.log('[TerminalPayment] Token received, mode:', data.stripeMode);
+      return data.secret;
+    })();
+
+    try {
+      return await inFlightConnectionTokenPromise;
+    } finally {
+      inFlightConnectionTokenPromise = null;
+    }
   }, []);
 
   // Initialize native SDK with mutex to prevent concurrent init attempts
@@ -174,24 +189,29 @@ export const useTerminalPayment = () => {
         console.log('[TerminalPayment] Setting up token listener...');
         setDebugStage('setting token listener');
         try {
-          const listenerResult = StripeTapToPay.addListener('requestedConnectionToken', async () => {
-            console.log('[TerminalPayment] Token requested by SDK');
-            try {
-              const token = await fetchConnectionToken();
-              await StripeTapToPay.setConnectionToken({ token });
-              console.log('[TerminalPayment] Token provided to SDK');
-            } catch (tokenErr) {
-              console.error('[TerminalPayment] Failed to provide token:', tokenErr);
-            }
-          });
+          if (!tokenListenerRegistered) {
+            tokenListenerRegistered = true;
+            const listenerResult = StripeTapToPay.addListener('requestedConnectionToken', async () => {
+              console.log('[TerminalPayment] Token requested by SDK');
+              try {
+                const token = await fetchConnectionToken();
+                await StripeTapToPay.setConnectionToken({ token });
+                console.log('[TerminalPayment] Token provided to SDK');
+              } catch (tokenErr) {
+                console.error('[TerminalPayment] Failed to provide token:', tokenErr);
+              }
+            });
 
-          // Capacitor listener registration can return a thenable proxy on iOS; don't let it block init.
-          if (listenerResult && typeof listenerResult.then === 'function') {
-            Promise.resolve(listenerResult)
-              .then(() => console.log('[TerminalPayment] Token listener registration confirmed'))
-              .catch((listenerErr: any) => console.warn('[TerminalPayment] Listener setup warning (non-fatal):', listenerErr));
+            // Capacitor listener registration can return a thenable proxy on iOS; don't let it block init.
+            if (listenerResult && typeof listenerResult.then === 'function') {
+              Promise.resolve(listenerResult)
+                .then(() => console.log('[TerminalPayment] Token listener registration confirmed'))
+                .catch((listenerErr: any) => console.warn('[TerminalPayment] Listener setup warning (non-fatal):', listenerErr));
+            } else {
+              console.log('[TerminalPayment] Token listener registered synchronously');
+            }
           } else {
-            console.log('[TerminalPayment] Token listener registered synchronously');
+            console.log('[TerminalPayment] Token listener already registered');
           }
 
           console.log('[TerminalPayment] Continuing without waiting for token listener promise');
@@ -359,9 +379,11 @@ export const useTerminalPayment = () => {
     
     console.log('[TerminalPayment] Calling native discoverReaders()...');
     setDebugStage('calling native discoverReaders');
+    const discoverTimeoutMs = 45000;
+    console.log('[TerminalPayment] Waiting up to', discoverTimeoutMs, 'ms for native discoverReaders()');
     const result = await withTimeout(
       StripeTerminal.discoverReaders(discoveryConfig),
-      15000,
+      discoverTimeoutMs,
       'discoverReaders'
     );
     
@@ -493,7 +515,12 @@ export const useTerminalPayment = () => {
     console.log('[TerminalPayment] Creating PaymentIntent on server...');
     const { data: intentData, error: intentError } = await supabase.functions.invoke(
       'create-terminal-payment-intent',
-      { body: { amount, appointmentId, customerEmail } }
+      {
+        headers: {
+          'x-force-test-mode': 'true',
+        },
+        body: { amount, appointmentId, customerEmail, forceStripeMode: 'test' }
+      }
     );
     
     if (intentError) throw new Error(intentError.message);

@@ -139,7 +139,6 @@ export default function Admin() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            {/* COMMENTED FOR VIDEO - Super Admin Dev Tools Dropdown
             {isSuperAdmin && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -170,7 +169,6 @@ export default function Admin() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            */}
           </TabsList>
 
           <TabsContent value="schedule">

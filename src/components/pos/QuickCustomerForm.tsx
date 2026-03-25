@@ -18,6 +18,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescript
 import { useRef, ChangeEvent } from "react";
 import { isNativeApp, getPlatform } from "@/lib/platform";
 import { useTerminalPayment } from "@/hooks/useTerminalPayment";
+import { useTestModeOverride } from "@/hooks/useTestModeOverride";
 
 interface QuickCustomerFormProps {
   service: any;
@@ -60,6 +61,9 @@ export const QuickCustomerForm = ({
   
   // Native terminal payment hook for Tap to Pay
   const { processPayment, initializeNativeSDK, isProcessing } = useTerminalPayment();
+  
+  // User-scoped Stripe mode override
+  const { stripeMode } = useTestModeOverride();
 
   useEffect(() => {
     const checkCreditsAndCustomer = async () => {
@@ -490,7 +494,7 @@ export const QuickCustomerForm = ({
       const { data: readerStatus, error: readerError } = await supabase.functions.invoke(
         "check-terminal-reader",
         {
-          body: { readerId },
+          body: { readerId, forceStripeMode: stripeMode !== 'default' ? stripeMode : undefined },
         }
       );
 
@@ -513,6 +517,7 @@ export const QuickCustomerForm = ({
           readerId: readerId,
           appointmentId: apptId,
           customerEmail: customerEmail || undefined,
+          forceStripeMode: stripeMode !== 'default' ? stripeMode : undefined,
         },
       });
 

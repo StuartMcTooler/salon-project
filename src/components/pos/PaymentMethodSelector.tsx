@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTerminalPayment, isStripeTerminalAvailable } from "@/hooks/useTerminalPayment";
 import { isNativeApp, getPlatform } from "@/lib/platform";
+import { useTestModeOverride } from "@/hooks/useTestModeOverride";
 
 interface PaymentMethodSelectorProps {
   appointmentId: string;
@@ -57,6 +58,9 @@ export const PaymentMethodSelector = ({
   
   // Native terminal payment hook
   const { processPayment, initializeNativeSDK, isProcessing } = useTerminalPayment();
+  
+  // User-scoped Stripe mode override
+  const { stripeMode } = useTestModeOverride();
 
   // Calculate the actual amount to charge
   const amountToCharge = (depositPaid && remainingBalance) 
@@ -334,7 +338,7 @@ export const PaymentMethodSelector = ({
 
       const { data: readerStatus, error: readerError } = await supabase.functions.invoke(
         'check-terminal-reader',
-        { body: { readerId } }
+        { body: { readerId, forceStripeMode: stripeMode !== 'default' ? stripeMode : undefined } }
       );
       if (readerError || !readerStatus?.isOnline) {
         throw new Error(readerStatus?.details || 'Terminal reader is offline.');
@@ -347,6 +351,7 @@ export const PaymentMethodSelector = ({
           readerId,
           appointmentId,
           customerEmail,
+          forceStripeMode: stripeMode !== 'default' ? stripeMode : undefined,
         },
       });
       if (payErr) throw payErr;

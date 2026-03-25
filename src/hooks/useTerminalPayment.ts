@@ -2,6 +2,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { isNativeApp, getPlatform, isStripeTerminalPluginAvailable, isAndroid } from '@/lib/platform';
+import { getTestModeHeaders } from '@/hooks/useTestModeOverride';
 import { toast } from 'sonner';
 
 // Type definitions
@@ -86,13 +87,12 @@ export const useTerminalPayment = () => {
   const terminalRef = useRef<any>(null);
 
   // Fetch connection token for native SDK
-  // CRITICAL: Must use TEST mode headers to match isTest: true in initialize()
+  // Uses getTestModeHeaders() for user-scoped Stripe mode override
   const fetchConnectionToken = useCallback(async (): Promise<string> => {
-    console.log('[TerminalPayment] Fetching connection token (TEST MODE)...');
+    const headers = getTestModeHeaders();
+    console.log('[TerminalPayment] Fetching connection token, override headers:', headers);
     const { data, error } = await supabase.functions.invoke('create-terminal-connection-token', {
-      headers: {
-        'x-force-test-mode': 'true', // MUST match isTest: true in SDK init
-      },
+      headers,
     });
     if (error) {
       console.error('[TerminalPayment] Token fetch error:', error);
@@ -419,9 +419,13 @@ export const useTerminalPayment = () => {
 
     // Step 2: Create PaymentIntent on server
     console.log('[TerminalPayment] Creating PaymentIntent on server...');
+    const testHeaders = getTestModeHeaders();
     const { data: intentData, error: intentError } = await supabase.functions.invoke(
       'create-terminal-payment-intent',
-      { body: { amount, appointmentId, customerEmail } }
+      { 
+        body: { amount, appointmentId, customerEmail },
+        headers: testHeaders,
+      }
     );
     
     if (intentError) throw new Error(intentError.message);
@@ -463,8 +467,10 @@ export const useTerminalPayment = () => {
     appointmentId?: string,
     customerEmail?: string
   ): Promise<PaymentResult> => {
+    const testHeaders = getTestModeHeaders();
     const { data, error } = await supabase.functions.invoke('create-terminal-payment', {
-      body: { amount, readerId, appointmentId, customerEmail }
+      body: { amount, readerId, appointmentId, customerEmail },
+      headers: testHeaders,
     });
     
     if (error) throw new Error(error.message);

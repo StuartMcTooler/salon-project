@@ -260,7 +260,6 @@ export default function Admin() {
             </>
           )}
 
-          {/* COMMENTED FOR VIDEO - Super Admin Only Tabs
           {isSuperAdmin && (
             <>
               <TabsContent value="devtools">

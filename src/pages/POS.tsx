@@ -30,6 +30,9 @@ import { SalonCheckout } from "@/components/salon/SalonCheckout";
 import { QuickBookingLinkModal } from "@/components/pos/QuickBookingLinkModal";
 import { isNativeApp, getPlatform } from "@/lib/platform";
 import { Capacitor } from "@capacitor/core";
+import { useAuthUser } from "@/hooks/useAuthUser";
+import { useTestModeOverride } from "@/hooks/useTestModeOverride";
+import { resolveScopedStripeMode } from "@/lib/stripeModeOverride";
 
 // Build timestamp - injected at build time by Vite
 declare const __BUILD_TIMESTAMP__: string;
@@ -38,6 +41,8 @@ const BUILD_TIMESTAMP = typeof __BUILD_TIMESTAMP__ !== 'undefined' ? __BUILD_TIM
 const POS = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user: authUser } = useAuthUser();
+  const { stripeMode } = useTestModeOverride();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [staffMember, setStaffMember] = useState<any>(null);
@@ -56,6 +61,12 @@ const POS = () => {
   
   // Quick booking link modal state
   const [showQuickLinkModal, setShowQuickLinkModal] = useState(false);
+
+  const effectiveStripeMode = resolveScopedStripeMode({
+    currentUserId: authUser?.id,
+    stripeMode,
+    targetStaffUserId: staffMember?.user_id ?? null,
+  });
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -383,7 +394,7 @@ const POS = () => {
       </div>
 
       <div className="max-w-6xl mx-auto p-3 md:p-6">
-        <StripeModeIndicator />
+        <StripeModeIndicator stripeMode={effectiveStripeMode} />
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4 mb-4 md:mb-6 h-8 md:h-9">
             <TabsTrigger value="walkin" className="text-xs md:text-sm px-2 md:px-3 py-1">

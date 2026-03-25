@@ -19,6 +19,7 @@ import { useRef, ChangeEvent } from "react";
 import { isNativeApp, getPlatform } from "@/lib/platform";
 import { useTerminalPayment } from "@/hooks/useTerminalPayment";
 import { useTestModeOverride } from "@/hooks/useTestModeOverride";
+import { resolveScopedStripeMode } from "@/lib/stripeModeOverride";
 
 interface QuickCustomerFormProps {
   service: any;
@@ -413,10 +414,11 @@ export const QuickCustomerForm = ({
       if (!staffData) throw new Error('Staff record not found');
 
       const targetStaffUserId = staffMember?.user_id ?? (staffMember?.id === staffData.id ? user.id : null);
-      const effectiveForceStripeMode =
-        targetStaffUserId === user.id && stripeMode !== 'default'
-          ? stripeMode
-          : undefined;
+      const effectiveForceStripeMode = resolveScopedStripeMode({
+        currentUserId: user.id,
+        stripeMode,
+        targetStaffUserId,
+      });
 
       const isNative = isNativeApp();
       const currentPlatform = getPlatform();

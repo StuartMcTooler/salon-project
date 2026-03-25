@@ -30,6 +30,9 @@ import { SalonCheckout } from "@/components/salon/SalonCheckout";
 import { QuickBookingLinkModal } from "@/components/pos/QuickBookingLinkModal";
 import { isNativeApp, getPlatform } from "@/lib/platform";
 import { Capacitor } from "@capacitor/core";
+import { useAuthUser } from "@/hooks/useAuthUser";
+import { useTestModeOverride } from "@/hooks/useTestModeOverride";
+import { resolveScopedStripeMode } from "@/lib/stripeModeOverride";
 
 // Build timestamp - injected at build time by Vite
 declare const __BUILD_TIMESTAMP__: string;

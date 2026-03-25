@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePlatform } from '@/hooks/usePlatform';
 import { useTerminalPayment } from '@/hooks/useTerminalPayment';
-import { getTestModeHeaders } from '@/hooks/useTestModeOverride';
+import { getTestModeHeaders, useTestModeOverride } from '@/hooks/useTestModeOverride';
 
 interface StaffTerminalSettingsProps {
   staffId: string;
@@ -20,6 +20,7 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
   const { toast } = useToast();
   const { isNative, canUseTapToPay, canUseBluetoothReader, isStripeTerminalPluginAvailable } = usePlatform();
   const { discoverReaders, connectReader, discoveredReaders, connectedReader, isProcessing } = useTerminalPayment();
+  const { stripeMode } = useTestModeOverride();
   
   const [connectionType, setConnectionType] = useState<'tap_to_pay' | 'bluetooth' | 'internet'>('tap_to_pay');
   const [readerId, setReaderId] = useState('');
@@ -109,8 +110,8 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
   };
 
   // Create Stripe Terminal Location for Tap to Pay
-  // Check if test mode is active
-  const isTestModeActive = localStorage.getItem("FORCE_STRIPE_MODE") === "test";
+  // Mirror the server-backed override so mobile reflects the same state as desktop.
+  const isTestModeActive = stripeMode === 'test';
 
   const createTerminalLocation = async (forceTestMode: boolean = false): Promise<string | null> => {
     setIsCreatingLocation(true);
@@ -600,6 +601,15 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
                 </p>
               </div>
             </div>
+            {stripeMode !== 'default' && (
+              <div className="rounded-md border border-border bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+                Account override active from God Panel:{' '}
+                <span className="font-semibold text-foreground">
+                  {stripeMode === 'test' ? 'TEST' : 'LIVE'}
+                </span>
+                .
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <Button 
                 variant="outline" 

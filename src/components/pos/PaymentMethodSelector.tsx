@@ -351,6 +351,7 @@ export const PaymentMethodSelector = ({
           readerId,
           appointmentId,
           customerEmail,
+          forceStripeMode: stripeMode !== 'default' ? stripeMode : undefined,
         },
       });
       if (payErr) throw payErr;

@@ -517,6 +517,7 @@ export const QuickCustomerForm = ({
           readerId: readerId,
           appointmentId: apptId,
           customerEmail: customerEmail || undefined,
+          forceStripeMode: stripeMode !== 'default' ? stripeMode : undefined,
         },
       });
 

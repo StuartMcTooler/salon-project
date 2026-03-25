@@ -103,66 +103,71 @@ export const DevToolsPanel = () => {
         </Alert>
       )}
 
-      {/* Stripe Payment Mode */}
-      <Card className={hasAnyOverride ? "border-2 border-orange-400" : ""}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Stripe Payment Mode
-          </CardTitle>
-          <CardDescription>
-            Control which Stripe API key is used for payment processing
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className={`flex-1 ${getModeButtonStyles("default")}`}
-              onClick={() => handleStripeModeChange("default")}
-              disabled={isLogging}
-            >
-              <Zap className="h-4 w-4 mr-2" />
-              Default
-            </Button>
-            <Button
-              variant="outline"
-              className={`flex-1 ${getModeButtonStyles("test")}`}
-              onClick={() => handleStripeModeChange("test")}
-              disabled={isLogging}
-            >
-              <TestTube className="h-4 w-4 mr-2" />
-              Force TEST
-            </Button>
-            <Button
-              variant="outline"
-              className={`flex-1 ${getModeButtonStyles("live")}`}
-              onClick={() => handleStripeModeChange("live")}
-              disabled={isLogging}
-            >
-              <Lock className="h-4 w-4 mr-2" />
-              Force LIVE
-            </Button>
-          </div>
-          
-          <div className="p-3 rounded-lg bg-muted text-sm">
-            <strong>Current:</strong>{" "}
-            {stripeMode === "test" ? (
-              <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300">
-                🧪 TEST - Payments are simulated
-              </Badge>
-            ) : stripeMode === "live" ? (
-              <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
-                💳 LIVE - Real money will be moved
-              </Badge>
-            ) : (
-              <Badge variant="outline">
-                ⚡ Default (Uses server environment)
-              </Badge>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Stripe Payment Mode - Only visible to internal testers */}
+      {isInternalTester && (
+        <Card className={hasAnyOverride ? "border-2 border-orange-400" : ""}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Stripe Payment Mode
+            </CardTitle>
+            <CardDescription>
+              Control which Stripe API key is used for payment processing. "Default" = live/production.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className={`flex-1 ${getModeButtonStyles("default")}`}
+                onClick={() => handleStripeModeChange("default")}
+                disabled={isLogging}
+              >
+                <Zap className="h-4 w-4 mr-2" />
+                Default (Live)
+              </Button>
+              <Button
+                variant="outline"
+                className={`flex-1 ${getModeButtonStyles("test")}`}
+                onClick={() => handleStripeModeChange("test")}
+                disabled={isLogging}
+              >
+                <TestTube className="h-4 w-4 mr-2" />
+                Force TEST
+              </Button>
+              <Button
+                variant="outline"
+                className={`flex-1 ${getModeButtonStyles("live")}`}
+                onClick={() => handleStripeModeChange("live")}
+                disabled={isLogging}
+              >
+                <Lock className="h-4 w-4 mr-2" />
+                Force LIVE
+              </Button>
+            </div>
+            
+            <div className="p-3 rounded-lg bg-muted text-sm">
+              <strong>Current:</strong>{" "}
+              {stripeMode === "test" ? (
+                <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300">
+                  🧪 TEST - Payments are simulated
+                </Badge>
+              ) : stripeMode === "live" ? (
+                <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                  💳 LIVE - Real money will be moved (forced)
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                  💳 LIVE - Production default
+                </Badge>
+              )}
+              <p className="text-xs text-muted-foreground mt-2">
+                This setting is server-backed and follows your account across all devices.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Availability Simulation */}
       <Card>

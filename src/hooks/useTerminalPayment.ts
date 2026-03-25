@@ -467,8 +467,10 @@ export const useTerminalPayment = () => {
     appointmentId?: string,
     customerEmail?: string
   ): Promise<PaymentResult> => {
+    const testHeaders = getTestModeHeaders();
     const { data, error } = await supabase.functions.invoke('create-terminal-payment', {
-      body: { amount, readerId, appointmentId, customerEmail }
+      body: { amount, readerId, appointmentId, customerEmail },
+      headers: testHeaders,
     });
     
     if (error) throw new Error(error.message);

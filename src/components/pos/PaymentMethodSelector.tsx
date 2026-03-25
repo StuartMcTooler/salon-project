@@ -58,6 +58,9 @@ export const PaymentMethodSelector = ({
   
   // Native terminal payment hook
   const { processPayment, initializeNativeSDK, isProcessing } = useTerminalPayment();
+  
+  // User-scoped Stripe mode override
+  const { stripeMode } = useTestModeOverride();
 
   // Calculate the actual amount to charge
   const amountToCharge = (depositPaid && remainingBalance) 

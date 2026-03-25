@@ -62,11 +62,18 @@ const POS = () => {
   // Quick booking link modal state
   const [showQuickLinkModal, setShowQuickLinkModal] = useState(false);
 
-  const effectiveStripeMode = resolveScopedStripeMode({
+  // For the banner: admins always see their own override status so they know what mode they're in.
+  // For payments: the override only applies when the acting staff is the admin's own linked profile.
+  const effectiveStripeModeForPayments = resolveScopedStripeMode({
     currentUserId: authUser?.id,
     stripeMode,
     targetStaffUserId: staffMember?.user_id ?? null,
   });
+
+  // Banner shows the admin's own override when acting as themselves,
+  // OR shows a "viewing as" indicator when acting as someone else so admin knows
+  // their override does NOT apply to this staff member's payments.
+  const bannerStripeMode = stripeMode !== "default" ? stripeMode : undefined;
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -394,7 +401,7 @@ const POS = () => {
       </div>
 
       <div className="max-w-6xl mx-auto p-3 md:p-6">
-        <StripeModeIndicator stripeMode={effectiveStripeMode} />
+        <StripeModeIndicator stripeMode={bannerStripeMode} isActingAsOwnProfile={effectiveStripeModeForPayments !== undefined} />
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4 mb-4 md:mb-6 h-8 md:h-9">
             <TabsTrigger value="walkin" className="text-xs md:text-sm px-2 md:px-3 py-1">

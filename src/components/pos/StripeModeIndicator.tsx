@@ -4,12 +4,18 @@ import type { StripeMode } from "@/hooks/useTestModeOverride";
 
 interface StripeModeIndicatorProps {
   stripeMode?: StripeMode;
+  /** True when the admin is acting as their own linked staff profile (override applies to payments) */
+  isActingAsOwnProfile?: boolean;
 }
 
-export const StripeModeIndicator = ({ stripeMode }: StripeModeIndicatorProps) => {
+export const StripeModeIndicator = ({ stripeMode, isActingAsOwnProfile = false }: StripeModeIndicatorProps) => {
   if (!stripeMode || stripeMode === "default") {
     return null;
   }
+
+  const scopeLabel = isActingAsOwnProfile
+    ? "Applies to payments"
+    : "Your override — does NOT apply to this staff member's payments";
 
   if (stripeMode === "test") {
     return (
@@ -20,7 +26,10 @@ export const StripeModeIndicator = ({ stripeMode }: StripeModeIndicatorProps) =>
           <span className="ml-2 rounded bg-accent px-2 py-0.5 text-xs font-normal text-accent-foreground">
             Server Override
           </span>
-          {" - "}Using Stripe test environment. No real charges will be processed.
+          {" - "}
+          {isActingAsOwnProfile
+            ? "Using Stripe test environment. No real charges will be processed."
+            : "You have test mode enabled, but payments for this staff member will use LIVE mode."}
         </AlertDescription>
       </Alert>
     );
@@ -34,7 +43,10 @@ export const StripeModeIndicator = ({ stripeMode }: StripeModeIndicatorProps) =>
         <span className="ml-2 rounded bg-accent px-2 py-0.5 text-xs font-normal text-accent-foreground">
           Server Override
         </span>
-        {" - "}Real payments are being processed.
+        {" - "}
+        {isActingAsOwnProfile
+          ? "Real payments are being processed."
+          : "You have live mode forced, but this staff member uses the default environment."}
       </AlertDescription>
     </Alert>
   );

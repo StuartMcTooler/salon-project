@@ -218,12 +218,11 @@ export const PaymentMethodSelector = ({
           ?? (staffTerminal?.connection_type === 'tap_to_pay' ? ['tap_to_pay'] : ['business_reader']);
         const targetStaffUserId = permissionsResult.data?.user_id ?? null;
 
-        effectiveForceStripeMode =
-          authUser?.id &&
-          targetStaffUserId === authUser.id &&
-          stripeMode !== 'default'
-            ? stripeMode
-            : undefined;
+        effectiveForceStripeMode = resolveScopedStripeMode({
+          currentUserId: authUser?.id,
+          stripeMode,
+          targetStaffUserId,
+        });
 
         addDebugLog(`Staff terminal: ${JSON.stringify(staffTerminal)}`);
         addDebugLog(`Allowed types: ${JSON.stringify(allowedTypes)}`);

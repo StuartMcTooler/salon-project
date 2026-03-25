@@ -414,10 +414,11 @@ export const QuickCustomerForm = ({
       if (!staffData) throw new Error('Staff record not found');
 
       const targetStaffUserId = staffMember?.user_id ?? (staffMember?.id === staffData.id ? user.id : null);
-      const effectiveForceStripeMode =
-        targetStaffUserId === user.id && stripeMode !== 'default'
-          ? stripeMode
-          : undefined;
+      const effectiveForceStripeMode = resolveScopedStripeMode({
+        currentUserId: user.id,
+        stripeMode,
+        targetStaffUserId,
+      });
 
       const isNative = isNativeApp();
       const currentPlatform = getPlatform();

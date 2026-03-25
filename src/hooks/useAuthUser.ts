@@ -9,21 +9,47 @@ export const useAuthUser = () => {
   useEffect(() => {
     let isMounted = true;
 
-    const loadSession = async () => {
+    const resolveAuthenticatedUser = async (sessionUser?: User | null) => {
+      if (sessionUser) {
+        return sessionUser;
+      }
+
+      const { data, error } = await supabase.auth.getUser();
+
+      if (error) {
+        console.error("Error loading authenticated user:", error);
+        return null;
+      }
+
+      return data.user ?? null;
+    };
+
+    const loadUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
+      const resolvedUser = await resolveAuthenticatedUser(session?.user ?? null);
 
       if (!isMounted) return;
 
-      setUser(session?.user ?? null);
+      setUser(resolvedUser);
       setLoading(false);
     };
 
-    void loadSession();
+    void loadUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_OUT") {
+        if (!isMounted) return;
+
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      const resolvedUser = await resolveAuthenticatedUser(session?.user ?? null);
+
       if (!isMounted) return;
 
-      setUser(session?.user ?? null);
+      setUser(resolvedUser);
       setLoading(false);
     });
 

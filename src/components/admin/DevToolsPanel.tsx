@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { CreditCard, TestTube, Trash2, AlertTriangle, History, DollarSign, Lock, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTestModeOverride, StripeMode } from "@/hooks/useTestModeOverride";
+import { useIsInternalTester } from "@/hooks/useIsInternalTester";
 import { toast } from "sonner";
 import { format } from "date-fns";
 

@@ -419,9 +419,13 @@ export const useTerminalPayment = () => {
 
     // Step 2: Create PaymentIntent on server
     console.log('[TerminalPayment] Creating PaymentIntent on server...');
+    const testHeaders = getTestModeHeaders();
     const { data: intentData, error: intentError } = await supabase.functions.invoke(
       'create-terminal-payment-intent',
-      { body: { amount, appointmentId, customerEmail } }
+      { 
+        body: { amount, appointmentId, customerEmail },
+        headers: testHeaders,
+      }
     );
     
     if (intentError) throw new Error(intentError.message);

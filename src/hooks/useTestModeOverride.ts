@@ -45,7 +45,9 @@ export const useTestModeOverride = () => {
     staleTime: 30 * 1000, // 30s cache
   });
 
-  const stripeMode: StripeMode = serverStripeMode ?? "default";
+  const stripeMode: StripeMode = serverStripeMode ?? 
+    (localStorage.getItem(STORAGE_KEYS.FORCE_STRIPE_MODE) as StripeMode) ?? 
+    "default";
 
   // Initialize local-only settings from localStorage
   useEffect(() => {

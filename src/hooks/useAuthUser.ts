@@ -9,29 +9,28 @@ export const useAuthUser = () => {
   useEffect(() => {
     let isMounted = true;
 
-    const resolveAuthenticatedUser = async (sessionUser?: User | null) => {
-      if (sessionUser) {
-        return sessionUser;
-      }
-
-      const { data, error } = await supabase.auth.getUser();
-
-      if (error) {
-        console.error("Error loading authenticated user:", error);
-        return null;
-      }
-
-      return data.user ?? null;
-    };
-
     const loadUser = async () => {
+      // Fast path: use session user immediately so downstream hooks get user.id ASAP
       const { data: { session } } = await supabase.auth.getSession();
-      const resolvedUser = await resolveAuthenticatedUser(session?.user ?? null);
 
-      if (!isMounted) return;
+      if (session?.user) {
+        if (!isMounted) return;
+        setUser(session.user);
+        setLoading(false);
 
-      setUser(resolvedUser);
-      setLoading(false);
+        // Background validation with getUser() (authoritative)
+        const { data, error } = await supabase.auth.getUser();
+        if (!isMounted) return;
+        if (!error && data.user) {
+          setUser(data.user);
+        }
+      } else {
+        // No session at all — try getUser as fallback
+        const { data, error } = await supabase.auth.getUser();
+        if (!isMounted) return;
+        setUser(!error ? (data.user ?? null) : null);
+        setLoading(false);
+      }
     };
 
     void loadUser();
@@ -39,18 +38,24 @@ export const useAuthUser = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_OUT") {
         if (!isMounted) return;
-
         setUser(null);
         setLoading(false);
         return;
       }
 
-      const resolvedUser = await resolveAuthenticatedUser(session?.user ?? null);
+      // Fast path: use session user immediately
+      if (session?.user) {
+        if (!isMounted) return;
+        setUser(session.user);
+        setLoading(false);
 
-      if (!isMounted) return;
-
-      setUser(resolvedUser);
-      setLoading(false);
+        // Background validation
+        const { data, error } = await supabase.auth.getUser();
+        if (!isMounted) return;
+        if (!error && data.user) {
+          setUser(data.user);
+        }
+      }
     });
 
     return () => {

@@ -62,11 +62,18 @@ const POS = () => {
   // Quick booking link modal state
   const [showQuickLinkModal, setShowQuickLinkModal] = useState(false);
 
-  const effectiveStripeMode = resolveScopedStripeMode({
+  // For the banner: admins always see their own override status so they know what mode they're in.
+  // For payments: the override only applies when the acting staff is the admin's own linked profile.
+  const effectiveStripeModeForPayments = resolveScopedStripeMode({
     currentUserId: authUser?.id,
     stripeMode,
     targetStaffUserId: staffMember?.user_id ?? null,
   });
+
+  // Banner shows the admin's own override when acting as themselves,
+  // OR shows a "viewing as" indicator when acting as someone else so admin knows
+  // their override does NOT apply to this staff member's payments.
+  const bannerStripeMode = stripeMode !== "default" ? stripeMode : undefined;
 
   useEffect(() => {
     const checkAccess = async () => {

@@ -2,7 +2,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { isNativeApp, getPlatform, isStripeTerminalPluginAvailable, isAndroid } from '@/lib/platform';
-import { getTestModeHeaders } from '@/hooks/useTestModeOverride';
+import type { StripeMode } from '@/hooks/useTestModeOverride';
 import { toast } from 'sonner';
 
 // Type definitions
@@ -20,6 +20,12 @@ interface PaymentResult {
   paymentIntentId?: string;
   error?: string;
 }
+
+const getHeadersForStripeMode = (forceStripeMode?: StripeMode): Record<string, string> => {
+  if (forceStripeMode === 'test') return { 'x-force-test-mode': 'true' };
+  if (forceStripeMode === 'live') return { 'x-force-live-mode': 'true' };
+  return {};
+};
 
 // Native plugin reference - loaded dynamically at runtime only
 let StripeTerminalPlugin: any = null;
@@ -85,13 +91,16 @@ export const useTerminalPayment = () => {
   const [discoveredReaders, setDiscoveredReaders] = useState<any[]>([]);
   
   const terminalRef = useRef<any>(null);
+  const forceStripeModeRef = useRef<StripeMode | undefined>(undefined);
+  const initializedStripeModeRef = useRef<'test' | 'live' | null>(null);
 
   // Fetch connection token for native SDK
-  // Uses getTestModeHeaders() for user-scoped Stripe mode override
   const fetchConnectionToken = useCallback(async (): Promise<string> => {
-    const headers = getTestModeHeaders();
-    console.log('[TerminalPayment] Fetching connection token, override headers:', headers);
+    const forceStripeMode = forceStripeModeRef.current;
+    const headers = getHeadersForStripeMode(forceStripeMode);
+    console.log('[TerminalPayment] Fetching connection token, override headers:', headers, 'forceStripeMode:', forceStripeMode ?? 'default');
     const { data, error } = await supabase.functions.invoke('create-terminal-connection-token', {
+      body: forceStripeMode ? { forceStripeMode } : {},
       headers,
     });
     if (error) {
@@ -103,16 +112,42 @@ export const useTerminalPayment = () => {
   }, []);
 
   // Initialize native SDK with mutex to prevent concurrent init attempts
-  const initializeNativeSDK = useCallback(async () => {
+  const initializeNativeSDK = useCallback(async (forceStripeMode?: StripeMode) => {
+    forceStripeModeRef.current = forceStripeMode;
+
     if (!isNativeApp()) {
       console.log('[TerminalPayment] Not native app, skipping SDK init');
       return;
     }
+
+    const desiredMode = forceStripeMode === 'test' ? 'test' : 'live';
     
-    // If already initialized (check ref synchronously, not state)
-    if (terminalRef.current) {
-      console.log('[TerminalPayment] Already initialized (terminalRef populated)');
+    // If already initialized with the correct environment, keep it.
+    if (terminalRef.current && initializedStripeModeRef.current === desiredMode) {
+      console.log('[TerminalPayment] Already initialized for mode:', desiredMode);
       return;
+    }
+
+    // If environment changed, reset the SDK so test/live cannot leak across sessions.
+    if (terminalRef.current && initializedStripeModeRef.current !== desiredMode) {
+      console.log('[TerminalPayment] Stripe environment changed, resetting SDK:', {
+        from: initializedStripeModeRef.current,
+        to: desiredMode,
+      });
+
+      try {
+        if (connectedReader && typeof terminalRef.current.disconnectReader === 'function') {
+          await terminalRef.current.disconnectReader();
+        }
+      } catch (disconnectError) {
+        console.warn('[TerminalPayment] Failed to disconnect existing reader during reset:', disconnectError);
+      }
+
+      terminalRef.current = null;
+      setConnectedReader(null);
+      setDiscoveredReaders([]);
+      setIsInitialized(false);
+      initializedStripeModeRef.current = null;
     }
     
     // If initialization is already in progress, wait for it
@@ -156,17 +191,19 @@ export const useTerminalPayment = () => {
         // Initialize SDK
         console.log('[TerminalPayment] Initializing SDK...');
         console.log('[TerminalPayment] Platform:', getPlatform());
-        console.log('[TerminalPayment] isTest: true (TEST MODE - HARDWARE VERIFICATION)');
+        console.log('[TerminalPayment] Stripe SDK mode:', desiredMode);
         
         await StripeTerminal.initialize({
-          isTest: true,  // HARDCODED FOR TEST BUILD
+          isTest: desiredMode === 'test',
         });
         
         setIsInitialized(true);
+        initializedStripeModeRef.current = desiredMode;
         console.log('[TerminalPayment] ✅ Native SDK initialized successfully');
       } catch (err: any) {
         // Clear terminalRef on failure so retry is possible
         terminalRef.current = null;
+        initializedStripeModeRef.current = null;
         
         console.error('[TerminalPayment] ❌ Init error - Full object:', JSON.stringify(err, null, 2));
         console.error('[TerminalPayment] Error code:', err.code || 'NO_CODE');
@@ -183,7 +220,7 @@ export const useTerminalPayment = () => {
     })();
     
     await initializationPromise;
-  }, [fetchConnectionToken]);
+  }, [connectedReader, fetchConnectionToken]);
 
   // Request Android location permissions using Capacitor Geolocation plugin
   const requestLocationPermission = useCallback(async (): Promise<boolean> => {
@@ -373,8 +410,11 @@ export const useTerminalPayment = () => {
     connectionType: ConnectionType,
     appointmentId?: string,
     customerEmail?: string,
-    locationId?: string
+    locationId?: string,
+    forceStripeMode?: StripeMode
   ): Promise<PaymentResult> => {
+    forceStripeModeRef.current = forceStripeMode;
+
     // Step 0: Request location permission FIRST on Android (before SDK init)
     if (isAndroid() && (connectionType === 'tap_to_pay' || connectionType === 'bluetooth')) {
       console.log('[TerminalPayment] Checking Android permissions before SDK init...');
@@ -389,7 +429,7 @@ export const useTerminalPayment = () => {
     // This prevents the "first tap fails, second tap works" race condition
     if (!terminalRef.current) {
       console.log('[TerminalPayment] SDK not ready, initializing first...');
-      await initializeNativeSDK();
+      await initializeNativeSDK(forceStripeMode);
       // Increased stabilization delay (800ms) for native bridge settling
       await new Promise(resolve => setTimeout(resolve, 800));
       if (!terminalRef.current) {
@@ -419,12 +459,12 @@ export const useTerminalPayment = () => {
 
     // Step 2: Create PaymentIntent on server
     console.log('[TerminalPayment] Creating PaymentIntent on server...');
-    const testHeaders = getTestModeHeaders();
+    const headers = getHeadersForStripeMode(forceStripeMode);
     const { data: intentData, error: intentError } = await supabase.functions.invoke(
       'create-terminal-payment-intent',
       { 
-        body: { amount, appointmentId, customerEmail },
-        headers: testHeaders,
+        body: { amount, appointmentId, customerEmail, forceStripeMode },
+        headers,
       }
     );
     
@@ -465,12 +505,13 @@ export const useTerminalPayment = () => {
     amount: number,
     readerId: string,
     appointmentId?: string,
-    customerEmail?: string
+    customerEmail?: string,
+    forceStripeMode?: StripeMode
   ): Promise<PaymentResult> => {
-    const testHeaders = getTestModeHeaders();
+    const headers = getHeadersForStripeMode(forceStripeMode);
     const { data, error } = await supabase.functions.invoke('create-terminal-payment', {
-      body: { amount, readerId, appointmentId, customerEmail },
-      headers: testHeaders,
+      body: { amount, readerId, appointmentId, customerEmail, forceStripeMode },
+      headers,
     });
     
     if (error) throw new Error(error.message);
@@ -487,7 +528,8 @@ export const useTerminalPayment = () => {
     amount: number,
     config: TerminalConfig,
     appointmentId?: string,
-    customerEmail?: string
+    customerEmail?: string,
+    forceStripeMode?: StripeMode
   ): Promise<PaymentResult> => {
     setIsProcessing(true);
     setError(null);
@@ -496,11 +538,11 @@ export const useTerminalPayment = () => {
       if (isNativeApp() && (config.connectionType === 'tap_to_pay' || config.connectionType === 'bluetooth')) {
         // === NATIVE PATH: Use Stripe Terminal SDK ===
         console.log('[TerminalPayment] Using NATIVE SDK path');
-        return await processNativePayment(amount, config.connectionType, appointmentId, customerEmail, config.locationId);
+        return await processNativePayment(amount, config.connectionType, appointmentId, customerEmail, config.locationId, forceStripeMode);
       } else {
         // === WEB PATH: Use Server-Driven API ===
         console.log('[TerminalPayment] Using SERVER-DRIVEN path');
-        return await processServerDrivenPayment(amount, config.readerId!, appointmentId, customerEmail);
+        return await processServerDrivenPayment(amount, config.readerId!, appointmentId, customerEmail, forceStripeMode);
       }
     } catch (err: any) {
       console.error('[TerminalPayment] Payment error:', err);

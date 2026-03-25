@@ -169,6 +169,8 @@ export const PaymentMethodSelector = ({
     addDebugLog(`businessId: ${businessId || 'none'}`);
     addDebugLog(`TEST_MODE: ${TEST_MODE}`);
 
+    let effectiveForceStripeMode: typeof stripeMode | undefined;
+
     try {
       if (TEST_MODE) {
         addDebugLog(`Using TEST MODE - skipping terminal`);
@@ -190,6 +192,7 @@ export const PaymentMethodSelector = ({
 
       // Check for staff-level terminal settings first (for Tap to Pay / Bluetooth)
       if (staffId) {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
         addDebugLog(`Querying terminal settings for staffId: ${staffId}`);
         
         // Fetch both terminal settings and allowed permissions
@@ -202,7 +205,7 @@ export const PaymentMethodSelector = ({
             .maybeSingle(),
           supabase
             .from('staff_members')
-            .select('allowed_terminal_types')
+            .select('allowed_terminal_types, user_id')
             .eq('id', staffId)
             .single()
         ]);
@@ -212,9 +215,18 @@ export const PaymentMethodSelector = ({
         const permissionsError = permissionsResult.error;
         const allowedTypes = permissionsResult.data?.allowed_terminal_types
           ?? (staffTerminal?.connection_type === 'tap_to_pay' ? ['tap_to_pay'] : ['business_reader']);
+        const targetStaffUserId = permissionsResult.data?.user_id ?? null;
+
+        effectiveForceStripeMode =
+          authUser?.id &&
+          targetStaffUserId === authUser.id &&
+          stripeMode !== 'default'
+            ? stripeMode
+            : undefined;
 
         addDebugLog(`Staff terminal: ${JSON.stringify(staffTerminal)}`);
         addDebugLog(`Allowed types: ${JSON.stringify(allowedTypes)}`);
+        addDebugLog(`effectiveForceStripeMode: ${effectiveForceStripeMode || 'default/live'}`);
         addDebugLog(`stripe_location_id: ${staffTerminal?.stripe_location_id || 'NOT SET'}`);
         if (staffTerminalError) addDebugLog(`⚠️ Terminal error: ${staffTerminalError.message}`);
         if (permissionsError) addDebugLog(`⚠️ Permissions error: ${permissionsError.message}`);
@@ -266,7 +278,7 @@ export const PaymentMethodSelector = ({
           try {
             // Initialize native SDK if needed
             addDebugLog(`Calling initializeNativeSDK()...`);
-            await initializeNativeSDK();
+            await initializeNativeSDK(effectiveForceStripeMode);
             addDebugLog(`SDK initialized ✅`);
           } catch (initErr: any) {
             addDebugLog(`❌ SDK INIT FAILED: ${initErr.message}`);
@@ -280,7 +292,8 @@ export const PaymentMethodSelector = ({
             amountToCharge,
             { connectionType, locationId },
             appointmentId,
-            customerEmail
+            customerEmail,
+            effectiveForceStripeMode
           );
           
           addDebugLog(`Payment result: success=${result.success}, error=${result.error}`);
@@ -338,7 +351,7 @@ export const PaymentMethodSelector = ({
 
       const { data: readerStatus, error: readerError } = await supabase.functions.invoke(
         'check-terminal-reader',
-        { body: { readerId, forceStripeMode: stripeMode !== 'default' ? stripeMode : undefined } }
+        { body: { readerId, forceStripeMode: effectiveForceStripeMode } }
       );
       if (readerError || !readerStatus?.isOnline) {
         throw new Error(readerStatus?.details || 'Terminal reader is offline.');
@@ -351,7 +364,7 @@ export const PaymentMethodSelector = ({
           readerId,
           appointmentId,
           customerEmail,
-          forceStripeMode: stripeMode !== 'default' ? stripeMode : undefined,
+          forceStripeMode: effectiveForceStripeMode,
         },
       });
       if (payErr) throw payErr;

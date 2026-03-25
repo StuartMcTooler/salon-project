@@ -1,75 +1,43 @@
 
 
-# Server-Backed Per-User Stripe Mode Override
+## Fix: Stripe Mode Not Syncing on Android Native App
 
-## Approach
+Two targeted changes to resolve the auth timing issue on native devices.
 
-Add two columns to the existing `profiles` table instead of creating a new table. Only users flagged as internal testers see the controls; the setting follows them across all devices.
+### Change 1: Session-first auth resolution in `useAuthUser.ts`
 
-## Database Migration
+Currently, `loadUser` calls `getSession()` then `getUser()` sequentially, but the session user is only used if present — otherwise it waits for `getUser()` which can be slow on native.
 
-```sql
--- Add columns to profiles
-ALTER TABLE profiles
-  ADD COLUMN is_internal_tester boolean NOT NULL DEFAULT false,
-  ADD COLUMN stripe_mode_override text NOT NULL DEFAULT 'default';
+**Fix**: Set the user from `getSession()` immediately (fast path), then validate with `getUser()` in the background. This gives downstream hooks a `user.id` right away.
 
--- RLS: users can read their own row (already exists), 
--- but only internal testers can update stripe_mode_override
--- (handled in app logic since profiles likely already has self-update policy)
+```
+loadUser:
+  1. getSession() → if session.user exists, setUser(session.user) immediately, setLoading(false)
+  2. Then call getUser() in background → if different, update user
 ```
 
-Seed stuart@lunch.team as internal tester:
-```sql
-UPDATE profiles SET is_internal_tester = true WHERE email = 'stuart@lunch.team';
+Same pattern in the `onAuthStateChange` listener: use the session user directly, validate async.
+
+### Change 2: localStorage fallback in `useTestModeOverride.ts`
+
+One-line change to the `stripeMode` derivation:
+
+```typescript
+// Before:
+const stripeMode: StripeMode = serverStripeMode ?? "default";
+
+// After:
+const stripeMode: StripeMode = serverStripeMode ?? 
+  (localStorage.getItem(STORAGE_KEYS.FORCE_STRIPE_MODE) as StripeMode) ?? 
+  "default";
 ```
 
-## Resolution Logic
+This ensures the cached value from the last successful server fetch is used while auth + query are still loading. Once the server query resolves, it takes over.
 
-- `"default"` = live/production (explicit, not ambiguous)
-- `"test"` = use STRIPE_TEST_SECRET_KEY
-- `"live"` = use STRIPE_SECRET_KEY (same as default, but explicitly forced)
+### Files Modified
+- `src/hooks/useAuthUser.ts` — session-first fast path
+- `src/hooks/useTestModeOverride.ts` — localStorage fallback (1 line)
 
-## Hook Changes
-
-### New: `useIsInternalTester.ts`
-- Query `profiles.is_internal_tester` for current user
-- Cache 5 min, same pattern as `useSuperAdmin`
-
-### Refactored: `useTestModeOverride.ts`
-- On mount, fetch `profiles.stripe_mode_override` for current user
-- `setStripeMode()` writes to `profiles` table via Supabase update, then syncs to localStorage as cache
-- `getTestModeHeaders()` reads from localStorage cache (synchronous, for edge function calls)
-- localStorage is populated on fetch and on set — never the source of truth
-
-## UI Changes
-
-### `DevToolsPanel.tsx`
-- Gate Stripe Payment Mode card on `isInternalTester` (not just super_admin)
-- No other visual changes
-
-### `StripeModeIndicator.tsx`
-- Read from the server-cached hook value instead of direct localStorage
-- Banner text: "Default" label changed to "LIVE (production default)"
-
-### `TestModeWarningBanner.tsx`
-- Read from server-cached hook value
-
-## Files Modified
-
-| File | Change |
-|------|--------|
-| Migration SQL | Add `is_internal_tester` + `stripe_mode_override` to `profiles` |
-| Data seed | Set `is_internal_tester = true` for stuart@lunch.team |
-| `src/hooks/useIsInternalTester.ts` | New hook |
-| `src/hooks/useTestModeOverride.ts` | Server-backed read/write, localStorage as cache |
-| `src/components/admin/DevToolsPanel.tsx` | Gate on `isInternalTester` |
-| `src/components/pos/StripeModeIndicator.tsx` | Use server value |
-| `src/components/admin/TestModeWarningBanner.tsx` | Use server value |
-
-## What Changes for Users
-
-- **Normal users**: No change. No controls, always live.
-- **Internal testers**: Same UI, but the setting now persists server-side. Set Force TEST on desktop → log into Android → Android resolves to TEST automatically.
-- **"Default" means live**: No ambiguity.
+### After Implementation
+Rebuild APK: `npm run build` → `npx cap sync android` → rebuild in Android Studio.
 

@@ -1535,8 +1535,10 @@ export type Database = {
           default_delivery_address: string | null
           email: string
           id: string
+          is_internal_tester: boolean
           name: string
           phone: string
+          stripe_mode_override: string
           updated_at: string
         }
         Insert: {
@@ -1544,8 +1546,10 @@ export type Database = {
           default_delivery_address?: string | null
           email: string
           id?: string
+          is_internal_tester?: boolean
           name: string
           phone: string
+          stripe_mode_override?: string
           updated_at?: string
         }
         Update: {
@@ -1553,8 +1557,10 @@ export type Database = {
           default_delivery_address?: string | null
           email?: string
           id?: string
+          is_internal_tester?: boolean
           name?: string
           phone?: string
+          stripe_mode_override?: string
           updated_at?: string
         }
         Relationships: []

@@ -24,6 +24,7 @@ export const DevToolsPanel = () => {
     clearAllOverrides,
     hasAnyOverride,
   } = useTestModeOverride();
+  const { isInternalTester } = useIsInternalTester();
   
   const [isLogging, setIsLogging] = useState(false);
 

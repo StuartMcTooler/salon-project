@@ -1,0 +1,1 @@
+UPDATE profiles SET is_internal_tester = true WHERE id = 'a73d454c-edcb-40c0-bf63-5c1cf7463c3e';

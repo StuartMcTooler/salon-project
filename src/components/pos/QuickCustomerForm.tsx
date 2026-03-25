@@ -61,6 +61,9 @@ export const QuickCustomerForm = ({
   
   // Native terminal payment hook for Tap to Pay
   const { processPayment, initializeNativeSDK, isProcessing } = useTerminalPayment();
+  
+  // User-scoped Stripe mode override
+  const { stripeMode } = useTestModeOverride();
 
   useEffect(() => {
     const checkCreditsAndCustomer = async () => {

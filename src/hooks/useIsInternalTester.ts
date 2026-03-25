@@ -1,17 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthUser } from "@/hooks/useAuthUser";
 
 export const useIsInternalTester = () => {
-  const { data, isLoading } = useQuery({
-    queryKey: ["internal-tester-check"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { isInternalTester: false };
+  const { user, loading: authLoading } = useAuthUser();
 
+  const { data, isLoading } = useQuery({
+    queryKey: ["internal-tester-check", user?.id ?? null],
+    enabled: !!user?.id,
+    queryFn: async () => {
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("is_internal_tester")
-        .eq("id", user.id)
+        .eq("id", user!.id)
         .maybeSingle();
 
       if (error) {
@@ -21,11 +22,11 @@ export const useIsInternalTester = () => {
 
       return { isInternalTester: profile?.is_internal_tester ?? false };
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000,
   });
 
   return {
     isInternalTester: data?.isInternalTester ?? false,
-    loading: isLoading,
+    loading: authLoading || (!!user && isLoading),
   };
 };

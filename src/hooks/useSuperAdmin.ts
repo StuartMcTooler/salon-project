@@ -1,17 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthUser } from "@/hooks/useAuthUser";
 
 export const useSuperAdmin = () => {
-  const { data, isLoading } = useQuery({
-    queryKey: ["super-admin-check"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { isSuperAdmin: false };
+  const { user, loading: authLoading } = useAuthUser();
 
+  const { data, isLoading } = useQuery({
+    queryKey: ["super-admin-check", user?.id ?? null],
+    enabled: !!user?.id,
+    queryFn: async () => {
       const { data: roleData, error } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user.id)
+        .eq("user_id", user!.id)
         .eq("role", "super_admin")
         .maybeSingle();
 
@@ -22,11 +23,11 @@ export const useSuperAdmin = () => {
 
       return { isSuperAdmin: !!roleData };
     },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: 30 * 1000,
   });
 
   return {
     isSuperAdmin: data?.isSuperAdmin ?? false,
-    loading: isLoading,
+    loading: authLoading || (!!user && isLoading),
   };
 };

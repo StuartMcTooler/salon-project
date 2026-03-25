@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthUser } from "@/hooks/useAuthUser";
 
 export type StripeMode = "default" | "test" | "live";
 
@@ -12,20 +13,19 @@ const STORAGE_KEYS = {
 
 export const useTestModeOverride = () => {
   const queryClient = useQueryClient();
+  const { user, loading: authLoading } = useAuthUser();
   const [availabilityTestEnabled, setAvailabilityTestEnabledState] = useState(false);
   const [simulatedFullyBookedStaff, setSimulatedFullyBookedStaffState] = useState<string[]>([]);
 
   // Server-backed stripe mode
   const { data: serverStripeMode } = useQuery({
-    queryKey: ["stripe-mode-override"],
+    queryKey: ["stripe-mode-override", user?.id ?? null],
+    enabled: !!user?.id,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return "default" as StripeMode;
-
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("stripe_mode_override")
-        .eq("id", user.id)
+        .eq("id", user!.id)
         .maybeSingle();
 
       if (error) {
@@ -64,6 +64,12 @@ export const useTestModeOverride = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (!authLoading && !user) {
+      localStorage.removeItem(STORAGE_KEYS.FORCE_STRIPE_MODE);
+    }
+  }, [authLoading, user]);
+
   const setStripeMode = useCallback(async (mode: StripeMode) => {
     // Optimistically update localStorage cache
     if (mode === "default") {
@@ -73,7 +79,6 @@ export const useTestModeOverride = () => {
     }
 
     // Write to server
-    const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const { error } = await supabase
         .from("profiles")
@@ -83,11 +88,13 @@ export const useTestModeOverride = () => {
       if (error) {
         console.error("Error saving stripe mode override:", error);
       }
+
+      queryClient.setQueryData(["stripe-mode-override", user.id], mode);
     }
 
     // Invalidate query to re-fetch
     queryClient.invalidateQueries({ queryKey: ["stripe-mode-override"] });
-  }, [queryClient]);
+  }, [queryClient, user]);
 
   const setAvailabilityTestEnabled = useCallback((enabled: boolean) => {
     setAvailabilityTestEnabledState(enabled);
@@ -123,15 +130,16 @@ export const useTestModeOverride = () => {
     localStorage.removeItem(STORAGE_KEYS.SIMULATED_FULLY_BOOKED_STAFF);
 
     // Reset server stripe mode
-    const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       await supabase
         .from("profiles")
         .update({ stripe_mode_override: "default" })
         .eq("id", user.id);
+
+      queryClient.setQueryData(["stripe-mode-override", user.id], "default" as StripeMode);
     }
     queryClient.invalidateQueries({ queryKey: ["stripe-mode-override"] });
-  }, [queryClient]);
+  }, [queryClient, user]);
 
   const hasAnyOverride = stripeMode !== "default" || availabilityTestEnabled || simulatedFullyBookedStaff.length > 0;
 

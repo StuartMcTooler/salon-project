@@ -494,7 +494,7 @@ export const QuickCustomerForm = ({
       const { data: readerStatus, error: readerError } = await supabase.functions.invoke(
         "check-terminal-reader",
         {
-          body: { readerId },
+          body: { readerId, forceStripeMode: stripeMode !== 'default' ? stripeMode : undefined },
         }
       );
 

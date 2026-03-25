@@ -412,9 +412,16 @@ export const QuickCustomerForm = ({
 
       if (!staffData) throw new Error('Staff record not found');
 
+      const targetStaffUserId = staffMember?.user_id ?? (staffMember?.id === staffData.id ? user.id : null);
+      const effectiveForceStripeMode =
+        targetStaffUserId === user.id && stripeMode !== 'default'
+          ? stripeMode
+          : undefined;
+
       const isNative = isNativeApp();
       const currentPlatform = getPlatform();
       console.log('[QuickCustomerForm] Payment flow - isNative:', isNative, 'platform:', currentPlatform);
+      console.log('[QuickCustomerForm] Effective Stripe mode:', effectiveForceStripeMode ?? 'default/live');
 
       // Check for staff-level Tap to Pay settings first (for native app)
       if (isNative && staffData.id) {
@@ -440,7 +447,7 @@ export const QuickCustomerForm = ({
           });
 
           // Initialize native SDK
-          await initializeNativeSDK();
+          await initializeNativeSDK(effectiveForceStripeMode);
 
           // Process payment via native SDK
           const locationId = staffTerminal?.stripe_location_id;
@@ -448,7 +455,8 @@ export const QuickCustomerForm = ({
             Number(adjustedPrice),
             { connectionType: 'tap_to_pay', locationId },
             apptId,
-            customerEmail || undefined
+            customerEmail || undefined,
+            effectiveForceStripeMode
           );
 
           if (result.success) {
@@ -494,7 +502,7 @@ export const QuickCustomerForm = ({
       const { data: readerStatus, error: readerError } = await supabase.functions.invoke(
         "check-terminal-reader",
         {
-          body: { readerId, forceStripeMode: stripeMode !== 'default' ? stripeMode : undefined },
+          body: { readerId, forceStripeMode: effectiveForceStripeMode },
         }
       );
 
@@ -517,7 +525,7 @@ export const QuickCustomerForm = ({
           readerId: readerId,
           appointmentId: apptId,
           customerEmail: customerEmail || undefined,
-          forceStripeMode: stripeMode !== 'default' ? stripeMode : undefined,
+          forceStripeMode: effectiveForceStripeMode,
         },
       });
 

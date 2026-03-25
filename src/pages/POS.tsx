@@ -41,6 +41,8 @@ const BUILD_TIMESTAMP = typeof __BUILD_TIMESTAMP__ !== 'undefined' ? __BUILD_TIM
 const POS = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user: authUser } = useAuthUser();
+  const { stripeMode } = useTestModeOverride();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [staffMember, setStaffMember] = useState<any>(null);
@@ -59,6 +61,12 @@ const POS = () => {
   
   // Quick booking link modal state
   const [showQuickLinkModal, setShowQuickLinkModal] = useState(false);
+
+  const effectiveStripeMode = resolveScopedStripeMode({
+    currentUserId: authUser?.id,
+    stripeMode,
+    targetStaffUserId: staffMember?.user_id ?? null,
+  });
 
   useEffect(() => {
     const checkAccess = async () => {

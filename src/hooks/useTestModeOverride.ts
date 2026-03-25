@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 export type StripeMode = "default" | "test" | "live";
 
@@ -9,17 +11,44 @@ const STORAGE_KEYS = {
 };
 
 export const useTestModeOverride = () => {
-  const [stripeMode, setStripeModeState] = useState<StripeMode>("default");
+  const queryClient = useQueryClient();
   const [availabilityTestEnabled, setAvailabilityTestEnabledState] = useState(false);
   const [simulatedFullyBookedStaff, setSimulatedFullyBookedStaffState] = useState<string[]>([]);
 
-  // Initialize from localStorage on mount
-  useEffect(() => {
-    const storedMode = localStorage.getItem(STORAGE_KEYS.FORCE_STRIPE_MODE) as StripeMode;
-    if (storedMode && ["default", "test", "live"].includes(storedMode)) {
-      setStripeModeState(storedMode);
-    }
+  // Server-backed stripe mode
+  const { data: serverStripeMode } = useQuery({
+    queryKey: ["stripe-mode-override"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return "default" as StripeMode;
 
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("stripe_mode_override")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error fetching stripe mode override:", error);
+        return "default" as StripeMode;
+      }
+
+      const mode = (profile?.stripe_mode_override ?? "default") as StripeMode;
+      // Sync to localStorage as cache for getTestModeHeaders()
+      if (mode === "default") {
+        localStorage.removeItem(STORAGE_KEYS.FORCE_STRIPE_MODE);
+      } else {
+        localStorage.setItem(STORAGE_KEYS.FORCE_STRIPE_MODE, mode);
+      }
+      return mode;
+    },
+    staleTime: 30 * 1000, // 30s cache
+  });
+
+  const stripeMode: StripeMode = serverStripeMode ?? "default";
+
+  // Initialize local-only settings from localStorage
+  useEffect(() => {
     const storedAvailabilityTest = localStorage.getItem(STORAGE_KEYS.LOCAL_AVAILABILITY_TEST);
     if (storedAvailabilityTest === "true") {
       setAvailabilityTestEnabledState(true);
@@ -35,14 +64,30 @@ export const useTestModeOverride = () => {
     }
   }, []);
 
-  const setStripeMode = useCallback((mode: StripeMode) => {
-    setStripeModeState(mode);
+  const setStripeMode = useCallback(async (mode: StripeMode) => {
+    // Optimistically update localStorage cache
     if (mode === "default") {
       localStorage.removeItem(STORAGE_KEYS.FORCE_STRIPE_MODE);
     } else {
       localStorage.setItem(STORAGE_KEYS.FORCE_STRIPE_MODE, mode);
     }
-  }, []);
+
+    // Write to server
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ stripe_mode_override: mode })
+        .eq("id", user.id);
+
+      if (error) {
+        console.error("Error saving stripe mode override:", error);
+      }
+    }
+
+    // Invalidate query to re-fetch
+    queryClient.invalidateQueries({ queryKey: ["stripe-mode-override"] });
+  }, [queryClient]);
 
   const setAvailabilityTestEnabled = useCallback((enabled: boolean) => {
     setAvailabilityTestEnabledState(enabled);
@@ -69,15 +114,24 @@ export const useTestModeOverride = () => {
     });
   }, []);
 
-  const clearAllOverrides = useCallback(() => {
-    setStripeModeState("default");
+  const clearAllOverrides = useCallback(async () => {
     setAvailabilityTestEnabledState(false);
     setSimulatedFullyBookedStaffState([]);
     
     localStorage.removeItem(STORAGE_KEYS.FORCE_STRIPE_MODE);
     localStorage.removeItem(STORAGE_KEYS.LOCAL_AVAILABILITY_TEST);
     localStorage.removeItem(STORAGE_KEYS.SIMULATED_FULLY_BOOKED_STAFF);
-  }, []);
+
+    // Reset server stripe mode
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from("profiles")
+        .update({ stripe_mode_override: "default" })
+        .eq("id", user.id);
+    }
+    queryClient.invalidateQueries({ queryKey: ["stripe-mode-override"] });
+  }, [queryClient]);
 
   const hasAnyOverride = stripeMode !== "default" || availabilityTestEnabled || simulatedFullyBookedStaff.length > 0;
 
@@ -101,8 +155,8 @@ export const useTestModeOverride = () => {
 };
 
 /**
- * Helper function to get test mode headers for API calls
- * Can be used outside of React components
+ * Helper function to get test mode headers for API calls.
+ * Reads from localStorage cache (synced from server on login/change).
  */
 export const getTestModeHeaders = (): Record<string, string> => {
   const forceMode = localStorage.getItem("FORCE_STRIPE_MODE");

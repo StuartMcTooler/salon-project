@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTerminalPayment, isStripeTerminalAvailable } from "@/hooks/useTerminalPayment";
 import { isNativeApp, getPlatform } from "@/lib/platform";
 import { useTestModeOverride } from "@/hooks/useTestModeOverride";
+import { resolveScopedStripeMode } from "@/lib/stripeModeOverride";
 
 interface PaymentMethodSelectorProps {
   appointmentId: string;

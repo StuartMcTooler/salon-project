@@ -19,6 +19,7 @@ import { useRef, ChangeEvent } from "react";
 import { isNativeApp, getPlatform } from "@/lib/platform";
 import { useTerminalPayment } from "@/hooks/useTerminalPayment";
 import { useTestModeOverride } from "@/hooks/useTestModeOverride";
+import { resolveScopedStripeMode } from "@/lib/stripeModeOverride";
 
 interface QuickCustomerFormProps {
   service: any;

@@ -1,12 +1,13 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, TestTube, Lock } from "lucide-react";
-import { useTestModeOverride } from "@/hooks/useTestModeOverride";
+import { TestTube, Lock } from "lucide-react";
+import type { StripeMode } from "@/hooks/useTestModeOverride";
 
-export const StripeModeIndicator = () => {
-  const { stripeMode } = useTestModeOverride();
+interface StripeModeIndicatorProps {
+  stripeMode?: StripeMode;
+}
 
-  // "default" means live/production — no need to show a banner for normal operation
-  if (stripeMode === "default") {
+export const StripeModeIndicator = ({ stripeMode }: StripeModeIndicatorProps) => {
+  if (!stripeMode || stripeMode === "default") {
     return null;
   }
 
@@ -28,7 +29,6 @@ export const StripeModeIndicator = () => {
     );
   }
 
-  // stripeMode === "live" (explicitly forced, not default)
   return (
     <Alert 
       variant="default"

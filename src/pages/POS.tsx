@@ -394,7 +394,7 @@ const POS = () => {
       </div>
 
       <div className="max-w-6xl mx-auto p-3 md:p-6">
-        <StripeModeIndicator />
+        <StripeModeIndicator stripeMode={effectiveStripeMode} />
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4 mb-4 md:mb-6 h-8 md:h-9">
             <TabsTrigger value="walkin" className="text-xs md:text-sm px-2 md:px-3 py-1">

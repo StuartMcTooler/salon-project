@@ -136,6 +136,28 @@ export default function Admin() {
                   {features.loyaltyProgram && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'loyalty' })}>Loyalty</DropdownMenuItem>}
                   <DropdownMenuItem onClick={() => setSearchParams({ tab: 'feedback' })}>Feedback</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setSearchParams({ tab: 'front-desk' })}>Front Desk</DropdownMenuItem>
+                  {isSuperAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setSearchParams({ tab: 'devtools' })} className="text-orange-600 font-medium">
+                        🔧 God Mode Panel
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSearchParams({ tab: 'availability-test' })} className="text-orange-600">
+                        Availability Testing
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSearchParams({ tab: 'test-users' })} className="text-orange-600">
+                        Test Users & Logs
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSearchParams({ tab: 'referral-testing' })} className="text-orange-600">
+                        Referral Testing
+                      </DropdownMenuItem>
+                      {features.staffManagement && (
+                        <DropdownMenuItem onClick={() => setSearchParams({ tab: 'overflow' })} className="text-orange-600">
+                          Overflow Test Mode
+                        </DropdownMenuItem>
+                      )}
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}

@@ -288,7 +288,6 @@ export default function Admin() {
               </TabsContent>
             </>
           )}
-          */}
         </Tabs>
       </main>
     </div>

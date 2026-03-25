@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTerminalPayment, isStripeTerminalAvailable } from "@/hooks/useTerminalPayment";
 import { isNativeApp, getPlatform } from "@/lib/platform";
+import { useTestModeOverride } from "@/hooks/useTestModeOverride";
 
 interface PaymentMethodSelectorProps {
   appointmentId: string;

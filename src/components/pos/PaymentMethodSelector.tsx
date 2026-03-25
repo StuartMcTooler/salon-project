@@ -338,7 +338,7 @@ export const PaymentMethodSelector = ({
 
       const { data: readerStatus, error: readerError } = await supabase.functions.invoke(
         'check-terminal-reader',
-        { body: { readerId } }
+        { body: { readerId, forceStripeMode: stripeMode !== 'default' ? stripeMode : undefined } }
       );
       if (readerError || !readerStatus?.isOnline) {
         throw new Error(readerStatus?.details || 'Terminal reader is offline.');

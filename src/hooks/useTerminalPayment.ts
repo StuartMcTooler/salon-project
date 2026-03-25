@@ -2,6 +2,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { isNativeApp, getPlatform, isStripeTerminalPluginAvailable, isAndroid } from '@/lib/platform';
+import { getTestModeHeaders } from '@/hooks/useTestModeOverride';
 import { toast } from 'sonner';
 
 // Type definitions

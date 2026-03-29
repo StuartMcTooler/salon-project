@@ -2143,6 +2143,9 @@ export type Database = {
           stripe_connect_account_id: string | null
           stripe_connect_onboarded_at: string | null
           stripe_connect_status: string | null
+          stripe_connect_test_account_id: string | null
+          stripe_connect_test_onboarded_at: string | null
+          stripe_connect_test_status: string
           tier: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at: string | null
           total_bookings: number | null
@@ -2189,6 +2192,9 @@ export type Database = {
           stripe_connect_account_id?: string | null
           stripe_connect_onboarded_at?: string | null
           stripe_connect_status?: string | null
+          stripe_connect_test_account_id?: string | null
+          stripe_connect_test_onboarded_at?: string | null
+          stripe_connect_test_status?: string
           tier?: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at?: string | null
           total_bookings?: number | null
@@ -2235,6 +2241,9 @@ export type Database = {
           stripe_connect_account_id?: string | null
           stripe_connect_onboarded_at?: string | null
           stripe_connect_status?: string | null
+          stripe_connect_test_account_id?: string | null
+          stripe_connect_test_onboarded_at?: string | null
+          stripe_connect_test_status?: string
           tier?: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at?: string | null
           total_bookings?: number | null

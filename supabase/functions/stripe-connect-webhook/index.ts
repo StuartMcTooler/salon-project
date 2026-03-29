@@ -8,15 +8,12 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
-    const webhookSecret = Deno.env.get('STRIPE_CONNECT_WEBHOOK_SECRET');
-    
     if (!stripeSecretKey) {
       throw new Error('Stripe secret key not configured');
     }
@@ -25,31 +22,60 @@ serve(async (req) => {
       apiVersion: '2023-10-16',
     });
 
-    // Get the raw body and signature
     const body = await req.text();
     const signature = req.headers.get('stripe-signature');
 
-    let event: Stripe.Event;
+    // Determine environment by which webhook secret matches
+    const liveWebhookSecret = Deno.env.get('STRIPE_CONNECT_WEBHOOK_SECRET');
+    const testWebhookSecret = Deno.env.get('STRIPE_CONNECT_TEST_WEBHOOK_SECRET');
 
-    // Verify the webhook signature if secret is configured
-    if (webhookSecret && signature) {
-      try {
-        event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        console.error('Webhook signature verification failed:', message);
+    let event: Stripe.Event;
+    let isTestEnvironment = false;
+
+    if (signature) {
+      let verified = false;
+
+      // Try live secret first
+      if (liveWebhookSecret) {
+        try {
+          event = stripe.webhooks.constructEvent(body, signature, liveWebhookSecret);
+          isTestEnvironment = false;
+          verified = true;
+        } catch {
+          // Not a live webhook — try test
+        }
+      }
+
+      // Try test secret
+      if (!verified && testWebhookSecret) {
+        try {
+          event = stripe.webhooks.constructEvent(body, signature, testWebhookSecret);
+          isTestEnvironment = true;
+          verified = true;
+        } catch {
+          // Neither secret matched
+        }
+      }
+
+      if (!verified) {
+        console.error('Webhook signature verification failed against both live and test secrets');
         return new Response(
           JSON.stringify({ error: 'Invalid signature' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     } else {
-      // For development/testing without signature verification
-      console.warn('Webhook signature not verified - STRIPE_CONNECT_WEBHOOK_SECRET not configured');
+      // No signature — development/testing without verification
+      console.warn('Webhook signature not verified — no stripe-signature header');
       event = JSON.parse(body);
     }
 
-    console.log('Received Connect webhook event:', event.type);
+    console.log('Received Connect webhook event:', event!.type, '| environment:', isTestEnvironment ? 'TEST' : 'LIVE');
+
+    // Column names based on environment
+    const accountIdCol = isTestEnvironment ? 'stripe_connect_test_account_id' : 'stripe_connect_account_id';
+    const statusCol = isTestEnvironment ? 'stripe_connect_test_status' : 'stripe_connect_status';
+    const onboardedAtCol = isTestEnvironment ? 'stripe_connect_test_onboarded_at' : 'stripe_connect_onboarded_at';
 
     // Initialize Supabase with service role for admin access
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -57,17 +83,18 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Handle account.updated event
-    if (event.type === 'account.updated') {
-      const account = event.data.object as Stripe.Account;
+    if (event!.type === 'account.updated') {
+      const account = event!.data.object as Stripe.Account;
       
       console.log('Account updated:', {
         id: account.id,
         charges_enabled: account.charges_enabled,
         payouts_enabled: account.payouts_enabled,
         requirements: account.requirements?.currently_due?.length || 0,
+        environment: isTestEnvironment ? 'TEST' : 'LIVE',
       });
 
-      // Determine the status based on account state
+      // Determine status
       let status: string;
       if (account.charges_enabled && account.payouts_enabled) {
         status = 'active';
@@ -77,20 +104,18 @@ serve(async (req) => {
         status = 'pending';
       }
 
-      // Update the staff member's connect status
-      const updateData: Record<string, any> = {
-        stripe_connect_status: status,
+      const updateData: Record<string, unknown> = {
+        [statusCol]: status,
       };
 
-      // Set onboarded_at timestamp when becoming active
       if (status === 'active') {
-        updateData.stripe_connect_onboarded_at = new Date().toISOString();
+        updateData[onboardedAtCol] = new Date().toISOString();
       }
 
       const { error: updateError, data: updatedStaff } = await supabase
         .from('staff_members')
         .update(updateData)
-        .eq('stripe_connect_account_id', account.id)
+        .eq(accountIdCol, account.id)
         .select('id, display_name');
 
       if (updateError) {
@@ -99,30 +124,28 @@ serve(async (req) => {
         console.log('Updated staff member connect status:', {
           staff: updatedStaff,
           newStatus: status,
+          environment: isTestEnvironment ? 'TEST' : 'LIVE',
         });
       }
     }
 
-    // Handle account.application.authorized - when they complete OAuth flow
-    if (event.type === 'account.application.authorized') {
-      const application = event.data.object;
+    // Handle account.application.authorized
+    if (event!.type === 'account.application.authorized') {
+      const application = event!.data.object;
       console.log('Account application authorized:', application);
     }
 
-    // Handle account.application.deauthorized - when they disconnect
-    if (event.type === 'account.application.deauthorized') {
-      const application = event.data.object as any;
-      const accountId = application.account;
+    // Handle account.application.deauthorized
+    if (event!.type === 'account.application.deauthorized') {
+      const application = event!.data.object as Record<string, unknown>;
+      const accountId = application.account as string;
       
-      console.log('Account application deauthorized:', accountId);
+      console.log('Account application deauthorized:', accountId, '| environment:', isTestEnvironment ? 'TEST' : 'LIVE');
 
-      // Update status to disabled
       const { error: updateError } = await supabase
         .from('staff_members')
-        .update({
-          stripe_connect_status: 'disabled',
-        })
-        .eq('stripe_connect_account_id', accountId);
+        .update({ [statusCol]: 'disabled' })
+        .eq(accountIdCol, accountId);
 
       if (updateError) {
         console.error('Error updating staff member to disabled:', updateError);

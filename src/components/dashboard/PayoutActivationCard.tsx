@@ -6,33 +6,44 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Banknote, ExternalLink, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useTestModeOverride } from "@/hooks/useTestModeOverride";
+import { useAuthUser } from "@/hooks/useAuthUser";
+import { resolveScopedStripeMode } from "@/lib/stripeModeOverride";
 
 interface PayoutActivationCardProps {
   staffId: string;
+  staffUserId?: string | null;
 }
 
 type ConnectStatus = 'not_started' | 'pending' | 'restricted' | 'active' | 'disabled';
 
-export const PayoutActivationCard = ({ staffId }: PayoutActivationCardProps) => {
+export const PayoutActivationCard = ({ staffId, staffUserId }: PayoutActivationCardProps) => {
   const { toast } = useToast();
+  const { user } = useAuthUser();
+  const { stripeMode } = useTestModeOverride();
   const [status, setStatus] = useState<ConnectStatus>('not_started');
   const [loading, setLoading] = useState(true);
   const [activating, setActivating] = useState(false);
   const [openingDashboard, setOpeningDashboard] = useState(false);
 
+  // Resolve effective stripe mode scoped to this staff member
+  const resolvedMode = resolveScopedStripeMode({
+    currentUserId: user?.id ?? null,
+    stripeMode,
+    targetStaffUserId: staffUserId ?? null,
+  });
+  const isTestMode = resolvedMode === 'test';
+
   useEffect(() => {
     loadConnectStatus();
     
-    // Check for return URL params
     const params = new URLSearchParams(window.location.search);
     if (params.get('stripe_onboarded') === 'true') {
       toast({
         title: "Setup in progress",
         description: "Your payout account is being verified. This may take a few moments.",
       });
-      // Clean up URL
       window.history.replaceState({}, '', window.location.pathname);
-      // Refresh status
       setTimeout(loadConnectStatus, 2000);
     }
     if (params.get('stripe_refresh') === 'true') {
@@ -43,18 +54,20 @@ export const PayoutActivationCard = ({ staffId }: PayoutActivationCardProps) => 
       });
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, [staffId]);
+  }, [staffId, isTestMode]);
 
   const loadConnectStatus = async () => {
     try {
+      const statusColumn = isTestMode ? 'stripe_connect_test_status' : 'stripe_connect_status';
       const { data, error } = await supabase
         .from('staff_members')
-        .select('stripe_connect_status')
+        .select(statusColumn)
         .eq('id', staffId)
         .single();
 
       if (error) throw error;
-      setStatus((data?.stripe_connect_status as ConnectStatus) || 'not_started');
+      const rawStatus = (data as Record<string, unknown>)?.[statusColumn] as string | null;
+      setStatus((rawStatus as ConnectStatus) || 'not_started');
     } catch (error) {
       console.error('Error loading connect status:', error);
     } finally {
@@ -62,15 +75,23 @@ export const PayoutActivationCard = ({ staffId }: PayoutActivationCardProps) => 
     }
   };
 
+  const getTestModeInvokeOptions = () => {
+    if (!isTestMode) return {};
+    return {
+      headers: { 'x-force-test-mode': 'true' } as Record<string, string>,
+      body: { forceStripeMode: 'test' },
+    };
+  };
+
   const handleActivatePayouts = async () => {
     setActivating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('create-connect-account');
+      const opts = getTestModeInvokeOptions();
+      const { data, error } = await supabase.functions.invoke('create-connect-account', opts);
       
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Failed to create account');
 
-      // Redirect to Stripe onboarding
       if (data.accountLinkUrl) {
         window.location.href = data.accountLinkUrl;
       }
@@ -88,12 +109,12 @@ export const PayoutActivationCard = ({ staffId }: PayoutActivationCardProps) => 
   const handleOpenDashboard = async () => {
     setOpeningDashboard(true);
     try {
-      const { data, error } = await supabase.functions.invoke('create-connect-login-link');
+      const opts = getTestModeInvokeOptions();
+      const { data, error } = await supabase.functions.invoke('create-connect-login-link', opts);
       
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Failed to create login link');
 
-      // Open in new tab
       if (data.url) {
         window.open(data.url, '_blank');
       }
@@ -109,6 +130,12 @@ export const PayoutActivationCard = ({ staffId }: PayoutActivationCardProps) => 
     }
   };
 
+  const testModeBadge = isTestMode ? (
+    <Badge variant="outline" className="border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 text-xs font-semibold">
+      TEST MODE
+    </Badge>
+  ) : null;
+
   if (loading) {
     return (
       <Card>
@@ -121,7 +148,7 @@ export const PayoutActivationCard = ({ staffId }: PayoutActivationCardProps) => 
     );
   }
 
-  // If active, show compact success state with dashboard button
+  // Active state
   if (status === 'active') {
     return (
       <Card className="border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20">
@@ -130,8 +157,13 @@ export const PayoutActivationCard = ({ staffId }: PayoutActivationCardProps) => 
             <div className="flex items-center gap-3">
               <CheckCircle2 className="h-5 w-5 text-green-600" />
               <div>
-                <p className="font-medium text-green-800 dark:text-green-200">Payouts Active</p>
-                <p className="text-sm text-green-600 dark:text-green-400">You're receiving direct payments</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-green-800 dark:text-green-200">Payouts Active</p>
+                  {testModeBadge}
+                </div>
+                <p className="text-sm text-green-600 dark:text-green-400">
+                  {isTestMode ? "Test environment — no real payments" : "You're receiving direct payments"}
+                </p>
               </div>
             </div>
             <Button
@@ -161,6 +193,7 @@ export const PayoutActivationCard = ({ staffId }: PayoutActivationCardProps) => 
         <div className="flex items-center gap-2">
           <Banknote className="h-5 w-5 text-primary" />
           <CardTitle>Activate Payouts</CardTitle>
+          {testModeBadge}
           {status === 'pending' && (
             <Badge variant="secondary">Setup Incomplete</Badge>
           )}
@@ -169,7 +202,10 @@ export const PayoutActivationCard = ({ staffId }: PayoutActivationCardProps) => 
           )}
         </div>
         <CardDescription>
-          Connect your bank account to receive payments directly from your bookings.
+          {isTestMode 
+            ? "Test mode — connect a test payout account (no real money)."
+            : "Connect your bank account to receive payments directly from your bookings."
+          }
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

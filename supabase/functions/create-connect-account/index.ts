@@ -20,12 +20,11 @@ serve(async (req) => {
 
     // Detect test mode from header or body
     const forceTestModeHeader = req.headers.get('x-force-test-mode') === 'true';
+    const forceTestLiveHeader = req.headers.get('x-force-live-mode') === 'true';
     let body: Record<string, unknown> = {};
     try { body = await req.json(); } catch { /* no body */ }
     const forceTestModeBody = body?.forceStripeMode === 'test';
-    const isTestMode = forceTestModeHeader || forceTestModeBody;
-
-    console.log('Connect account creation — test mode:', isTestMode);
+    let isTestMode = forceTestModeHeader || forceTestModeBody;
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -40,6 +39,21 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
+    // Server-side fallback: check user's stripe_mode_override from profiles
+    if (!isTestMode && !forceTestLiveHeader) {
+      const serviceClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+      const { data: profile } = await serviceClient
+        .from('profiles')
+        .select('stripe_mode_override')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (profile?.stripe_mode_override === 'test') {
+        isTestMode = true;
+        console.log('Test mode detected from server-side profile override');
+      }
+    }
+
+    console.log('Connect account creation — test mode:', isTestMode);
     // Column names based on environment
     const accountIdCol = isTestMode ? 'stripe_connect_test_account_id' : 'stripe_connect_account_id';
     const statusCol = isTestMode ? 'stripe_connect_test_status' : 'stripe_connect_status';

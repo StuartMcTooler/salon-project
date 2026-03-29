@@ -26,11 +26,12 @@ export const PayoutActivationCard = ({ staffId, staffUserId }: PayoutActivationC
   const [activating, setActivating] = useState(false);
   const [openingDashboard, setOpeningDashboard] = useState(false);
 
-  // Resolve effective stripe mode scoped to this staff member
+  // Resolve effective stripe mode — this card is always for the current user's own staff profile,
+  // so default targetStaffUserId to the current auth user when not explicitly provided.
   const resolvedMode = resolveScopedStripeMode({
     currentUserId: user?.id ?? null,
     stripeMode,
-    targetStaffUserId: staffUserId ?? null,
+    targetStaffUserId: staffUserId ?? user?.id ?? null,
   });
   const isTestMode = resolvedMode === 'test';
 

@@ -39,6 +39,21 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
+    // Server-side fallback: check user's stripe_mode_override from profiles
+    if (!isTestMode && !forceTestLiveHeader) {
+      const serviceClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+      const { data: profile } = await serviceClient
+        .from('profiles')
+        .select('stripe_mode_override')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (profile?.stripe_mode_override === 'test') {
+        isTestMode = true;
+        console.log('Test mode detected from server-side profile override');
+      }
+    }
+
+    console.log('Connect login link — test mode:', isTestMode);
     // Column names based on environment
     const accountIdCol = isTestMode ? 'stripe_connect_test_account_id' : 'stripe_connect_account_id';
     const statusCol = isTestMode ? 'stripe_connect_test_status' : 'stripe_connect_status';

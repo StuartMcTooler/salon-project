@@ -20,12 +20,11 @@ serve(async (req) => {
 
     // Detect test mode from header or body
     const forceTestModeHeader = req.headers.get('x-force-test-mode') === 'true';
+    const forceTestLiveHeader = req.headers.get('x-force-live-mode') === 'true';
     let body: Record<string, unknown> = {};
     try { body = await req.json(); } catch { /* no body */ }
     const forceTestModeBody = body?.forceStripeMode === 'test';
-    const isTestMode = forceTestModeHeader || forceTestModeBody;
-
-    console.log('Connect login link — test mode:', isTestMode);
+    let isTestMode = forceTestModeHeader || forceTestModeBody;
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;

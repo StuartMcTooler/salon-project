@@ -70,8 +70,9 @@ Deno.serve(async (req) => {
     const date1Day = getDublinDateString(1);
     const date1DayNext = getDublinDateString(2);
 
-    const range2 = { start: `${date2Day}T00:00:00+00:00`, end: `${date2DayNext}T00:00:00+00:00` };
-    const range1 = { start: `${date1Day}T00:00:00+00:00`, end: `${date1DayNext}T00:00:00+00:00` };
+    const dublinOffset = getDublinUtcOffset();
+    const range2 = { start: `${date2Day}T00:00:00${dublinOffset}`, end: `${date2DayNext}T00:00:00${dublinOffset}` };
+    const range1 = { start: `${date1Day}T00:00:00${dublinOffset}`, end: `${date1DayNext}T00:00:00${dublinOffset}` };
 
     console.log(`[reminders] 2-day range: ${range2.start} → ${range2.end}`);
     console.log(`[reminders] 1-day range: ${range1.start} → ${range1.end}`);

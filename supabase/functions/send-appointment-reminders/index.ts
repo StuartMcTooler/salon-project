@@ -13,6 +13,23 @@ const getDublinDateString = (daysOffset: number): string => {
   return d.toLocaleDateString('en-CA', { timeZone: TIMEZONE });
 };
 
+// Get the UTC offset for Dublin right now (handles DST automatically)
+const getDublinUtcOffset = (): string => {
+  const now = new Date();
+  // Format a date part in Dublin and in UTC, compare to find offset
+  const dublinHour = parseInt(
+    new Intl.DateTimeFormat('en-IE', { timeZone: TIMEZONE, hour: 'numeric', hour12: false }).format(now)
+  );
+  const utcHour = now.getUTCHours();
+  let offsetHours = dublinHour - utcHour;
+  // Handle day boundary wrap
+  if (offsetHours > 12) offsetHours -= 24;
+  if (offsetHours < -12) offsetHours += 24;
+  const sign = offsetHours >= 0 ? '+' : '-';
+  const abs = Math.abs(offsetHours).toString().padStart(2, '0');
+  return `${sign}${abs}:00`;
+};
+
 const getDublinHour = (): number => {
   return parseInt(
     new Intl.DateTimeFormat('en-IE', { timeZone: TIMEZONE, hour: 'numeric', hour12: false }).format(new Date())

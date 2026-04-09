@@ -13,6 +13,23 @@ const getDublinDateString = (daysOffset: number): string => {
   return d.toLocaleDateString('en-CA', { timeZone: TIMEZONE });
 };
 
+// Get the UTC offset for Dublin right now (handles DST automatically)
+const getDublinUtcOffset = (): string => {
+  const now = new Date();
+  // Format a date part in Dublin and in UTC, compare to find offset
+  const dublinHour = parseInt(
+    new Intl.DateTimeFormat('en-IE', { timeZone: TIMEZONE, hour: 'numeric', hour12: false }).format(now)
+  );
+  const utcHour = now.getUTCHours();
+  let offsetHours = dublinHour - utcHour;
+  // Handle day boundary wrap
+  if (offsetHours > 12) offsetHours -= 24;
+  if (offsetHours < -12) offsetHours += 24;
+  const sign = offsetHours >= 0 ? '+' : '-';
+  const abs = Math.abs(offsetHours).toString().padStart(2, '0');
+  return `${sign}${abs}:00`;
+};
+
 const getDublinHour = (): number => {
   return parseInt(
     new Intl.DateTimeFormat('en-IE', { timeZone: TIMEZONE, hour: 'numeric', hour12: false }).format(new Date())
@@ -53,8 +70,9 @@ Deno.serve(async (req) => {
     const date1Day = getDublinDateString(1);
     const date1DayNext = getDublinDateString(2);
 
-    const range2 = { start: `${date2Day}T00:00:00+00:00`, end: `${date2DayNext}T00:00:00+00:00` };
-    const range1 = { start: `${date1Day}T00:00:00+00:00`, end: `${date1DayNext}T00:00:00+00:00` };
+    const dublinOffset = getDublinUtcOffset();
+    const range2 = { start: `${date2Day}T00:00:00${dublinOffset}`, end: `${date2DayNext}T00:00:00${dublinOffset}` };
+    const range1 = { start: `${date1Day}T00:00:00${dublinOffset}`, end: `${date1DayNext}T00:00:00${dublinOffset}` };
 
     console.log(`[reminders] 2-day range: ${range2.start} → ${range2.end}`);
     console.log(`[reminders] 1-day range: ${range1.start} → ${range1.end}`);

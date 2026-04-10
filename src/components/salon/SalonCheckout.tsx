@@ -362,7 +362,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   // Check for overflow when date changes
   useEffect(() => {
     const checkOverflow = async () => {
-      if (!date || !service || overflowState?.isOverflow) return;
+      if (!date || !service || overflowState?.isOverflow || existingAppointments === undefined) return;
 
       // Only check if no slots are available from normal calculation
       if (availableSlots.length > 0) {
@@ -402,7 +402,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
     };
 
     checkOverflow();
-  }, [date, service, staff.id, availableSlots.length]);
+  }, [date, service, staff.id, availableSlots.length, existingAppointments]);
 
   // Mark referral discount as applied (actual calculation happens in consolidated effect)
   useEffect(() => {

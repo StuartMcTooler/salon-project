@@ -402,7 +402,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
     };
 
     checkOverflow();
-  }, [date, service, staff.id, availableSlots.length]);
+  }, [date, service, staff.id, availableSlots.length, existingAppointments]);
 
   // Mark referral discount as applied (actual calculation happens in consolidated effect)
   useEffect(() => {

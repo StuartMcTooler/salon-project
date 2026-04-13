@@ -72,6 +72,17 @@ serve(async (req) => {
       });
     }
 
+    // Look up business_id from staff member for notification logging
+    let businessId: string | null = null;
+    if (appointments[0]?.staff_id) {
+      const { data: staffData } = await supabaseClient
+        .from("staff_members")
+        .select("business_id")
+        .eq("id", appointments[0].staff_id)
+        .single();
+      businessId = staffData?.business_id || null;
+    }
+
     // Process each appointment
     for (const appointment of appointments) {
       try {

@@ -84,15 +84,29 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
         const bookingLink = `${window.location.origin}/book/${staffId}`;
         const message = `Hi ${data.customer_name}, your appointment for ${data.service_name} on ${formattedDate} at ${formattedTime} has been cancelled. We apologise for any inconvenience. Rebook here: ${bookingLink}`;
         
-        supabase.functions.invoke('send-whatsapp', {
-          body: {
-            to: data.customer_phone,
-            message,
-            messageType: 'booking_cancelled'
+        try {
+          const { data: smsResult, error: smsError } = await supabase.functions.invoke('send-whatsapp', {
+            body: {
+              to: data.customer_phone,
+              message,
+              messageType: 'booking_cancelled'
+            }
+          });
+          
+          if (smsError) {
+            console.error('[TodaysAppts] SMS error:', smsError);
+            toast({ title: "Appointment cancelled", description: "Notification failed — please contact the customer manually.", variant: "destructive" });
+          } else if (smsResult?.simulated) {
+            toast({ title: "Appointment cancelled", description: "Test user — notification simulated, not actually sent." });
+          } else {
+            toast({ title: "Appointment cancelled & customer notified" });
           }
-        }).catch(err => console.error('[TodaysAppts] Failed to send cancellation SMS:', err));
+        } catch (err) {
+          console.error('[TodaysAppts] Failed to send cancellation SMS:', err);
+          toast({ title: "Appointment cancelled", description: "Notification failed — please contact the customer manually.", variant: "destructive" });
+        }
         
-        // Also send email to creator
+        // Also send email to creator (non-blocking)
         supabase.functions.invoke('send-creator-email', {
           body: {
             staffId: staffId,
@@ -100,18 +114,16 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
             notificationType: 'booking_cancelled'
           }
         }).catch(err => console.error('[TodaysAppts] Failed to send creator email:', err));
+      } else {
+        const statusMessages: Record<string, string> = {
+          checked_in: "Client checked in",
+          no_show: "Marked as no-show",
+          cancelled: "Appointment cancelled",
+        };
+        toast({
+          title: statusMessages[variables.status] || "Status updated",
+        });
       }
-      
-      const statusMessages: Record<string, string> = {
-        checked_in: "Client checked in",
-        no_show: "Marked as no-show",
-        cancelled: data.customer_phone 
-          ? "Appointment cancelled & customer notified" 
-          : "Appointment cancelled",
-      };
-      toast({
-        title: statusMessages[variables.status] || "Status updated",
-      });
     },
     onError: (error: any) => {
       toast({

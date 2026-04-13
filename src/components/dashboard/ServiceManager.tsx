@@ -197,12 +197,12 @@ export const ServiceManager = ({ staffId }: ServiceManagerProps) => {
             {services.map((pricing) => {
               const service = pricing.services as any;
               return (
-                <div key={pricing.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div key={pricing.id} className="flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex-1">
                     <p className="font-semibold">{service.name}</p>
                     <p className="text-sm text-muted-foreground">{service.duration_minutes} min</p>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center justify-end gap-4 sm:flex-nowrap">
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
@@ -222,14 +222,14 @@ export const ServiceManager = ({ staffId }: ServiceManagerProps) => {
                         Update
                       </Button>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-[168px] items-center justify-end gap-3">
                       <Switch
                         checked={pricing.is_available}
                         onCheckedChange={(checked) =>
                           updatePricingMutation.mutate({ pricingId: pricing.id, isAvailable: checked })
                         }
                       />
-                      <span className="text-sm">{pricing.is_available ? "Available" : "Unavailable"}</span>
+                      <span className="w-24 text-right text-sm">{pricing.is_available ? "Available" : "Unavailable"}</span>
                     </div>
                   </div>
                 </div>

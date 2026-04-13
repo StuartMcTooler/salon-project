@@ -114,8 +114,8 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
 
       const [servicesRes, staffRes] = await Promise.all([
         withTimeout(
-          () =>
-            supabase
+          async () =>
+            await supabase
               .from("services")
               .select("id, name, suggested_price")
               .eq("is_active", true)
@@ -123,7 +123,7 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
           "Services took too long to load"
         ),
         withTimeout(
-          () => staffBaseQuery.eq("is_active", true).order("display_name"),
+          async () => await staffBaseQuery.eq("is_active", true).order("display_name"),
           "Staff list took too long to load"
         ),
       ]);
@@ -161,8 +161,8 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
       setPricingData(defaultPricing);
 
       const pricingRes = await withTimeout(
-        () =>
-          supabase
+        async () =>
+          await supabase
             .from("staff_service_pricing")
             .select("id, staff_id, service_id, custom_price, is_available")
             .eq("staff_id", staffId),
@@ -198,7 +198,7 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
       }));
 
       const deleteRes = await withTimeout(
-        () => supabase.from("staff_service_pricing").delete().eq("staff_id", selectedStaff),
+        async () => await supabase.from("staff_service_pricing").delete().eq("staff_id", selectedStaff),
         "Deleting existing pricing took too long"
       );
 
@@ -206,7 +206,7 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
 
       if (updates.length > 0) {
         const insertRes = await withTimeout(
-          () => supabase.from("staff_service_pricing").insert(updates),
+          async () => await supabase.from("staff_service_pricing").insert(updates),
           "Saving pricing took too long"
         );
 

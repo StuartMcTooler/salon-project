@@ -51,34 +51,46 @@ export function StaffManagement() {
 
   useEffect(() => {
     loadStaff();
-    checkBusinessType();
   }, []);
-
-  const checkBusinessType = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data } = await supabase
-        .from('business_accounts')
-        .select('id, business_type')
-        .eq('owner_user_id', user.id)
-        .single();
-
-      if (data) {
-        setIsMultiStaff(data.business_type === 'multi_staff_salon');
-        setBusinessId(data.id);
-      }
-    } catch (error) {
-      console.error('Error checking business type:', error);
-    }
-  };
 
   const loadStaff = async () => {
     try {
+      setLoading(true);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setStaff([]);
+        return;
+      }
+
+      const { data: ownedBusiness, error: businessError } = await supabase
+        .from('business_accounts')
+        .select('id, business_type')
+        .eq('owner_user_id', user.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (businessError) throw businessError;
+
+      if (ownedBusiness) {
+        setIsMultiStaff(ownedBusiness.business_type === 'multi_staff_salon');
+        setBusinessId(ownedBusiness.id);
+
+        const { data, error } = await supabase
+          .from("staff_members")
+          .select("id, full_name, display_name, email, phone, bio, skill_level, commission_rate, hourly_rate, is_active, user_id, business_id, profile_image_url, require_booking_deposit, deposit_type, deposit_percentage, deposit_fixed_amount, allowed_terminal_types")
+          .eq("business_id", ownedBusiness.id)
+          .order("full_name");
+
+        if (error) throw error;
+        setStaff((data || []) as StaffMember[]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("staff_members")
-        .select("*")
+        .select("id, full_name, display_name, email, phone, bio, skill_level, commission_rate, hourly_rate, is_active, user_id, business_id, profile_image_url, require_booking_deposit, deposit_type, deposit_percentage, deposit_fixed_amount, allowed_terminal_types")
+        .eq("user_id", user.id)
         .order("full_name");
 
       if (error) throw error;

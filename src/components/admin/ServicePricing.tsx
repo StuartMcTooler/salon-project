@@ -32,36 +32,83 @@ interface Pricing {
 export function ServicePricing() {
   const [services, setServices] = useState<Service[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [pricing, setPricing] = useState<Pricing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<string>("");
   const [pricingData, setPricingData] = useState<Record<string, { price: number; available: boolean }>>({});
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   useEffect(() => {
-    if (selectedStaff) {
-      loadStaffPricing(selectedStaff);
+    if (!selectedStaff || services.length === 0) {
+      setPricingData({});
+      return;
     }
-  }, [selectedStaff]);
+
+    void loadStaffPricing(selectedStaff);
+  }, [selectedStaff, services]);
 
   const loadData = async () => {
     try {
-      const [servicesRes, staffRes, pricingRes] = await Promise.all([
-        supabase.from("services").select("id, name, suggested_price").eq("is_active", true).order("name"),
-        supabase.from("staff_members").select("id, display_name, skill_level").eq("is_active", true).order("display_name"),
-        supabase.from("staff_service_pricing").select("*"),
+      setLoading(true);
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) throw userError;
+
+      if (!user) {
+        setServices([]);
+        setStaff([]);
+        setSelectedStaff("");
+        setPricingData({});
+        return;
+      }
+
+      const { data: ownedBusiness, error: businessError } = await supabase
+        .from("business_accounts")
+        .select("id")
+        .eq("owner_user_id", user.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (businessError) throw businessError;
+
+      const staffQuery = ownedBusiness
+        ? supabase
+            .from("staff_members")
+            .select("id, display_name, skill_level")
+            .eq("business_id", ownedBusiness.id)
+        : supabase
+            .from("staff_members")
+            .select("id, display_name, skill_level")
+            .eq("user_id", user.id);
+
+      const [servicesRes, staffRes] = await Promise.all([
+        supabase
+          .from("services")
+          .select("id, name, suggested_price")
+          .eq("is_active", true)
+          .order("name"),
+        staffQuery.eq("is_active", true).order("display_name"),
       ]);
 
       if (servicesRes.error) throw servicesRes.error;
       if (staffRes.error) throw staffRes.error;
-      if (pricingRes.error) throw pricingRes.error;
 
-      setServices(servicesRes.data || []);
-      setStaff(staffRes.data || []);
-      setPricing(pricingRes.data || []);
+      const nextServices = servicesRes.data || [];
+      const nextStaff = staffRes.data || [];
+
+      setServices(nextServices);
+      setStaff(nextStaff);
+      setSelectedStaff((current) =>
+        current && nextStaff.some((member) => member.id === current) ? current : ""
+      );
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Failed to load data");
@@ -70,19 +117,39 @@ export function ServicePricing() {
     }
   };
 
-  const loadStaffPricing = (staffId: string) => {
-    const staffPricing = pricing.filter((p) => p.staff_id === staffId);
-    const data: Record<string, { price: number; available: boolean }> = {};
+  const loadStaffPricing = async (staffId: string) => {
+    try {
+      setPricingLoading(true);
 
-    services.forEach((service) => {
-      const existing = staffPricing.find((p) => p.service_id === service.id);
-      data[service.id] = {
-        price: existing?.custom_price || service.suggested_price || 0,
-        available: existing?.is_available ?? true,
-      };
-    });
+      const { data: staffPricing, error } = await supabase
+        .from("staff_service_pricing")
+        .select("id, staff_id, service_id, custom_price, is_available")
+        .eq("staff_id", staffId);
 
-    setPricingData(data);
+      if (error) throw error;
+
+      const pricingMap = new Map(
+        (staffPricing || []).map((entry: Pricing) => [entry.service_id, entry])
+      );
+
+      const data: Record<string, { price: number; available: boolean }> = {};
+
+      services.forEach((service) => {
+        const existing = pricingMap.get(service.id);
+        data[service.id] = {
+          price: existing?.custom_price || service.suggested_price || 0,
+          available: existing?.is_available ?? true,
+        };
+      });
+
+      setPricingData(data);
+    } catch (error) {
+      console.error("Error loading staff pricing:", error);
+      toast.error("Failed to load staff pricing");
+      setPricingData({});
+    } finally {
+      setPricingLoading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -92,6 +159,8 @@ export function ServicePricing() {
     }
 
     try {
+      setSaving(true);
+
       const updates = services.map((service) => ({
         staff_id: selectedStaff,
         service_id: service.id,
@@ -100,23 +169,29 @@ export function ServicePricing() {
       }));
 
       // Delete existing pricing for this staff member
-      await supabase
+      const { error: deleteError } = await supabase
         .from("staff_service_pricing")
         .delete()
         .eq("staff_id", selectedStaff);
 
-      // Insert new pricing
-      const { error } = await supabase
-        .from("staff_service_pricing")
-        .insert(updates);
+      if (deleteError) throw deleteError;
 
-      if (error) throw error;
+      // Insert new pricing
+      if (updates.length > 0) {
+        const { error } = await supabase
+          .from("staff_service_pricing")
+          .insert(updates);
+
+        if (error) throw error;
+      }
 
       toast.success("Pricing updated successfully");
-      loadData();
+      await loadStaffPricing(selectedStaff);
     } catch (error) {
       console.error("Error saving pricing:", error);
       toast.error("Failed to save pricing");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -172,48 +247,56 @@ export function ServicePricing() {
             <p className="text-sm text-muted-foreground mt-1">Each staff member must set their own prices for services they offer</p>
           </CardHeader>
           <CardContent className="space-y-4">
-            {services.map((service) => (
-              <div key={service.id} className="grid grid-cols-[1fr_auto_auto] gap-4 items-center p-4 border rounded-lg">
-                <div>
-                  <p className="font-medium">{service.name}</p>
-                  {service.suggested_price && (
-                    <p className="text-sm text-muted-foreground">Suggested: €{service.suggested_price}</p>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor={`price-${service.id}`}>Price (€)</Label>
-                  <Input
-                    id={`price-${service.id}`}
-                    type="number"
-                    step="0.01"
-                    value={pricingData[service.id]?.price || ""}
-                    onChange={(e) => {
-                      const value = parseFloat(e.target.value);
-                      if (!isNaN(value)) {
-                        updatePrice(service.id, Math.round(value * 100) / 100);
-                      }
-                    }}
-                    className="w-32"
-                    required
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id={`available-${service.id}`}
-                    checked={pricingData[service.id]?.available ?? true}
-                    onCheckedChange={(checked) => updateAvailability(service.id, checked)}
-                  />
-                  <Label htmlFor={`available-${service.id}`}>Available</Label>
-                </div>
+            {pricingLoading ? (
+              <div className="flex justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin" />
               </div>
-            ))}
+            ) : (
+              <>
+                {services.map((service) => (
+                  <div key={service.id} className="grid grid-cols-[1fr_auto_auto] gap-4 items-center p-4 border rounded-lg">
+                    <div>
+                      <p className="font-medium">{service.name}</p>
+                      {service.suggested_price && (
+                        <p className="text-sm text-muted-foreground">Suggested: €{service.suggested_price}</p>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor={`price-${service.id}`}>Price (€)</Label>
+                      <Input
+                        id={`price-${service.id}`}
+                        type="number"
+                        step="0.01"
+                        value={pricingData[service.id]?.price || ""}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value);
+                          if (!isNaN(value)) {
+                            updatePrice(service.id, Math.round(value * 100) / 100);
+                          }
+                        }}
+                        className="w-32"
+                        required
+                      />
+                    </div>
 
-            <Button onClick={handleSave} className="w-full">
-              <Save className="mr-2 h-4 w-4" />
-              Save All Pricing
-            </Button>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id={`available-${service.id}`}
+                        checked={pricingData[service.id]?.available ?? true}
+                        onCheckedChange={(checked) => updateAvailability(service.id, checked)}
+                      />
+                      <Label htmlFor={`available-${service.id}`}>Available</Label>
+                    </div>
+                  </div>
+                ))}
+
+                <Button onClick={handleSave} className="w-full" disabled={saving}>
+                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save All Pricing
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       )}

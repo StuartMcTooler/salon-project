@@ -35,18 +35,13 @@ interface ServicePricingProps {
 
 const QUERY_TIMEOUT_MS = 8000;
 
-async function withTimeout<T>(promise: Promise<T>, message: string): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error(message)), QUERY_TIMEOUT_MS);
-  });
-
-  try {
-    return await Promise.race([promise, timeoutPromise]);
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-  }
+async function withTimeout<T>(operation: () => Promise<T>, message: string): Promise<T> {
+  return await Promise.race([
+    operation(),
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(message)), QUERY_TIMEOUT_MS);
+    }),
+  ]);
 }
 
 function buildPricingData(
@@ -86,7 +81,7 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
       return;
     }
 
-    void loadStaffPricing(selectedStaff);
+    void loadStaffPricing(selectedStaff, services);
   }, [selectedStaff, services]);
 
   const loadData = async () => {
@@ -99,7 +94,6 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
       } = await supabase.auth.getUser();
 
       if (userError) throw userError;
-
       if (!user) {
         setServices([]);
         setStaff([]);
@@ -108,7 +102,7 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
         return;
       }
 
-      const staffQuery = businessId
+      const staffBaseQuery = businessId
         ? supabase
             .from("staff_members")
             .select("id, display_name, skill_level")
@@ -118,50 +112,27 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
             .select("id, display_name, skill_level")
             .eq("user_id", user.id);
 
-      const [servicesRes, staffRes] = await Promise.allSettled([
+      const [servicesRes, staffRes] = await Promise.all([
         withTimeout(
-          supabase
-            .from("services")
-            .select("id, name, suggested_price")
-            .eq("is_active", true)
-            .order("name"),
+          () =>
+            supabase
+              .from("services")
+              .select("id, name, suggested_price")
+              .eq("is_active", true)
+              .order("name"),
           "Services took too long to load"
         ),
         withTimeout(
-          staffQuery.eq("is_active", true).order("display_name"),
+          () => staffBaseQuery.eq("is_active", true).order("display_name"),
           "Staff list took too long to load"
         ),
       ]);
 
-      const nextServices =
-        servicesRes.status === "fulfilled" && !servicesRes.value.error
-          ? servicesRes.value.data || []
-          : [];
-      const nextStaff =
-        staffRes.status === "fulfilled" && !staffRes.value.error
-          ? staffRes.value.data || []
-          : [];
+      if (servicesRes.error) throw servicesRes.error;
+      if (staffRes.error) throw staffRes.error;
 
-      if (servicesRes.status === "rejected") {
-        console.error("Error loading services:", servicesRes.reason);
-      } else if (servicesRes.value.error) {
-        console.error("Error loading services:", servicesRes.value.error);
-      }
-
-      if (staffRes.status === "rejected") {
-        console.error("Error loading staff:", staffRes.reason);
-      } else if (staffRes.value.error) {
-        console.error("Error loading staff:", staffRes.value.error);
-      }
-
-      if (
-        servicesRes.status === "rejected" ||
-        staffRes.status === "rejected" ||
-        (servicesRes.status === "fulfilled" && servicesRes.value.error) ||
-        (staffRes.status === "fulfilled" && staffRes.value.error)
-      ) {
-        toast.error("Pricing data loaded with issues. Retry if anything looks incomplete.");
-      }
+      const nextServices = servicesRes.data || [];
+      const nextStaff = staffRes.data || [];
 
       setServices(nextServices);
       setStaff(nextStaff);
@@ -171,7 +142,7 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
           : nextStaff[0]?.id || ""
       );
     } catch (error) {
-      console.error("Error loading data:", error);
+      console.error("Error loading pricing data:", error);
       toast.error("Failed to load pricing data");
       setServices([]);
       setStaff([]);
@@ -182,24 +153,25 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
     }
   };
 
-  const loadStaffPricing = async (staffId: string) => {
-    const defaultPricing = buildPricingData(services);
+  const loadStaffPricing = async (staffId: string, currentServices: Service[]) => {
+    const defaultPricing = buildPricingData(currentServices);
 
     try {
       setPricingLoading(true);
       setPricingData(defaultPricing);
 
-      const { data: staffPricing, error } = await withTimeout(
-        supabase
-          .from("staff_service_pricing")
-          .select("id, staff_id, service_id, custom_price, is_available")
-          .eq("staff_id", staffId),
+      const pricingRes = await withTimeout(
+        () =>
+          supabase
+            .from("staff_service_pricing")
+            .select("id, staff_id, service_id, custom_price, is_available")
+            .eq("staff_id", staffId),
         "Saved pricing took too long to load"
       );
 
-      if (error) throw error;
+      if (pricingRes.error) throw pricingRes.error;
 
-      setPricingData(buildPricingData(services, staffPricing || []));
+      setPricingData(buildPricingData(currentServices, pricingRes.data || []));
     } catch (error) {
       console.error("Error loading staff pricing:", error);
       toast.error("Saved pricing is slow to load — showing defaults for now");
@@ -225,24 +197,24 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
         is_available: pricingData[service.id]?.available ?? true,
       }));
 
-      const { error: deleteError } = await withTimeout(
-        supabase.from("staff_service_pricing").delete().eq("staff_id", selectedStaff),
+      const deleteRes = await withTimeout(
+        () => supabase.from("staff_service_pricing").delete().eq("staff_id", selectedStaff),
         "Deleting existing pricing took too long"
       );
 
-      if (deleteError) throw deleteError;
+      if (deleteRes.error) throw deleteRes.error;
 
       if (updates.length > 0) {
-        const { error } = await withTimeout(
-          supabase.from("staff_service_pricing").insert(updates),
+        const insertRes = await withTimeout(
+          () => supabase.from("staff_service_pricing").insert(updates),
           "Saving pricing took too long"
         );
 
-        if (error) throw error;
+        if (insertRes.error) throw insertRes.error;
       }
 
       toast.success("Pricing updated successfully");
-      await loadStaffPricing(selectedStaff);
+      await loadStaffPricing(selectedStaff, services);
     } catch (error) {
       console.error("Error saving pricing:", error);
       toast.error("Failed to save pricing");
@@ -266,12 +238,16 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
   };
 
   if (loading) {
-    return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    return (
+      <div className="flex justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Service Pricing by Staff</h2>
       </div>
 
@@ -293,6 +269,7 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
               ))}
             </SelectContent>
           </Select>
+
           {staff.length === 0 && (
             <p className="text-sm text-muted-foreground">No active staff members are available for pricing.</p>
           )}
@@ -303,7 +280,9 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
         <Card>
           <CardHeader>
             <CardTitle>Set Staff Prices</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">Each staff member must set their own prices for services they offer</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Each staff member must set their own prices for services they offer
+            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             {pricingLoading && (
@@ -314,7 +293,7 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
             )}
 
             {services.map((service) => (
-              <div key={service.id} className="grid grid-cols-[1fr_auto_auto] gap-4 items-center p-4 border rounded-lg">
+              <div key={service.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 rounded-lg border p-4">
                 <div>
                   <p className="font-medium">{service.name}</p>
                   {service.suggested_price && (
@@ -331,7 +310,7 @@ export function ServicePricing({ businessId = "" }: ServicePricingProps) {
                     value={pricingData[service.id]?.price || ""}
                     onChange={(e) => {
                       const value = parseFloat(e.target.value);
-                      if (!isNaN(value)) {
+                      if (!Number.isNaN(value)) {
                         updatePrice(service.id, Math.round(value * 100) / 100);
                       }
                     }}

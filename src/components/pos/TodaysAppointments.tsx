@@ -65,7 +65,7 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
       if (error) throw error;
       return { ...data, newStatus: status };
     },
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['todays-appointments', staffId] });
       
       // If cancelling, send SMS to customer

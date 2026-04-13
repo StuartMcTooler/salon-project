@@ -38,10 +38,11 @@ export function ServiceManagement() {
 
   const loadServices = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from("services")
         .select("*")
-        .order("sort_order", { nullsFirst: false });
+        .order("sort_order", { ascending: true });
 
       if (error) throw error;
       setServices(data || []);

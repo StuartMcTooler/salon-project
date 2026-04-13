@@ -169,18 +169,23 @@ serve(async (req) => {
             }
 
             // Call send-whatsapp edge function
-            const { error: whatsappError } = await supabaseClient.functions.invoke(
+            const { data: whatsappData, error: whatsappError } = await supabaseClient.functions.invoke(
               "send-whatsapp",
               {
                 body: {
                   to: appointment.customer_phone,
                   message,
+                  businessId,
+                  messageType: 'booking_cancelled',
                 },
               }
             );
 
             if (whatsappError) {
               console.error(`Failed to send notification to ${appointment.customer_name}:`, whatsappError);
+            } else if (whatsappData?.simulated) {
+              console.log(`Notification simulated (test user) for ${appointment.customer_name}`);
+              // Don't count simulated as actually sent
             } else {
               result.notificationsSent++;
               console.log(`Notification sent to ${appointment.customer_name}`);

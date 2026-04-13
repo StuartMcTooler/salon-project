@@ -12,6 +12,8 @@ interface ServiceGridProps {
 export const ServiceGrid = ({ staffId, onServiceSelect }: ServiceGridProps) => {
   const { data: services, isLoading } = useQuery({
     queryKey: ['pos-services', staffId],
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const { data, error } = await supabase
         .from('staff_service_pricing')

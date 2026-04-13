@@ -101,7 +101,7 @@ export const AppointmentDetailsDialog = ({
         businessId: appointment.business_id
       };
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       // Send cancellation email to creator (non-blocking)
       supabase.functions.invoke('send-creator-email', {
         body: {
@@ -111,7 +111,8 @@ export const AppointmentDetailsDialog = ({
         }
       }).catch(err => console.error('[CANCEL] Failed to send creator email:', err));
       
-      // Send cancellation SMS to customer (non-blocking)
+      // Send cancellation SMS to customer and await result
+      let notificationStatus = '';
       if (data.customerPhone) {
         const appointmentDate = new Date(data.appointmentDate);
         const formattedDate = appointmentDate.toLocaleDateString('en-IE', {
@@ -127,14 +128,28 @@ export const AppointmentDetailsDialog = ({
         const bookingLink = `${window.location.origin}/book/${data.staffId}`;
         const message = `Hi ${data.customerName}, your appointment for ${data.serviceName} on ${formattedDate} at ${formattedTime} has been cancelled. We apologise for any inconvenience. Rebook here: ${bookingLink}`;
         
-        supabase.functions.invoke('send-whatsapp', {
-          body: {
-            to: data.customerPhone,
-            message,
-            businessId: data.businessId,
-            messageType: 'booking_cancelled'
+        try {
+          const { data: smsResult, error: smsError } = await supabase.functions.invoke('send-whatsapp', {
+            body: {
+              to: data.customerPhone,
+              message,
+              businessId: data.businessId,
+              messageType: 'booking_cancelled'
+            }
+          });
+          
+          if (smsError) {
+            console.error('[CANCEL] SMS error:', smsError);
+            notificationStatus = ' Notification failed — please contact the customer manually.';
+          } else if (smsResult?.simulated) {
+            notificationStatus = ' (Test user — notification simulated, not sent.)';
+          } else {
+            notificationStatus = ' Customer has been notified.';
           }
-        }).catch(err => console.error('[CANCEL] Failed to send customer SMS:', err));
+        } catch (err) {
+          console.error('[CANCEL] Failed to send customer SMS:', err);
+          notificationStatus = ' Notification failed — please contact the customer manually.';
+        }
       }
       
       queryClient.invalidateQueries({ queryKey: ['timeline-appointments'] });
@@ -143,9 +158,7 @@ export const AppointmentDetailsDialog = ({
       queryClient.invalidateQueries({ queryKey: ['todays-appointments'] });
       toast({
         title: "Appointment Cancelled",
-        description: data.customerPhone 
-          ? "The appointment has been cancelled and the customer has been notified."
-          : "The appointment has been cancelled.",
+        description: `The appointment has been cancelled.${notificationStatus}`,
       });
       onOpenChange(false);
     },

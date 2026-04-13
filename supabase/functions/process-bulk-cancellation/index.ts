@@ -72,6 +72,17 @@ serve(async (req) => {
       });
     }
 
+    // Look up business_id from staff member for notification logging
+    let businessId: string | null = null;
+    if (appointments[0]?.staff_id) {
+      const { data: staffData } = await supabaseClient
+        .from("staff_members")
+        .select("business_id")
+        .eq("id", appointments[0].staff_id)
+        .single();
+      businessId = staffData?.business_id || null;
+    }
+
     // Process each appointment
     for (const appointment of appointments) {
       try {
@@ -158,18 +169,23 @@ serve(async (req) => {
             }
 
             // Call send-whatsapp edge function
-            const { error: whatsappError } = await supabaseClient.functions.invoke(
+            const { data: whatsappData, error: whatsappError } = await supabaseClient.functions.invoke(
               "send-whatsapp",
               {
                 body: {
                   to: appointment.customer_phone,
                   message,
+                  businessId,
+                  messageType: 'booking_cancelled',
                 },
               }
             );
 
             if (whatsappError) {
               console.error(`Failed to send notification to ${appointment.customer_name}:`, whatsappError);
+            } else if (whatsappData?.simulated) {
+              console.log(`Notification simulated (test user) for ${appointment.customer_name}`);
+              // Don't count simulated as actually sent
             } else {
               result.notificationsSent++;
               console.log(`Notification sent to ${appointment.customer_name}`);

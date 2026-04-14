@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,6 +31,8 @@ import AcceptInvite from "./pages/AcceptInvite";
 import MyProfile from "./pages/MyProfile";
 import ResetPassword from "./pages/ResetPassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Support from "./pages/Support";
+import Marketing from "./pages/Marketing";
 
 const queryClient = new QueryClient();
 
@@ -49,43 +52,47 @@ const PasswordRecoveryHandler = () => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <BackButtonHandler />
-        <PasswordRecoveryHandler />
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/discover" element={<Discover />} />
-          <Route path="/salon" element={<Salon />} />
-          <Route path="/book/:staffId" element={<PublicBooking />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/settings/upgrade" element={<AccountUpgrade />} />
-          <Route path="/feedback" element={<Feedback />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/referrals" element={<ReferralHub />} />
-          <Route path="/pos" element={<POS />} />
-          <Route path="/approve/:token" element={<ApproveContent />} />
-          <Route path="/approve-portfolio/:token" element={<ApprovePortfolio />} />
-          <Route path="/create/:token" element={<CreateContent />} />
-          <Route path="/portal" element={<Portal />} />
-          <Route path="/portal/verify" element={<PortalVerify />} />
-          <Route path="/portal/home" element={<PortalHome />} />
-          <Route path="/test/image-processing" element={<ImageProcessingTest />} />
-          <Route path="/accept-invite" element={<AcceptInvite />} />
-          <Route path="/my-profile" element={<MyProfile />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <BackButtonHandler />
+          <PasswordRecoveryHandler />
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/discover" element={<Discover />} />
+            <Route path="/salon" element={<Salon />} />
+            <Route path="/book/:staffId" element={<PublicBooking />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/settings/upgrade" element={<AccountUpgrade />} />
+            <Route path="/feedback" element={<Feedback />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/referrals" element={<ReferralHub />} />
+            <Route path="/pos" element={<POS />} />
+            <Route path="/approve/:token" element={<ApproveContent />} />
+            <Route path="/approve-portfolio/:token" element={<ApprovePortfolio />} />
+            <Route path="/create/:token" element={<CreateContent />} />
+            <Route path="/portal" element={<Portal />} />
+            <Route path="/portal/verify" element={<PortalVerify />} />
+            <Route path="/portal/home" element={<PortalHome />} />
+            <Route path="/test/image-processing" element={<ImageProcessingTest />} />
+            <Route path="/accept-invite" element={<AcceptInvite />} />
+            <Route path="/my-profile" element={<MyProfile />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/support" element={<Support />} />
+            <Route path="/marketing" element={<Marketing />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </HelmetProvider>
 );
 
 export default App;

@@ -78,6 +78,12 @@ import StripeTerminal
                 return
             }
 
+            if Terminal.shared.connectionStatus == .connected, let existingReader = Terminal.shared.connectedReader {
+                CAPLog.print("⚡️ [StripeTapToPay] discoverReaders() reusing existing connected reader")
+                call.resolve(["readers": [self.serializeReader(existingReader)], "alreadyConnected": true])
+                return
+            }
+
             let type = call.getString("type") ?? "tap-to-pay"
             let isSimulated = call.getBool("isSimulated") ?? false
             let locationId = call.getString("locationId")
@@ -160,6 +166,13 @@ import StripeTerminal
     @objc func connectReader(_ call: CAPPluginCall) {
         CAPLog.print("⚡️ [StripeTapToPay] connectReader() called")
         DispatchQueue.main.async {
+            if Terminal.shared.connectionStatus == .connected, let existingReader = Terminal.shared.connectedReader {
+                CAPLog.print("⚡️ [StripeTapToPay] connectReader() reusing existing connected reader")
+                let payload = self.serializeReader(existingReader)
+                call.resolve(["reader": payload, "alreadyConnected": true])
+                return
+            }
+
             guard let readerDict = call.getObject("reader") else {
                 call.reject("Missing reader")
                 return

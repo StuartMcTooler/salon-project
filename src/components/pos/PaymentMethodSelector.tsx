@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Smartphone, Loader2, Banknote, CheckCircle2, Bug } from "lucide-react";
+import { CreditCard, Smartphone, Loader2, Banknote, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTerminalPayment, isStripeTerminalAvailable } from "@/hooks/useTerminalPayment";
@@ -40,19 +40,8 @@ export const PaymentMethodSelector = ({
 }: PaymentMethodSelectorProps) => {
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"card_reader" | "payment_link" | "cash" | null>(null);
-  const [showDebug, setShowDebug] = useState(false);
-  const [paymentDebugLog, setPaymentDebugLog] = useState<string[]>([]);
-  const [debugInfo, setDebugInfo] = useState<{
-    isNative: boolean;
-    platform: string;
-    staffTerminal: any;
-    staffTerminalError: any;
-    allowedTypes: string[] | null;
-  } | null>(null);
-  
   const addDebugLog = (msg: string) => {
     console.log('[PaymentDebug]', msg);
-    setPaymentDebugLog(prev => [...prev, `${new Date().toLocaleTimeString()}: ${msg}`]);
   };
   
   // Native terminal payment hook
@@ -62,47 +51,6 @@ export const PaymentMethodSelector = ({
   const amountToCharge = (depositPaid && remainingBalance) 
     ? remainingBalance 
     : amount;
-
-  // Fetch debug info on mount
-  useEffect(() => {
-    const fetchDebugInfo = async () => {
-      const isNative = isNativeApp();
-      const platform = getPlatform();
-      
-      let staffTerminal = null;
-      let staffTerminalError = null;
-      let allowedTypes: string[] | null = null;
-      
-      if (staffId) {
-        const [terminalRes, permRes] = await Promise.all([
-          supabase
-            .from('terminal_settings')
-            .select('*')
-            .eq('staff_id', staffId)
-            .eq('is_active', true)
-            .maybeSingle(),
-          supabase
-            .from('staff_members')
-            .select('allowed_terminal_types')
-            .eq('id', staffId)
-            .single()
-        ]);
-        staffTerminal = terminalRes.data;
-        staffTerminalError = terminalRes.error;
-        allowedTypes = permRes.data?.allowed_terminal_types ?? null;
-      }
-      
-      setDebugInfo({
-        isNative,
-        platform,
-        staffTerminal,
-        staffTerminalError,
-        allowedTypes,
-      });
-    };
-    
-    fetchDebugInfo();
-  }, [staffId]);
 
   // Record payment_processed_by for audit trail
   const recordPaymentAudit = async (paymentMethod: string) => {
@@ -153,7 +101,6 @@ export const PaymentMethodSelector = ({
   const handleCardReaderPayment = async () => {
     setLoading(true);
     setPaymentMethod("card_reader");
-    setPaymentDebugLog([]); // Clear previous logs
 
     // DEBUG: Log all key detection values
     const isNative = isNativeApp();
@@ -420,9 +367,9 @@ export const PaymentMethodSelector = ({
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div>
           <div>
-            <CardTitle>Select Payment Method [DEBUG V2]</CardTitle>
+            <CardTitle>Select Payment Method</CardTitle>
             <CardDescription>
               {depositPaid ? (
                 <div className="space-y-1">
@@ -436,91 +383,10 @@ export const PaymentMethodSelector = ({
                 `Choose how the customer wants to pay for ${serviceName}`
               )}
             </CardDescription>
-            <div className="mt-2 text-xs font-mono text-destructive">
-              Platform debug → isNativeApp(): {isNativeApp() ? 'TRUE' : 'FALSE'} • getPlatform(): {getPlatform() || 'unknown'}
-            </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowDebug(!showDebug)}
-            className="h-8 w-8"
-          >
-            <Bug className="h-4 w-4" />
-          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Debug Panel */}
-        {showDebug && (
-          <div className="p-3 bg-muted rounded-lg text-xs font-mono space-y-2 border border-dashed">
-            <div className="font-bold text-sm">🔧 Debug Info</div>
-            <div className="grid grid-cols-2 gap-1">
-              <span className="text-muted-foreground">isNativeApp():</span>
-              <span className={debugInfo?.isNative ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
-                {debugInfo?.isNative ? "✅ TRUE" : "❌ FALSE"}
-              </span>
-              
-              <span className="text-muted-foreground">Platform:</span>
-              <span>{debugInfo?.platform || "unknown"}</span>
-              
-              <span className="text-muted-foreground">staffId:</span>
-              <span className="truncate">{staffId || "❌ MISSING"}</span>
-              
-              <span className="text-muted-foreground">businessId:</span>
-              <span className="truncate">{businessId || "none"}</span>
-            </div>
-            
-            <div className="border-t pt-2 mt-2">
-              <div className="font-bold mb-1">Staff Terminal Settings:</div>
-              {debugInfo?.staffTerminalError ? (
-                <div className="text-red-600">Error: {JSON.stringify(debugInfo.staffTerminalError)}</div>
-              ) : debugInfo?.staffTerminal ? (
-                <div className="space-y-1">
-                  <div>connection_type: <span className="font-bold text-green-600">{debugInfo.staffTerminal.connection_type}</span></div>
-                  <div>reader_id: {debugInfo.staffTerminal.reader_id || "none"}</div>
-                  <div>is_active: {debugInfo.staffTerminal.is_active ? "✅" : "❌"}</div>
-                </div>
-              ) : (
-                <div className="text-amber-600">No staff terminal settings found</div>
-              )}
-            </div>
-            
-            <div className="border-t pt-2 mt-2">
-              <div className="font-bold mb-1">Allowed Terminal Types:</div>
-              {debugInfo?.allowedTypes && debugInfo.allowedTypes.length > 0 ? (
-                <div className="flex flex-wrap gap-1">
-                  {debugInfo.allowedTypes.map((type) => (
-                    <span 
-                      key={type} 
-                      className={`px-2 py-0.5 rounded text-xs ${
-                        type === 'tap_to_pay' ? 'bg-green-100 text-green-800 font-bold' : 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {type}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-amber-600">❌ No permissions (defaults to business_reader)</div>
-              )}
-            </div>
-            
-            <div className="border-t pt-2 mt-2 text-muted-foreground">
-              User Agent: {navigator.userAgent.substring(0, 50)}...
-            </div>
-          </div>
-        )}
-        
-        {/* LIVE Payment Debug Log - Shows when payment is in progress */}
-        {paymentDebugLog.length > 0 && (
-          <div className="p-3 bg-black text-green-400 rounded-lg text-xs font-mono space-y-1 max-h-48 overflow-y-auto border-2 border-green-500">
-            <div className="font-bold text-sm text-white">📡 LIVE Payment Log:</div>
-            {paymentDebugLog.map((log, i) => (
-              <div key={i} className="break-all">{log}</div>
-            ))}
-          </div>
-        )}
         <div className="space-y-3">
           <Button
             onClick={handleCardReaderPayment}
@@ -604,10 +470,6 @@ export const PaymentMethodSelector = ({
             )}
           </Button>
           */}
-        </div>
-
-        <div className="pt-2 text-center text-[10px] text-muted-foreground">
-          Debug: isNativeApp() = {isNativeApp() ? 'TRUE' : 'FALSE'} • Platform: {getPlatform() || 'unknown'}
         </div>
 
         <div className="text-center pt-4 border-t">

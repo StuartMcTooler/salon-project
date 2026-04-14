@@ -20,7 +20,6 @@ import { QuickCustomerForm } from "@/components/pos/QuickCustomerForm";
 import { PostCheckoutActions } from "@/components/pos/PostCheckoutActions";
 import { TodaysAppointments } from "@/components/pos/TodaysAppointments";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StripeModeIndicator } from "@/components/pos/StripeModeIndicator";
 import { VisualCalendar } from "@/components/dashboard/VisualCalendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PaymentMethodSelector } from "@/components/pos/PaymentMethodSelector";
@@ -28,12 +27,7 @@ import { CustomerDepositManager } from "@/components/pos/CustomerDepositManager"
 import { SalonServiceSelection } from "@/components/salon/SalonServiceSelection";
 import { SalonCheckout } from "@/components/salon/SalonCheckout";
 import { QuickBookingLinkModal } from "@/components/pos/QuickBookingLinkModal";
-import { isNativeApp, getPlatform } from "@/lib/platform";
-import { Capacitor } from "@capacitor/core";
 
-// Build timestamp - injected at build time by Vite
-declare const __BUILD_TIMESTAMP__: string;
-const BUILD_TIMESTAMP = typeof __BUILD_TIMESTAMP__ !== 'undefined' ? __BUILD_TIMESTAMP__ : 'dev';
 
 const POS = () => {
   const navigate = useNavigate();
@@ -275,12 +269,8 @@ const POS = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* DIAGNOSTIC BANNER - Remove after debugging */}
-      <div className="bg-red-600 text-white text-sm p-3 text-center font-bold border-4 border-yellow-400">
-        🔧 DEBUG v2 🔧 Build: {BUILD_TIMESTAMP} | Native: {String(isNativeApp())} | Platform: {getPlatform()}
-      </div>
       <div className="border-b bg-card">
-        <div className="max-w-6xl mx-auto px-3 md:px-6 py-3 md:py-4">
+        <div className="max-w-6xl mx-auto px-3 pt-[calc(env(safe-area-inset-top)+3.5rem)] pb-3 md:px-6 md:pt-[calc(env(safe-area-inset-top)+3.75rem)] md:pb-4">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
             <div className="flex items-center gap-2 md:gap-3">
               <Scissors className="h-5 w-5 md:h-6 md:w-6" />
@@ -383,7 +373,6 @@ const POS = () => {
       </div>
 
       <div className="max-w-6xl mx-auto p-3 md:p-6">
-        <StripeModeIndicator />
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4 mb-4 md:mb-6 h-8 md:h-9">
             <TabsTrigger value="walkin" className="text-xs md:text-sm px-2 md:px-3 py-1">

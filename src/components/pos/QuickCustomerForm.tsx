@@ -19,9 +19,6 @@ import { useRef, ChangeEvent } from "react";
 import { isNativeApp, getPlatform } from "@/lib/platform";
 import { useTerminalPayment } from "@/hooks/useTerminalPayment";
 
-// Build timestamp - injected at build time by Vite
-declare const __BUILD_TIMESTAMP__: string;
-const BUILD_TIMESTAMP = typeof __BUILD_TIMESTAMP__ !== 'undefined' ? __BUILD_TIMESTAMP__ : 'dev';
 
 interface QuickCustomerFormProps {
   service: any;
@@ -340,8 +337,13 @@ export const QuickCustomerForm = ({
           });
           foundClientId = client.id;
           setClientId(foundClientId);
-        } catch (err) {
-          console.error('Failed to find/create client:', err);
+        } catch (err: any) {
+          const clientErr = err?.message || err?.errorMessage || err?.details || JSON.stringify(err);
+          if (err?.code === '23505') {
+            console.warn('Client already exists for this phone number, continuing without attaching client record:', clientErr);
+          } else {
+            console.error('Failed to find/create client:', clientErr, err);
+          }
         }
       }
 
@@ -593,10 +595,11 @@ export const QuickCustomerForm = ({
       pollPaymentStatus(apptId);
       
     } catch (error: any) {
-      console.error("Card reader payment error:", error);
+      const errorMessage = error?.message || error?.errorMessage || error?.details || (typeof error === 'string' ? error : JSON.stringify(error));
+      console.error("Card reader payment error:", errorMessage, error);
       toast({
         title: "Payment Error",
-        description: error.message || "Failed to process card payment",
+        description: errorMessage || "Failed to process card payment",
         variant: "destructive",
       });
       setProcessingPayment(false);
@@ -908,14 +911,6 @@ export const QuickCustomerForm = ({
             <p className="text-xs text-muted-foreground mt-2">
               This may take up to 2 minutes
             </p>
-            <div className="mt-3 w-full rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-left text-xs text-amber-900">
-              Stage: {debugStage}
-            </div>
-            {terminalError ? (
-              <div className="w-full rounded-md border border-red-300 bg-red-50 px-3 py-2 text-left text-xs text-red-900">
-                Terminal error: {terminalError}
-              </div>
-            ) : null}
           </div>
           <Button
             variant="destructive"
@@ -942,13 +937,6 @@ export const QuickCustomerForm = ({
           <ArrowLeft className="mr-2 h-5 w-5" />
           Back to payment options
         </Button>
-
-        <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Build: {BUILD_TIMESTAMP} • Mode: {forceStripeMode} • Native: {String(isNativeApp())} • Platform: {getPlatform()}
-        </div>
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
-          Payment path: {chosenPath}
-        </div>
 
         <Card>
           <CardHeader>

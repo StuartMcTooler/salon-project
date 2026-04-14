@@ -36,16 +36,18 @@ export async function findOrCreateClient({
   const normalizedPhone = normalizePhoneNumber(phone);
   
   // Try to find existing client
-  const { data: existingClient, error: findError } = await supabase
+  const { data: existingClients, error: findError } = await supabase
     .from("clients")
     .select("*")
     .eq("phone", normalizedPhone)
-    .eq("primary_creative_id", creativeId)
-    .maybeSingle();
+    .order("last_visit_date", { ascending: false })
+    .limit(1);
 
   if (findError) {
     throw findError;
   }
+
+  const existingClient = existingClients?.[0] ?? null;
 
   // If client exists, update last visit and return
   if (existingClient) {
@@ -87,6 +89,20 @@ export async function findOrCreateClient({
     .single();
 
   if (createError) {
+    // If another flow created the client first, reuse the existing client by phone.
+    if ((createError as any).code === "23505") {
+      const { data: recoveredClients, error: recoverError } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("phone", normalizedPhone)
+        .order("last_visit_date", { ascending: false })
+        .limit(1);
+
+      const recoveredClient = recoveredClients?.[0] ?? null;
+      if (!recoverError && recoveredClient) {
+        return recoveredClient;
+      }
+    }
     throw createError;
   }
 

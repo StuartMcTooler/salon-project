@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">salon-project</string>
-    <string name="title_activity_main">salon-project</string>
+    <string name="app_name">Bookd</string>
+    <string name="title_activity_main">Bookd</string>
     <string name="package_name">com.stuartmcmullen.salonproject</string>
     <string name="custom_url_scheme">com.stuartmcmullen.salonproject</string>
 </resources>

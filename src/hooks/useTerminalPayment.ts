@@ -465,9 +465,10 @@ export const useTerminalPayment = () => {
       if (!StripeTerminal) throw new Error('Terminal not initialized');
       
       console.log('[TerminalPayment] Connecting to reader:', reader.serialNumber || reader.label);
-      await StripeTerminal.connectReader({ reader });
-      setConnectedReader(reader);
-      console.log('[TerminalPayment] ✅ Connected to reader');
+      const result = await StripeTerminal.connectReader({ reader });
+      const resolvedReader = result?.reader || reader;
+      setConnectedReader(resolvedReader);
+      console.log('[TerminalPayment] ✅ Connected to reader', result?.alreadyConnected ? '(reused existing connection)' : '');
     } catch (err: any) {
       console.error('[TerminalPayment] ❌ Connect error - Full object:', JSON.stringify(err, null, 2));
       console.error('[TerminalPayment] Error code:', err.code || 'NO_CODE');
@@ -627,10 +628,11 @@ export const useTerminalPayment = () => {
         return { success: false, error: 'Payment canceled' };
       }
 
-      console.error('[TerminalPayment] Payment error:', err);
-      setError(err.message);
-      setDebugStage(`payment failed: ${err.message}`);
-      return { success: false, error: err.message };
+      const errorMessage = err?.message || err?.errorMessage || err?.details || (typeof err === 'string' ? err : JSON.stringify(err));
+      console.error('[TerminalPayment] Payment error:', errorMessage, err);
+      setError(errorMessage);
+      setDebugStage(`payment failed: ${errorMessage}`);
+      return { success: false, error: errorMessage };
     } finally {
       setIsProcessing(false);
     }

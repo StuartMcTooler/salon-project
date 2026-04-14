@@ -141,7 +141,7 @@ serve(async (req) => {
 
     // Compose message
     const businessName = (staffMember.business_accounts as any).business_name;
-    const message = `Hi ${staffMember.full_name}! 👋\n\nYou've been invited to join ${businessName} on Lovable - the booking platform for creatives.\n\nTap here to set up your account:\n${inviteLink}\n\nThis link expires in 48 hours.`;
+    const message = `Hi ${staffMember.full_name}! 👋\n\nYou've been invited to join ${businessName} on Bookd.\n\nTap here to set up your account:\n${inviteLink}\n\nThis link expires in 48 hours.`;
 
     // Send via WhatsApp/SMS
     const { data: messageResult, error: messageError } = await supabase.functions.invoke(

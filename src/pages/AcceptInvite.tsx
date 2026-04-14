@@ -96,7 +96,7 @@ export default function AcceptInvite() {
 
     try {
       const staffMember = inviteData.staff_members;
-      const email = staffMember.email || `${staffMember.id}@temp.lovable.app`;
+      const email = staffMember.email || `${staffMember.id}@temp.bookd.local`;
 
       // Create auth account
       const { data: authData, error: signUpError } = await supabase.auth.signUp({

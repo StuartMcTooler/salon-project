@@ -201,12 +201,10 @@ export const PayoutActivationCard = ({ staffId }: PayoutActivationCardProps) => 
         )}
 
         <div className="space-y-2">
-          <h4 className="text-sm font-medium">What you'll need:</h4>
-          <ul className="text-sm text-muted-foreground space-y-1">
-            <li>• Valid ID or passport</li>
-            <li>• Bank account details (IBAN)</li>
-            <li>• About 5 minutes</li>
-          </ul>
+          <h4 className="text-sm font-medium">During onboarding:</h4>
+          <p className="text-sm text-muted-foreground">
+            Stripe may ask for identity and payout details during onboarding.
+          </p>
         </div>
 
         <Button

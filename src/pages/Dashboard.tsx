@@ -97,20 +97,20 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+      <header className="border-b safe-area-top">
+        <div className="container mx-auto px-4 py-4 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
           <div className="flex items-center gap-2">
             <Scissors className="h-6 w-6 text-primary" />
             <h1 className="text-2xl font-bold">Solo Dashboard</h1>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate("/pos")}>
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate("/pos")}>
               Walk-In POS
             </Button>
-            <Button variant="outline" onClick={() => navigate("/settings/upgrade")}>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate("/settings/upgrade")}>
               Upgrade to Multi-staff
             </Button>
-            <Button variant="outline" onClick={handleSignOut}>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={handleSignOut}>
               Sign Out
             </Button>
           </div>

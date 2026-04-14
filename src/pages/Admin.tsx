@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Loader2, Wrench } from "lucide-react";
+import { LogOut, Loader2, User, Wrench } from "lucide-react";
 import { StaffManagement } from "@/components/admin/StaffManagement";
 import { ServicePricing } from "@/components/admin/ServicePricing";
 import { ServiceManagement } from "@/components/admin/ServiceManagement";
@@ -96,14 +96,18 @@ export default function Admin() {
       {isSuperAdmin && <TestModeWarningBanner />}
       */}
       
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+      <header className="border-b safe-area-top">
+        <div className="container mx-auto px-4 py-4 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
           <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate("/pos")}>
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate("/my-profile")}>
+              <User className="mr-2 h-4 w-4" />
+              My Profile
+            </Button>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate("/pos")}>
               Walk-In POS
             </Button>
-            <Button variant="outline" onClick={handleSignOut}>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out
             </Button>

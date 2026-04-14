@@ -97,7 +97,7 @@ const MyProfile = () => {
             <Skeleton className="h-8 w-48" />
           </div>
         </div>
-        <div className="max-w-6xl mx-auto p-6">
+        <div className="max-w-6xl mx-auto px-4 py-6 sm:p-6">
           <Skeleton className="h-96 w-full" />
         </div>
       </div>
@@ -111,30 +111,28 @@ const MyProfile = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b bg-card">
-        <div className="max-w-6xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="lg"
-                className="h-12 px-4"
-                onClick={() => navigate(-1)}
-              >
-                <ArrowLeft className="h-5 w-5 mr-2" />
-                Back
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold">My Profile</h1>
-                <p className="text-sm text-muted-foreground">
-                  {staffMember.display_name}
-                </p>
-              </div>
+        <div className="max-w-6xl mx-auto px-4 pt-[calc(env(safe-area-inset-top)+3.75rem)] pb-3 sm:px-6 sm:pt-[calc(env(safe-area-inset-top)+4rem)] sm:pb-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold">My Profile</h1>
+              <p className="text-sm text-muted-foreground">
+                {staffMember.display_name}
+              </p>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 shrink-0 px-3"
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
+            </Button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="max-w-6xl mx-auto px-4 py-6 sm:p-6">
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-4 mb-6">
             <TabsTrigger value="profile" className="gap-2">

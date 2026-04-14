@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Smartphone, Bluetooth, Loader2, CheckCircle, Search, CreditCard, Wifi, Lock, MapPin, AlertTriangle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Smartphone, Bluetooth, Loader2, CheckCircle, Search, CreditCard, Wifi, Lock, MapPin, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -587,86 +587,6 @@ export const StaffTerminalSettings = ({ staffId }: StaffTerminalSettingsProps) =
             )}
           </div>
         )}
-
-        {/* Environment Sync Buttons - super admin only for internal testing */}
-        {connectionType === 'tap_to_pay' && isSuperAdmin && (
-          <div className="border border-amber-300 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 space-y-3">
-            <div className="flex items-start gap-2">
-              <RefreshCw className="h-5 w-5 text-amber-600 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                  Sync Payment Environment
-                </p>
-                <p className="text-xs text-amber-600 dark:text-amber-300 mt-1">
-                  If you see "NFC not available" error, recreate your location in the correct mode:
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => {
-                  try {
-                    localStorage.setItem("FORCE_STRIPE_MODE", "test");
-                  } catch {}
-                  createTerminalLocation(true).then(locId => {
-                  if (locId) {
-                    const updateSettings = existingSettings?.id 
-                      ? supabase.from('terminal_settings').update({ stripe_location_id: locId }).eq('id', existingSettings.id)
-                      : supabase.from('terminal_settings').insert({ staff_id: staffId, connection_type: 'tap_to_pay', stripe_location_id: locId, is_active: true });
-                    updateSettings.then(() => loadSettings());
-                  }
-                  });
-                }}
-                disabled={isCreatingLocation}
-                className="border-orange-400 text-orange-700 hover:bg-orange-100 dark:text-orange-400 dark:hover:bg-orange-900/30"
-              >
-                {isCreatingLocation ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>🧪 Test Mode</>
-                )}
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => {
-                  try {
-                    localStorage.setItem("FORCE_STRIPE_MODE", "live");
-                  } catch {}
-                  createTerminalLocation(false).then(locId => {
-                  if (locId) {
-                    const updateSettings = existingSettings?.id 
-                      ? supabase.from('terminal_settings').update({ stripe_location_id: locId }).eq('id', existingSettings.id)
-                      : supabase.from('terminal_settings').insert({ staff_id: staffId, connection_type: 'tap_to_pay', stripe_location_id: locId, is_active: true });
-                    updateSettings.then(() => loadSettings());
-                  }
-                  });
-                }}
-                disabled={isCreatingLocation}
-                className="border-green-400 text-green-700 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30"
-              >
-                {isCreatingLocation ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>💳 Live Mode</>
-                )}
-              </Button>
-            </div>
-            {existingSettings?.stripe_location_id && (
-              <p className="text-xs text-muted-foreground text-center">
-                Current: {existingSettings.stripe_location_id}
-              </p>
-            )}
-          </div>
-        )}
-
-        {connectionType === 'tap_to_pay' && !isSuperAdmin ? (
-          <p className="text-xs text-muted-foreground">
-            Tap to Pay will use the app&apos;s default Stripe environment for normal users.
-          </p>
-        ) : null}
 
         {/* Save Button */}
         <Button 

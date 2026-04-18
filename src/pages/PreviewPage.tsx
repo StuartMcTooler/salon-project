@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { MapPin, Clock, Instagram, Globe, Sparkles } from "lucide-react";
@@ -11,12 +12,12 @@ const DUMMY = {
   hero_image_url:
     "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=1200&q=80",
   gallery: [
-    "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=800&q=75",
-    "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=800&q=75",
-    "https://images.unsplash.com/photo-1521490683501-69b504b73f1d?auto=format&fit=crop&w=800&q=75",
-    "https://images.unsplash.com/photo-1605497788044-5a32c7078486?auto=format&fit=crop&w=800&q=75",
-    "https://images.unsplash.com/photo-1593702288056-f173e7480eb1?auto=format&fit=crop&w=800&q=75",
-    "https://images.unsplash.com/photo-1622296055935-eba23930d12f?auto=format&fit=crop&w=800&q=75",
+    "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=800&q=75",
+    "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=75",
+    "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=800&q=75",
+    "https://images.unsplash.com/photo-1622287162716-f311baa1a2b8?auto=format&fit=crop&w=800&q=75",
+    "https://images.unsplash.com/photo-1517832606299-7ae9b720a186?auto=format&fit=crop&w=800&q=75",
+    "https://images.unsplash.com/photo-1599387737358-1f4c8d3c5ec3?auto=format&fit=crop&w=800&q=75",
   ],
   services: [
     { name: "Skin Fade", price_from: 25, duration_mins: 30 },
@@ -39,6 +40,18 @@ const PreviewPage = () => {
   const firstName = data.display_name.split(" ")[0];
   const accent = data.accent_color;
   const isUnclaimed = data.status !== "claimed";
+
+  // Hide-and-reflow: drop broken images from the array so the grid never renders empty tiles.
+  // First item in the live array always gets the col-span-2 hero slot, so layout self-heals.
+  const [galleryUrls, setGalleryUrls] = useState<string[]>(data.gallery);
+  const handleImageError = (failedSrc: string) => {
+    setGalleryUrls((prev) => prev.filter((url) => url !== failedSrc));
+  };
+
+  // Map: OSM static tile with graceful fallback to a neutral tile if the service fails.
+  const [mapFailed, setMapFailed] = useState(false);
+  const mapSrc =
+    "https://staticmap.openstreetmap.de/staticmap.php?center=53.3498,-6.2603&zoom=13&size=600x300&maptype=mapnik";
 
   // Inline accent styles — accent comes from DB per page, not from theme tokens.
   const accentBg = { backgroundColor: accent } as const;
@@ -135,23 +148,26 @@ const PreviewPage = () => {
             <h2 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
               Gallery
             </h2>
-            <div className="grid grid-cols-2 gap-2">
-              {data.gallery.map((src, i) => (
-                <div
-                  key={src}
-                  className={`relative overflow-hidden rounded-lg bg-neutral-100 ${
-                    i === 0 ? "col-span-2 aspect-[16/10]" : "aspect-square"
-                  }`}
-                >
-                  <img
-                    src={src}
-                    alt={`${data.display_name} portfolio ${i + 1}`}
-                    loading="lazy"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              ))}
-            </div>
+            {galleryUrls.length > 0 && (
+              <div className="grid grid-cols-2 gap-2">
+                {galleryUrls.map((src, i) => (
+                  <div
+                    key={src}
+                    className={`relative overflow-hidden rounded-lg bg-neutral-100 ${
+                      i === 0 ? "col-span-2 aspect-[16/10]" : "aspect-square"
+                    }`}
+                  >
+                    <img
+                      src={src}
+                      alt={`${data.display_name} portfolio ${i + 1}`}
+                      loading="lazy"
+                      onError={() => handleImageError(src)}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
 
           {/* LOCATION & HOURS */}
@@ -160,9 +176,22 @@ const PreviewPage = () => {
               Location & Hours
             </h2>
             <div className="mb-5 aspect-[16/9] w-full overflow-hidden rounded-lg bg-neutral-100">
-              <div className="flex h-full items-center justify-center bg-gradient-to-br from-neutral-100 to-neutral-200">
-                <MapPin className="h-8 w-8 text-neutral-400" />
-              </div>
+              {!mapFailed ? (
+                <img
+                  src={mapSrc}
+                  alt={`Map of ${data.location_city}`}
+                  loading="lazy"
+                  onError={() => setMapFailed(true)}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-neutral-200 to-neutral-300">
+                  <MapPin className="h-7 w-7 text-neutral-500" />
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">
+                    Map preview
+                  </p>
+                </div>
+              )}
             </div>
             <div className="space-y-3 text-sm">
               <div className="flex items-start gap-3">

@@ -1529,6 +1529,57 @@ export type Database = {
           },
         ]
       }
+      preview_pages: {
+        Row: {
+          bio: string | null
+          city: string
+          claimed_by_user_id: string | null
+          created_at: string
+          created_by: string
+          handle: string
+          id: string
+          instagram_handle: string
+          name: string
+          photo_urls: string[]
+          services: Json
+          tagline: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          bio?: string | null
+          city: string
+          claimed_by_user_id?: string | null
+          created_at?: string
+          created_by: string
+          handle: string
+          id?: string
+          instagram_handle: string
+          name: string
+          photo_urls?: string[]
+          services?: Json
+          tagline: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          bio?: string | null
+          city?: string
+          claimed_by_user_id?: string | null
+          created_at?: string
+          created_by?: string
+          handle?: string
+          id?: string
+          instagram_handle?: string
+          name?: string
+          photo_urls?: string[]
+          services?: Json
+          tagline?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

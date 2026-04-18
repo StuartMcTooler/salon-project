@@ -53,3 +53,21 @@ Applied after first round of review screenshots showed broken gallery tiles + an
 ### What changed in code
 - `src/pages/PreviewPage.tsx`: added `useState` import; new `galleryUrls` state + `handleImageError` callback; new `mapFailed` state + `mapSrc` const; gallery render swapped to use live state; map placeholder swapped to `<img>` with fallback branch.
 - No other files touched. Dummy data shape unchanged. Route unchanged.
+
+---
+
+## Post-review fixes (Step 1.2 — OSM to local asset)
+
+The OSM static tile service failed in live preview — the neutral fallback tile rendered instead of the map, exactly the flakiness flagged in Step 1.1's risks. Confirmed in user screenshot.
+
+### Change
+- Replaced the `staticmap.openstreetmap.de` URL with a local asset at `/map-dublin-placeholder.png` (Dublin city-center screenshot dropped into `public/` by the user).
+- `mapFailed` state + neutral "Map preview" `onError` fallback retained as second-layer defence in case the asset goes missing.
+- Zero network round-trip, zero third-party dependency, renders instantly.
+
+### Why not Mapbox/Google Static Maps now
+Scope creep. For v1 dummy data with one fixed Dublin location, a static asset is correct. Mapbox earns its keep in **Step 5** when real per-barber `location_lat_lng` data lands and every preview page needs a different map — at that point the 50k free requests/month and rock-solid uptime justify the API key + billing setup.
+
+### What changed in code
+- `src/pages/PreviewPage.tsx`: `mapSrc` const value swapped from OSM URL to `/map-dublin-placeholder.png`. No structural changes — fallback logic, gallery, hero, services, claim banner all untouched.
+- `public/map-dublin-placeholder.png`: new asset.

@@ -48,10 +48,11 @@ const PreviewPage = () => {
     setGalleryUrls((prev) => prev.filter((url) => url !== failedSrc));
   };
 
-  // Map: OSM static tile with graceful fallback to a neutral tile if the service fails.
+  // Map: local static asset (Dublin screenshot). OSM static tile service was unreliable in testing —
+  // swapped for a zero-dependency local image. onError fallback retained as second-layer defence.
+  // Mapbox/Google Static Maps deferred to Step 5 when real per-barber coordinates land.
   const [mapFailed, setMapFailed] = useState(false);
-  const mapSrc =
-    "https://staticmap.openstreetmap.de/staticmap.php?center=53.3498,-6.2603&zoom=13&size=600x300&maptype=mapnik";
+  const mapSrc = "/map-dublin-placeholder.png";
 
   // Inline accent styles — accent comes from DB per page, not from theme tokens.
   const accentBg = { backgroundColor: accent } as const;

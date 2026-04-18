@@ -1,26 +1,38 @@
 
 
-User uploaded the Dublin map screenshot. Plan: copy it into `public/`, wire it into `PreviewPage.tsx`, append to milestone review.
+Plan unchanged from prior approval — green-lit. Ready to execute on switch to default mode.
 
-## Changes
+## Execution checklist
 
-**1. Copy asset**
-- `user-uploads://Screenshot_2026-04-18_at_18.23.11.png` → `public/map-dublin-placeholder.jpg`
-- Public folder is correct here — referenced as a plain `<img src="/...">` URL, not imported as an ES module.
+**1. Migration: `preview_pages` table**
+- Columns: `id`, `handle` (unique), `name`, `city`, `instagram_handle`, `tagline` NOT NULL, `website` nullable, `bio` nullable, `services` jsonb default `'[]'`, `photo_urls` text[], `claimed_by_user_id` nullable, `created_by`, `created_at`
+- Validation trigger: photos 3–6, tagline length 1–80, services array ≤10 (no CHECK constraints, per memory)
+- RLS: public SELECT, admin-only INSERT/UPDATE/DELETE via `has_role`
 
-**2. `src/pages/PreviewPage.tsx`**
-- Replace `mapSrc` value: drop the OSM URL, use `/map-dublin-placeholder.jpg`
-- Keep `mapFailed` state + `onError` fallback to the neutral "Map preview" tile (second-layer defence in case the asset is missing/misnamed)
-- No other changes — gallery hide-and-reflow, dummy data, route, claim banner all stay intact
+**2. `src/pages/AdminNewPreview.tsx` (new)**
+- Admin gate via `useUserRole().isAdmin`, redirect on fail
+- Form: name, city, handle (unique check), IG handle (strip `@`), tagline (required, 0/80 counter), website, bio, services repeater (Dublin defaults pre-seeded), photos 3–6 with "First photo becomes the hero" helper text
+- Storage: `profile-images` bucket, `preview-pages/{handle}/` prefix
+- Success: toast + "Copy preview URL" button + navigate to `/preview/{handle}`
 
-**3. `MILESTONE_REVIEW_1.md`**
-- Append a "Step 1.3 — OSM to local asset" note: OSM tile failed live, swapped to local Dublin screenshot, Mapbox deferred to Step 5 when real per-barber coords land
+**3. `src/pages/PreviewPage.tsx` (modify)**
+- Fetch `preview_pages` row by handle param
+- Render real data if found, else keep `marco-cuts` dummy fallback
+- Defensive empty-state: hide entire section (heading + content) if `services.length === 0`, `bio` empty, or `website` empty
+- Hardcoded Dublin hours stay (deferred)
+- Map asset stays (local Dublin placeholder)
+- Gallery hide-and-reflow stays
 
-## Out of scope
-- Mapbox / Google Static Maps (Step 5)
-- Real per-barber coordinates (Step 5)
-- Any change to gallery, hero, services, or claim banner
+**4. `src/App.tsx` (modify)**
+- Add `<Route path="/admin/new-preview" element={<AdminNewPreview />} />` above catch-all
 
-## After ship
-Reload `/preview/marco-cuts` in mobile Safari → map renders instantly from local asset, no network round-trip, no fallback. Send screenshot + updated milestone review, then verify `has_role(auth.uid(), 'admin')` works for your account before green-lighting Step 2.
+## Confirmed deferrals
+Edit flow → Step 3 · Hours customisation → later · Accent color → Step 5+ · AI copy gen → Step 2.5+ · Mapbox → Step 5 · Photo reorder → later · OG meta tags → Step 6
+
+## After ship — your test
+1. Confirm `has_role(auth.uid(), 'admin')` returns true in browser console
+2. Create first real entry — a barber you'll actually DM within 48 hours, not a throwaway
+3. Open `/preview/{handle}` in mobile Safari (not Lovable pane), confirm tagline + services render, gallery reflows, map shows
+4. Paste URL into WhatsApp — capture the bare-text card as your Step 6 "before" baseline
+5. Send screenshots + MILESTONE_REVIEW update → green-light Step 3
 

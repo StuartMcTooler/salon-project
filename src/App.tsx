@@ -34,6 +34,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Support from "./pages/Support";
 import Marketing from "./pages/Marketing";
 import PreviewPage from "./pages/PreviewPage";
+import AdminNewPreview from "./pages/AdminNewPreview";
 
 const queryClient = new QueryClient();
 
@@ -88,6 +89,7 @@ const App = () => (
             <Route path="/support" element={<Support />} />
             <Route path="/marketing" element={<Marketing />} />
             <Route path="/preview/:handle" element={<PreviewPage />} />
+            <Route path="/admin/new-preview" element={<AdminNewPreview />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

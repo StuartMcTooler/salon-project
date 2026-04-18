@@ -1,11 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { MapPin, Clock, Instagram, Globe, Sparkles } from "lucide-react";
+import { MapPin, Clock, Instagram, Globe, Sparkles, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
-// STEP 1: Static template with hardcoded dummy data.
-// Wiring to DB happens in Step 5. Do not extract types yet.
-const DUMMY = {
+// Step 2: fetches real data from preview_pages by handle, falls back to marco-cuts dummy.
+type ServiceRow = { name: string; price_from: number; duration_mins: number };
+type PreviewData = {
+  display_name: string;
+  tagline: string;
+  bio: string | null;
+  hero_image_url: string;
+  gallery: string[];
+  services: ServiceRow[];
+  location_city: string;
+  accent_color: string;
+  instagram_handle: string;
+  website_url: string | null;
+  status: "draft" | "published" | "claimed";
+};
+
+const DUMMY: PreviewData = {
   display_name: "Marco Russo",
   tagline: "Sharp fades and classic cuts in the heart of Dublin.",
   bio: "Marco has been cutting hair in Dublin for over a decade, blending old-school barbering with modern style. Walk in for a consultation, walk out feeling like the best version of yourself.",
@@ -36,10 +51,60 @@ const DUMMY = {
 
 const PreviewPage = () => {
   const { handle } = useParams<{ handle: string }>();
-  const data = DUMMY;
+  const [data, setData] = useState<PreviewData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPage = async () => {
+      if (!handle) {
+        setData(DUMMY);
+        setLoading(false);
+        return;
+      }
+      const { data: row, error } = await supabase
+        .from("preview_pages")
+        .select("*")
+        .eq("handle", handle)
+        .maybeSingle();
+
+      if (error || !row) {
+        // Fallback to dummy so existing /preview/marco-cuts URL still demos.
+        setData(DUMMY);
+      } else {
+        const photos = (row.photo_urls ?? []) as string[];
+        setData({
+          display_name: row.name,
+          tagline: row.tagline,
+          bio: row.bio,
+          hero_image_url: photos[0] ?? DUMMY.hero_image_url,
+          gallery: photos.length > 0 ? photos : DUMMY.gallery,
+          services: (row.services ?? []) as ServiceRow[],
+          location_city: row.city,
+          accent_color: "#1a1a1a",
+          instagram_handle: row.instagram_handle,
+          website_url: row.website,
+          status: row.claimed_by_user_id ? "claimed" : "draft",
+        });
+      }
+      setLoading(false);
+    };
+    fetchPage();
+  }, [handle]);
+
+  if (loading || !data) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <Loader2 className="h-6 w-6 animate-spin text-neutral-400" />
+      </div>
+    );
+  }
+
   const firstName = data.display_name.split(" ")[0];
   const accent = data.accent_color;
   const isUnclaimed = data.status !== "claimed";
+  const hasBio = !!data.bio?.trim();
+  const hasServices = data.services.length > 0;
+  const hasWebsite = !!data.website_url?.trim();
 
   // Hide-and-reflow: drop broken images from the array so the grid never renders empty tiles.
   // First item in the live array always gets the col-span-2 hero slot, so layout self-heals.
@@ -113,36 +178,40 @@ const PreviewPage = () => {
             </div>
           </section>
 
-          {/* ABOUT */}
-          <section className="px-5 pb-8 pt-2">
-            <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
-              About
-            </h2>
-            <p className="text-base leading-relaxed text-neutral-700">{data.bio}</p>
-          </section>
+          {/* ABOUT — only render if bio exists */}
+          {hasBio && (
+            <section className="px-5 pb-8 pt-2">
+              <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                About
+              </h2>
+              <p className="text-base leading-relaxed text-neutral-700">{data.bio}</p>
+            </section>
+          )}
 
-          {/* SERVICES */}
-          <section className="border-t border-neutral-100 px-5 py-8">
-            <h2 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
-              Services
-            </h2>
-            <ul className="divide-y divide-neutral-100">
-              {data.services.map((s) => (
-                <li key={s.name} className="flex items-center justify-between py-4">
-                  <div>
-                    <p className="text-base font-medium text-neutral-900">{s.name}</p>
-                    <p className="mt-0.5 text-xs text-neutral-500">{s.duration_mins} min</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-neutral-400">from</p>
-                    <p className="text-base font-semibold" style={accentText}>
-                      €{s.price_from}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
+          {/* SERVICES — only render if services exist */}
+          {hasServices && (
+            <section className="border-t border-neutral-100 px-5 py-8">
+              <h2 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                Services
+              </h2>
+              <ul className="divide-y divide-neutral-100">
+                {data.services.map((s) => (
+                  <li key={s.name} className="flex items-center justify-between py-4">
+                    <div>
+                      <p className="text-base font-medium text-neutral-900">{s.name}</p>
+                      <p className="mt-0.5 text-xs text-neutral-500">{s.duration_mins} min</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-neutral-400">from</p>
+                      <p className="text-base font-semibold" style={accentText}>
+                        €{s.price_from}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {/* GALLERY */}
           <section className="border-t border-neutral-100 px-5 py-8">
@@ -220,16 +289,16 @@ const PreviewPage = () => {
                   </a>
                 </div>
               )}
-              {data.website_url && (
+              {hasWebsite && (
                 <div className="flex items-start gap-3">
                   <Globe className="mt-0.5 h-4 w-4 shrink-0 text-neutral-400" />
                   <a
-                    href={data.website_url}
+                    href={data.website_url!}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-neutral-700 underline-offset-2 hover:underline"
                   >
-                    {data.website_url.replace(/^https?:\/\//, "")}
+                    {data.website_url!.replace(/^https?:\/\//, "")}
                   </a>
                 </div>
               )}

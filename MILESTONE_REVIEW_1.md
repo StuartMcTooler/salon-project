@@ -28,3 +28,28 @@
 
 ## Next step
 Step 2: admin form at `/admin/new-preview` with photo upload + Dublin services defaults toggle. Will not start until this milestone is reviewed.
+
+---
+
+## Post-review fixes (Step 1.1)
+
+Applied after first round of review screenshots showed broken gallery tiles + an empty white box above LOCATION & HOURS.
+
+### Gallery
+- Swapped all 6 Unsplash URLs to a fresh set of stable editorial barber/grooming photo IDs. The previous IDs had rotted (Unsplash periodically removes/reassigns photo IDs, which is what produced the alt-text-only renders).
+- Converted the gallery from a static `data.gallery.map()` render to a `useState` array seeded from the dummy data.
+- Each `<img>` now has an `onError` handler that filters its URL out of state. The grid reflows naturally — 6 tiles becomes 5, becomes 4, with no empty grey boxes left behind.
+- The `col-span-2 aspect-[16/10]` hero treatment is keyed off array index `0` of the *live* array, so if the original hero image fails the next image promotes into the hero slot and the layout self-heals.
+- If every image fails, the entire gallery section's grid is hidden (the section header still renders for now — fine for v1, can hide the whole section in Step 5 when wired to real DB data).
+
+### Map
+- Replaced the placeholder `<div>` (which was the empty white box in screenshot 4) with an `<img>` pointing to an OSM static tile of central Dublin: `https://staticmap.openstreetmap.de/staticmap.php?center=53.3498,-6.2603&zoom=13&size=600x300&maptype=mapnik`.
+- Same `onError` pattern: if OSM is down or rate-limits us, falls back to a darker neutral gradient tile with a `MapPin` icon and "Map preview" label — reads as intentional rather than broken.
+
+### Risks added
+- **OSM static tile service is community-run** (`staticmap.openstreetmap.de`) and has historically been intermittently flaky under sustained load. Fine for 10–50 preview pages. If we start generating hundreds and see broken tiles in the wild, the upgrade path is **Mapbox Static Images API** (50k free requests/month, requires API key, rock-solid). Watch for this in Step 5+ when real pages start being created.
+- OSM rate limiting hits on **sustained** requests more than burst, so the right reliability test is a quick refresh burst now + a second check ~1 hour later, not 10 refreshes back-to-back.
+
+### What changed in code
+- `src/pages/PreviewPage.tsx`: added `useState` import; new `galleryUrls` state + `handleImageError` callback; new `mapFailed` state + `mapSrc` const; gallery render swapped to use live state; map placeholder swapped to `<img>` with fallback branch.
+- No other files touched. Dummy data shape unchanged. Route unchanged.

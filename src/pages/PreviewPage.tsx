@@ -53,6 +53,12 @@ const PreviewPage = () => {
   const { handle } = useParams<{ handle: string }>();
   const [data, setData] = useState<PreviewData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [mapFailed, setMapFailed] = useState(false);
+
+  useEffect(() => {
+    if (data) setGalleryUrls(data.gallery);
+  }, [data]);
 
   useEffect(() => {
     const fetchPage = async () => {

@@ -114,7 +114,6 @@ const PreviewPage = () => {
 
   // Hide-and-reflow: drop broken images from the array so the grid never renders empty tiles.
   // First item in the live array always gets the col-span-2 hero slot, so layout self-heals.
-  const [galleryUrls, setGalleryUrls] = useState<string[]>(data.gallery);
   const handleImageError = (failedSrc: string) => {
     setGalleryUrls((prev) => prev.filter((url) => url !== failedSrc));
   };
@@ -122,7 +121,6 @@ const PreviewPage = () => {
   // Map: local static asset (Dublin screenshot). OSM static tile service was unreliable in testing —
   // swapped for a zero-dependency local image. onError fallback retained as second-layer defence.
   // Mapbox/Google Static Maps deferred to Step 5 when real per-barber coordinates land.
-  const [mapFailed, setMapFailed] = useState(false);
   const mapSrc = "/map-dublin-placeholder.png";
 
   // Inline accent styles — accent comes from DB per page, not from theme tokens.

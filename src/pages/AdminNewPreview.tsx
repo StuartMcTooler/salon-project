@@ -50,13 +50,12 @@ const AdminNewPreview = () => {
   const [createdHandle, setCreatedHandle] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Admin gate
+  // Admin gate — fire toast once when access is denied
   useEffect(() => {
     if (!roleLoading && !isAdmin) {
       toast({ title: "Admin only", description: "Redirecting…", variant: "destructive" });
-      navigate("/", { replace: true });
     }
-  }, [isAdmin, roleLoading, navigate, toast]);
+  }, [isAdmin, roleLoading, toast]);
 
   // Auto-generate handle from name until user manually edits it
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
@@ -50,13 +50,12 @@ const AdminNewPreview = () => {
   const [createdHandle, setCreatedHandle] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Admin gate
+  // Admin gate — fire toast once when access is denied
   useEffect(() => {
     if (!roleLoading && !isAdmin) {
       toast({ title: "Admin only", description: "Redirecting…", variant: "destructive" });
-      navigate("/", { replace: true });
     }
-  }, [isAdmin, roleLoading, navigate, toast]);
+  }, [isAdmin, roleLoading, toast]);
 
   // Auto-generate handle from name until user manually edits it
   useEffect(() => {
@@ -171,7 +170,7 @@ const AdminNewPreview = () => {
       </div>
     );
   }
-  if (!isAdmin) return null;
+  if (!isAdmin) return <Navigate to="/" replace />;
 
   // Success view
   if (createdHandle) {

@@ -170,7 +170,7 @@ const AdminNewPreview = () => {
       </div>
     );
   }
-  if (!isAdmin) return null;
+  if (!isAdmin) return <Navigate to="/" replace />;
 
   // Success view
   if (createdHandle) {

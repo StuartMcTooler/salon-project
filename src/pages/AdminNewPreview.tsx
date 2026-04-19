@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Copy, Check, Loader2, ExternalLink } from "lucide-react";
+import { Plus, Trash2, Copy, Check, Loader2, ExternalLink, X } from "lucide-react";
 
 // Pre-seeded Dublin barber service defaults — admin can edit/add/remove.
 const DEFAULT_SERVICES = [
@@ -72,9 +72,21 @@ const AdminNewPreview = () => {
   const removeService = (i: number) => setServices(services.filter((_, idx) => idx !== i));
 
   const onPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    setPhotos(files.slice(0, 6));
+    const incoming = Array.from(e.target.files ?? []);
+    setPhotos((prev) => {
+      const merged = [...prev];
+      for (const f of incoming) {
+        if (!merged.some((p) => p.name === f.name && p.size === f.size)) {
+          merged.push(f);
+        }
+      }
+      return merged.slice(0, 6);
+    });
+    // Reset input so re-selecting the same file later still triggers change
+    e.target.value = "";
   };
+
+  const removePhoto = (i: number) => setPhotos((prev) => prev.filter((_, idx) => idx !== i));
 
   const validate = (): string | null => {
     if (!name.trim()) return "Name is required";
@@ -357,13 +369,21 @@ const AdminNewPreview = () => {
           {photos.length > 0 && (
             <div className="grid grid-cols-3 gap-2">
               {photos.map((f, i) => (
-                <div key={i} className="relative aspect-square overflow-hidden rounded border bg-muted">
+                <div key={`${f.name}-${f.size}-${i}`} className="group relative aspect-square overflow-hidden rounded border bg-muted">
                   <img src={URL.createObjectURL(f)} alt={`upload ${i + 1}`} className="h-full w-full object-cover" />
                   {i === 0 && (
                     <span className="absolute left-1 top-1 rounded bg-foreground px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-background">
                       Hero
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(i)}
+                    aria-label={`Remove photo ${i + 1}`}
+                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 transition-opacity hover:bg-foreground group-hover:opacity-100 focus:opacity-100"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               ))}
             </div>

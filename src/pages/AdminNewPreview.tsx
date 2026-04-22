@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Copy, Check, Loader2, ExternalLink, X } from "lucide-react";
+import { Plus, Trash2, Copy, Check, Loader2, ExternalLink, X, ArrowLeft } from "lucide-react";
 
 // Pre-seeded Dublin barber service defaults — admin can edit/add/remove.
 const DEFAULT_SERVICES = [
@@ -200,9 +200,12 @@ const AdminNewPreview = () => {
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             </Button>
           </div>
-          <div className="flex justify-center gap-3">
+          <div className="flex flex-wrap justify-center gap-3">
             <Button onClick={() => navigate(`/preview/${createdHandle}`)}>
               <ExternalLink className="mr-2 h-4 w-4" /> View page
+            </Button>
+            <Button variant="outline" onClick={() => navigate("/admin/previews")}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to all previews
             </Button>
             <Button
               variant="outline"

@@ -100,6 +100,11 @@ export default function Admin() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold">Admin Dashboard</h1>
           <div className="flex gap-2">
+            {isAdmin && (
+              <Button variant="outline" onClick={() => navigate("/admin/previews")}>
+                Previews
+              </Button>
+            )}
             <Button variant="outline" onClick={() => navigate("/pos")}>
               Walk-In POS
             </Button>

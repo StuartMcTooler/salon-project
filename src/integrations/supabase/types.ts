@@ -1529,13 +1529,50 @@ export type Database = {
           },
         ]
       }
+      preview_page_claims: {
+        Row: {
+          contacted_at: string | null
+          created_at: string
+          email: string
+          id: string
+          phone: string | null
+          preview_page_id: string
+        }
+        Insert: {
+          contacted_at?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          phone?: string | null
+          preview_page_id: string
+        }
+        Update: {
+          contacted_at?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          phone?: string | null
+          preview_page_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preview_page_claims_preview_page_id_fkey"
+            columns: ["preview_page_id"]
+            isOneToOne: false
+            referencedRelation: "preview_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       preview_pages: {
         Row: {
+          archived_at: string | null
           bio: string | null
           city: string
           claimed_by_user_id: string | null
           created_at: string
           created_by: string
+          dm_sent_at: string | null
           handle: string
           id: string
           instagram_handle: string
@@ -1547,11 +1584,13 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          archived_at?: string | null
           bio?: string | null
           city: string
           claimed_by_user_id?: string | null
           created_at?: string
           created_by: string
+          dm_sent_at?: string | null
           handle: string
           id?: string
           instagram_handle: string
@@ -1563,11 +1602,13 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          archived_at?: string | null
           bio?: string | null
           city?: string
           claimed_by_user_id?: string | null
           created_at?: string
           created_by?: string
+          dm_sent_at?: string | null
           handle?: string
           id?: string
           instagram_handle?: string

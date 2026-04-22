@@ -3,10 +3,12 @@ import { useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { MapPin, Clock, Instagram, Globe, Sparkles, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ClaimPageModal } from "@/components/preview/ClaimPageModal";
 
 // Step 2: fetches real data from preview_pages by handle, falls back to marco-cuts dummy.
 type ServiceRow = { name: string; price_from: number; duration_mins: number };
 type PreviewData = {
+  id: string | null;
   display_name: string;
   tagline: string;
   bio: string | null;
@@ -21,6 +23,7 @@ type PreviewData = {
 };
 
 const DUMMY: PreviewData = {
+  id: null,
   display_name: "Marco Russo",
   tagline: "Sharp fades and classic cuts in the heart of Dublin.",
   bio: "Marco has been cutting hair in Dublin for over a decade, blending old-school barbering with modern style. Walk in for a consultation, walk out feeling like the best version of yourself.",
@@ -55,6 +58,7 @@ const PreviewPage = () => {
   const [loading, setLoading] = useState(true);
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   const [mapFailed, setMapFailed] = useState(false);
+  const [claimOpen, setClaimOpen] = useState(false);
 
   useEffect(() => {
     if (data) setGalleryUrls(data.gallery);
@@ -79,6 +83,7 @@ const PreviewPage = () => {
       } else {
         const photos = (row.photo_urls ?? []) as string[];
         setData({
+          id: row.id,
           display_name: row.name,
           tagline: row.tagline,
           bio: row.bio,
@@ -147,7 +152,7 @@ const PreviewPage = () => {
           <div className="sticky top-0 z-50 bg-neutral-900 px-4 py-2.5 text-center text-xs font-medium text-white sm:text-sm">
             <Sparkles className="mr-1.5 inline h-3.5 w-3.5" />
             This is a preview we made for you —{" "}
-            <button className="underline underline-offset-2">claim it to activate bookings</button>
+            <button onClick={() => setClaimOpen(true)} className="underline underline-offset-2">claim it to activate bookings</button>
           </div>
         )}
 
@@ -222,9 +227,9 @@ const PreviewPage = () => {
             <h2 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
               Gallery
             </h2>
-            {galleryUrls.length > 0 && (
+            {galleryUrls.length > 1 && (
               <div className="grid grid-cols-2 gap-2">
-                {galleryUrls.map((src, i) => (
+                {galleryUrls.slice(1).map((src, i) => (
                   <div
                     key={src}
                     className={`relative overflow-hidden rounded-lg bg-neutral-100 ${
@@ -233,7 +238,7 @@ const PreviewPage = () => {
                   >
                     <img
                       src={src}
-                      alt={`${data.display_name} portfolio ${i + 1}`}
+                      alt={`${data.display_name} portfolio ${i + 2}`}
                       loading="lazy"
                       onError={() => handleImageError(src)}
                       className="h-full w-full object-cover"
@@ -319,6 +324,7 @@ const PreviewPage = () => {
             </button>
             {isUnclaimed && (
               <button
+                onClick={() => setClaimOpen(true)}
                 style={accentBorder}
                 className="w-full rounded-full border bg-white px-6 py-4 text-sm font-semibold tracking-wide transition-colors hover:bg-neutral-50"
               >
@@ -335,6 +341,14 @@ const PreviewPage = () => {
           </footer>
         </div>
       </div>
+
+      {data.id && (
+        <ClaimPageModal
+          previewPageId={data.id}
+          open={claimOpen}
+          onOpenChange={setClaimOpen}
+        />
+      )}
     </>
   );
 };

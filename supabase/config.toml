@@ -98,3 +98,6 @@ verify_jwt = false
 
 [functions.check-bonus-qualification]
 verify_jwt = false
+
+[functions.preview-og]
+verify_jwt = false

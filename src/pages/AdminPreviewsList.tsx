@@ -122,7 +122,7 @@ const AdminPreviewsList = () => {
   }, [isAdmin, showArchived]);
 
   const copyLink = async (handle: string) => {
-    const url = `${window.location.origin}/preview/${handle}`;
+    const url = `https://p.bookd.ie/${handle}`;
     await navigator.clipboard.writeText(url);
     toast.success("Link copied");
   };

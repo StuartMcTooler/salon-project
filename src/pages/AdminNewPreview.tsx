@@ -159,7 +159,7 @@ const AdminNewPreview = () => {
       if (insertErr) throw insertErr;
 
       setCreatedHandle(handle);
-      toast({ title: "Preview created", description: `/preview/${handle} is live.` });
+      toast({ title: "Preview created", description: `p.bookd.ie/${handle} is live.` });
     } catch (e: any) {
       console.error(e);
       toast({ title: "Failed to create", description: e.message ?? "Unknown error", variant: "destructive" });
@@ -168,7 +168,7 @@ const AdminNewPreview = () => {
     }
   };
 
-  const previewUrl = createdHandle ? `${window.location.origin}/preview/${createdHandle}` : "";
+  const previewUrl = createdHandle ? `https://p.bookd.ie/${createdHandle}` : "";
   const copyUrl = async () => {
     await navigator.clipboard.writeText(previewUrl);
     setCopied(true);

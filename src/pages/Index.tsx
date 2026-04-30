@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { isNativeApp } from "@/lib/platform";
 import { Loader2 } from "lucide-react";
+import Home from "./Home";
 
 const Index = () => {
   const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
+  const [showHome, setShowHome] = useState(false);
 
   useEffect(() => {
     const handleRouting = async () => {
@@ -59,8 +61,8 @@ const Index = () => {
           navigate("/auth", { replace: true });
         }
       } else {
-        // Web app - show public discover page
-        navigate("/discover", { replace: true });
+        // Web app - render the marketing homepage in-place
+        setShowHome(true);
       }
       
       setChecking(false);
@@ -123,6 +125,10 @@ const Index = () => {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
+  }
+
+  if (showHome) {
+    return <Home />;
   }
 
   return null;

@@ -185,7 +185,7 @@ const Home = () => {
                 No card reader. No setup fee. No commission on takings.
               </p>
             </div>
-            <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               {[
                 {
                   n: "1",
@@ -238,7 +238,7 @@ const Home = () => {
                 Three things every other platform gets wrong for independent barbers.
               </p>
             </div>
-            <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               {[
                 {
                   n: "01",
@@ -438,7 +438,7 @@ const Home = () => {
                 Built into the platform — no plugins, no add-ons, no extra subscriptions.
               </p>
             </div>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {[
                 {
                   icon: Activity,

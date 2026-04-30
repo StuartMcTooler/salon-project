@@ -36,6 +36,7 @@ import Marketing from "./pages/Marketing";
 import PreviewPage from "./pages/PreviewPage";
 import AdminNewPreview from "./pages/AdminNewPreview";
 import AdminPreviewsList from "./pages/AdminPreviewsList";
+import RequestInvite from "./pages/RequestInvite";
 
 const queryClient = new QueryClient();
 
@@ -92,6 +93,7 @@ const App = () => (
             <Route path="/preview/:handle" element={<PreviewPage />} />
             <Route path="/admin/new-preview" element={<AdminNewPreview />} />
             <Route path="/admin/previews" element={<AdminPreviewsList />} />
+            <Route path="/request-invite" element={<RequestInvite />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, XCircle, Loader2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, AlertCircle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ApprovePortfolio() {
@@ -253,7 +253,7 @@ export default function ApprovePortfolio() {
             </div>
 
             <div className="bg-muted/50 p-4 rounded-lg text-sm text-muted-foreground space-y-2">
-              <p>✨ {data?.content_ids?.length === 1 ? 'This photo has' : 'These photos have'} been professionally enhanced</p>
+              <p className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-brand shrink-0" />{data?.content_ids?.length === 1 ? 'This photo has' : 'These photos have'} been professionally enhanced</p>
               <p>🎁 Approve and get <strong className="text-foreground">50 loyalty points</strong></p>
               <p>🔒 {data?.content_ids?.length === 1 ? 'This photo' : 'These photos'} will only be shared if you approve</p>
             </div>

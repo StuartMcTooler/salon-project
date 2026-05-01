@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Info, Clock } from "lucide-react";
+import { Info, Clock, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CoverOption {
@@ -66,8 +66,8 @@ export const CoverRecommendationCard = ({
           </CardTitle>
         </div>
         <CardDescription className="text-slate-700 font-medium">
-          Get a <strong>Cover Booking</strong> with one of {originalStaff.display_name}'s trusted colleagues. 
-          ✨ You'll stay on {originalStaff.display_name}'s priority list for next time.
+          Get a <strong>Cover Booking</strong> with one of {originalStaff.display_name}'s trusted colleagues.{" "}
+          <Sparkles className="inline h-4 w-4 text-brand" /> You'll stay on {originalStaff.display_name}'s priority list for next time.
         </CardDescription>
       </CardHeader>
 

@@ -48,7 +48,7 @@ export const LoyaltyBalanceCard = ({
       <Card className="border-muted">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Gift className="h-4 w-4 text-primary" />
+            <Gift className="h-4 w-4 text-brand" />
             Loyalty Points
           </CardTitle>
           <CardDescription>Current balance: {currentBalance} points</CardDescription>
@@ -63,10 +63,10 @@ export const LoyaltyBalanceCard = ({
   }
 
   return (
-    <Card className="border-primary/20 bg-primary/5">
+    <Card className="border-brand/20 bg-brand/5">
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
-          <Gift className="h-4 w-4 text-primary" />
+          <Gift className="h-4 w-4 text-brand" />
           Loyalty Points Available
         </CardTitle>
         <CardDescription>

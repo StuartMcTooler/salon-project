@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Scissors } from "lucide-react";
+import { BookdScissors, BookdScissorsSpinner } from "@/components/ui/BookdScissors";
 import { AccountTypeSelection } from "@/components/onboarding/AccountTypeSelection";
 import { MultiStaffSetup } from "@/components/onboarding/MultiStaffSetup";
 import { SoloSetup } from "@/components/onboarding/SoloSetup";
@@ -102,7 +103,7 @@ const Onboarding = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-accent/20 to-background">
-        <Scissors className="h-12 w-12 text-primary animate-pulse" />
+        <BookdScissorsSpinner className="h-12 w-12" />
       </div>
     );
   }
@@ -111,7 +112,7 @@ const Onboarding = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-accent/20 to-background p-4">
       <div className="w-full max-w-4xl">
         <div className="text-center mb-8">
-          <Scissors className="h-16 w-16 text-primary mx-auto mb-4" />
+          <BookdScissors className="h-16 w-16 mx-auto mb-4" />
           <h1 className="text-3xl font-bold mb-2">Welcome to Your Booking System</h1>
           <p className="text-muted-foreground">Let's get your business set up</p>
         </div>

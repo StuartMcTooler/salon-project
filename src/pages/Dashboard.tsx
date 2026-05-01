@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Scissors } from "lucide-react";
+import { BookdScissors, BookdScissorsSpinner } from "@/components/ui/BookdScissors";
 import { QuickStats } from "@/components/dashboard/QuickStats";
 import { TimelineAppointments } from "@/components/dashboard/TimelineAppointments";
 import { AllBookingsView } from "@/components/dashboard/AllBookingsView";
@@ -86,7 +87,7 @@ const Dashboard = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Scissors className="h-12 w-12 text-primary animate-pulse" />
+        <BookdScissorsSpinner className="h-12 w-12" />
       </div>
     );
   }
@@ -100,7 +101,7 @@ const Dashboard = () => {
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Scissors className="h-6 w-6 text-primary" />
+            <BookdScissors className="h-6 w-6" />
             <h1 className="text-2xl font-bold">Solo Dashboard</h1>
           </div>
           <div className="flex gap-2">

@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Scissors, LogOut, Home, Users, Calendar, UserCog, MoreHorizontal, ArrowLeft, User, Share2 } from "lucide-react";
+import { BookdScissors } from "@/components/ui/BookdScissors";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InitialsAvatar } from "@/components/discovery/InitialsAvatar";
 import {
@@ -293,20 +294,20 @@ const POS = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* DIAGNOSTIC BANNER - Remove after debugging */}
-      <div className="bg-red-600 text-white text-sm p-3 text-center font-bold border-4 border-yellow-400">
-        🔧 DEBUG v2 🔧 Build: {BUILD_TIMESTAMP} | Native: {String(isNativeApp())} | Platform: {getPlatform()}
-      </div>
       <div className="border-b bg-card">
         <div className="max-w-6xl mx-auto px-3 md:px-6 py-3 md:py-4">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
             <div className="flex items-center gap-2 md:gap-3">
-              <Scissors className="h-5 w-5 md:h-6 md:w-6" />
+              <BookdScissors className="h-5 w-5 md:h-6 md:w-6" />
               <div>
                 <h1 className="text-lg md:text-2xl font-bold">Walk-In POS</h1>
-                <p className="text-xs md:text-sm text-muted-foreground">
-                  {staffMember?.display_name}
-                  {isAdmin && " (Admin Mode)"}
+                <p className="text-xs md:text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
+                  <span>{staffMember?.display_name}</span>
+                  {isAdmin && (
+                    <span className="inline-flex items-center text-[11px] font-bold uppercase tracking-[0.10em] px-2 py-[3px] rounded-md bg-brand/10 border border-brand/25 text-brand">
+                      Admin
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -430,6 +431,7 @@ const POS = () => {
                 <ServiceGrid
                   staffId={staffMember?.id}
                   onServiceSelect={handleServiceSelect}
+                  selectedServiceId={selectedService?.id}
                 />
               </>
             ) : (

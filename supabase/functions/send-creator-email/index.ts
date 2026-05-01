@@ -25,7 +25,8 @@ const formatDate = (dateStr: string): string => {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
-    year: 'numeric'
+    year: 'numeric',
+    timeZone: 'Europe/Dublin'
   });
 };
 
@@ -33,7 +34,8 @@ const formatTime = (dateStr: string): string => {
   const date = new Date(dateStr);
   return date.toLocaleTimeString('en-IE', {
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: 'Europe/Dublin'
   });
 };
 

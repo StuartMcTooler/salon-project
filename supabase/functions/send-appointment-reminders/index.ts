@@ -37,10 +37,10 @@ const getDublinHour = (): number => {
 };
 
 const formatDate = (dateStr: string): string =>
-  new Date(dateStr).toLocaleDateString('en-IE', { weekday: 'long', day: 'numeric', month: 'long' });
+  new Date(dateStr).toLocaleDateString('en-IE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TIMEZONE });
 
 const formatTime = (dateStr: string): string =>
-  new Date(dateStr).toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit' });
+  new Date(dateStr).toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TIMEZONE });
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {

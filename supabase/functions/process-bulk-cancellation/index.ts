@@ -151,10 +151,12 @@ serve(async (req) => {
               weekday: "long",
               month: "long",
               day: "numeric",
+              timeZone: "Europe/Dublin",
             });
             const formattedTime = appointmentDate.toLocaleTimeString("en-IE", {
               hour: "numeric",
               minute: "2-digit",
+              timeZone: "Europe/Dublin",
             });
 
             if (refundSucceeded) {

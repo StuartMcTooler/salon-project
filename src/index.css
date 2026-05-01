@@ -40,6 +40,12 @@ All colors MUST be HSL.
     
     --warning: 38 92% 50%;
 
+    /* Bookd brand accent — emerald #10b981. Used surgically on celebratory
+       chrome, tab indicators, the ADMIN pill, and the secondary blade of
+       the BookdScissors logo. NOT a replacement for --primary (slate). */
+    --brand: 160 84% 39%;
+    --brand-foreground: 0 0% 100%;
+
     --sidebar-background: 0 0% 98%;
 
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -87,6 +93,9 @@ All colors MUST be HSL.
     --ring: 212.7 26.8% 83.9%;
     
     --warning: 38 92% 50%;
+
+    --brand: 160 84% 39%;
+    --brand-foreground: 0 0% 100%;
     
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;

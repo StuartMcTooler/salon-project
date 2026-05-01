@@ -25,7 +25,7 @@ export const LoyaltyPointsDisplay = ({
   if (pointsAwarded === 0) return null;
 
   return (
-    <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
+    <Card className="border-brand/20 bg-gradient-to-br from-brand/5 to-brand/10">
       <CardContent className="pt-6">
         <div className="space-y-4">
           {pointsRedeemed > 0 && (

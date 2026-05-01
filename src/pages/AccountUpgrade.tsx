@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Scissors, ArrowLeft, Users, TrendingUp, Calendar } from "lucide-react";
+import { BookdScissors, BookdScissorsSpinner } from "@/components/ui/BookdScissors";
 
 const AccountUpgrade = () => {
   const navigate = useNavigate();
@@ -83,7 +84,7 @@ const AccountUpgrade = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Scissors className="h-12 w-12 text-primary animate-pulse" />
+        <BookdScissorsSpinner className="h-12 w-12" />
       </div>
     );
   }
@@ -102,7 +103,7 @@ const AccountUpgrade = () => {
 
         <div className="max-w-3xl mx-auto space-y-6">
           <div className="text-center">
-            <Scissors className="h-16 w-16 text-primary mx-auto mb-4" />
+            <BookdScissors className="h-16 w-16 mx-auto mb-4" />
             <h1 className="text-3xl font-bold mb-2">Upgrade to Multi-staff Salon</h1>
             <p className="text-muted-foreground">
               Expand your business and manage a team of creatives

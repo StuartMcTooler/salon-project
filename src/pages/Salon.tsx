@@ -8,6 +8,7 @@ import { SalonServiceSelection } from "@/components/salon/SalonServiceSelection"
 import { SalonStaffSelection } from "@/components/salon/SalonStaffSelection";
 import { SalonCheckout } from "@/components/salon/SalonCheckout";
 import { LogOut, Scissors, Settings, Users } from "lucide-react";
+import { BookdScissors, BookdScissorsSpinner } from "@/components/ui/BookdScissors";
 
 type Step = 'staff' | 'service' | 'checkout';
 type BrowsingMode = 'staff-first' | 'service-first';
@@ -211,7 +212,7 @@ const Salon = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Scissors className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <BookdScissorsSpinner className="h-12 w-12 mx-auto mb-4" />
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
@@ -230,7 +231,7 @@ const Salon = () => {
                 className="w-8 h-8 object-contain"
               />
             ) : (
-              <Scissors className="h-6 w-6 text-primary" />
+              <BookdScissors className="h-6 w-6" />
             )}
             <div>
               <h1 className="text-2xl font-bold">{businessInfo?.name || 'Salon Booking'}</h1>

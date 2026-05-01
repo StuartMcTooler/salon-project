@@ -7,6 +7,7 @@ import { SalonServiceSelection } from "@/components/salon/SalonServiceSelection"
 import { SalonCheckout } from "@/components/salon/SalonCheckout";
 import { PortfolioCarousel } from "@/components/portfolio/PortfolioCarousel";
 import { Scissors, ArrowLeft, Star } from "lucide-react";
+import { BookdScissors, BookdScissorsSpinner } from "@/components/ui/BookdScissors";
 import { Badge } from "@/components/ui/badge";
 
 type Step = 'service' | 'checkout';
@@ -316,7 +317,7 @@ const PublicBooking = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Scissors className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <BookdScissorsSpinner className="h-12 w-12 mx-auto mb-4" />
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
@@ -329,7 +330,7 @@ const PublicBooking = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-              <Scissors className="h-6 w-6 text-primary" />
+              <BookdScissors className="h-6 w-6" />
               <div className="flex-1">
                 <div className="flex items-center gap-3">
                   <h1 className="text-2xl font-bold">

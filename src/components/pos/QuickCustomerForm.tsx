@@ -1088,10 +1088,11 @@ export const QuickCustomerForm = ({
           
           <div className="space-y-4 pt-4 border-t">
             <p className="text-sm text-muted-foreground text-center">
-              {!customerPhone || customerPhone.trim() === '' 
-                ? "Add a phone number to capture visual history" 
-                : `Capture ${customerName || "the customer"}'s finished look for their private history before payment.`
-              }
+              {!customerPhone || customerPhone.trim() === '' ? (
+                <>Add a phone number to capture <strong className="text-brand font-semibold">visual history</strong>.</>
+              ) : (
+                `Capture ${customerName || "the customer"}'s finished look for their private history before payment.`
+              )}
             </p>
             
             <Button
@@ -1108,7 +1109,7 @@ export const QuickCustomerForm = ({
               disabled={createWalkIn.isPending || processingPayment}
             >
               <Camera className="mr-2 h-6 w-6" />
-              📸 Take Photo & Pay
+              Take Photo & Pay
             </Button>
             
             <Button

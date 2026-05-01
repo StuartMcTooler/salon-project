@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Upload, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 export default function ImageProcessingTest() {
@@ -187,7 +187,7 @@ export default function ImageProcessingTest() {
                       </>
                     ) : (
                       <>
-                        <div className="text-6xl mb-2">✨</div>
+                        <Sparkles className="h-12 w-12 text-brand mx-auto mb-2" />
                         <p>Enhanced version will appear here</p>
                       </>
                     )}

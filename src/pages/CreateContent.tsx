@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Camera, Download, Share2, Loader2, CheckCircle, ExternalLink, X, Bug } from "lucide-react";
+import { Camera, Download, Share2, Loader2, CheckCircle, ExternalLink, X, Bug, Wand2, Sparkles } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import CameraDebugPanel from "@/components/debug/CameraDebugPanel";
 
@@ -329,7 +329,7 @@ export default function CreateContent() {
 
     // OPTIMISTIC UI: Show complete immediately
     setStep('complete');
-    toast.success('Photo captured! Applying professional polish... ✨');
+    toast.success('Photo captured! Applying professional polish…', { icon: <Wand2 className="h-4 w-4" /> });
 
     try {
       // Convert base64 to blob
@@ -399,7 +399,7 @@ export default function CreateContent() {
     // Copy caption to clipboard first
     try {
       await navigator.clipboard.writeText(caption);
-      toast.success("✨ Caption & link copied! Just paste it in your post");
+      toast.success("Caption & link copied! Just paste it in your post", { icon: <Sparkles className="h-4 w-4" /> });
     } catch (err) {
       console.warn("Clipboard write failed:", err);
     }
@@ -517,7 +517,7 @@ export default function CreateContent() {
           {step === 'start' && (
             <div className="text-center space-y-6">
               <div>
-                <h1 className="text-3xl font-bold mb-2">Share Your Glow-Up! ✨</h1>
+                <h1 className="text-3xl font-bold mb-2 inline-flex items-center gap-2">Share Your Glow-Up <Sparkles className="h-7 w-7 text-brand" /></h1>
                 <p className="text-muted-foreground">
                   Hi {request?.client_name}! Capture your amazing new look and earn 50 points.
                 </p>

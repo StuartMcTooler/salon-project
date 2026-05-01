@@ -312,7 +312,7 @@ export const Lookbook = ({ staffId }: LookbookProps) => {
               </div>
               {selectedImage.content?.ai_metadata && (
                 <div className="text-xs text-muted-foreground">
-                  <p>✨ Enhanced with {selectedImage.content.ai_metadata.model}</p>
+                  <p className="flex items-center gap-2"><Sparkles className="h-3 w-3 text-brand" />Enhanced with {selectedImage.content.ai_metadata.model}</p>
                 </div>
               )}
             </div>

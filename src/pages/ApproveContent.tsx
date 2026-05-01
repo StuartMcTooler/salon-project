@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, XCircle, Loader2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, AlertCircle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ContentRequest } from '@/types/supabase-temp';
 import exifr from 'exifr';
@@ -278,7 +278,7 @@ export default function ApproveContent() {
             )}
 
             <div className="bg-muted/50 p-4 rounded-lg text-sm text-muted-foreground">
-              <p className="mb-2">✨ Your photo has been professionally enhanced</p>
+              <p className="mb-2 flex items-center gap-2"><Sparkles className="h-4 w-4 text-brand shrink-0" />Your photo has been professionally enhanced</p>
               <p className="mb-2">🎁 Approve it and get <strong className="text-foreground">50 loyalty points</strong></p>
               <p>🔒 Your photo will only be shared if you approve</p>
             </div>

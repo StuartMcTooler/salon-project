@@ -692,6 +692,9 @@ const Home = () => {
               </Link>
             </div>
           </div>
+          <div className="border-t border-neutral-100 px-4 py-4 text-center text-xs text-neutral-500">
+            Bookd is a product of Downthesofa Irl Limited, trading as Lunch.Team.
+          </div>
         </footer>
       </div>
     </>

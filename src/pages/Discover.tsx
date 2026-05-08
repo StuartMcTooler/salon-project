@@ -66,6 +66,9 @@ const Discover = () => {
             <a href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy Policy</a>
           </nav>
         </div>
+        <div className="border-t border-border px-4 py-3 text-center text-xs text-muted-foreground">
+          Bookd is a product of Downthesofa Irl Limited, trading as Lunch.Team.
+        </div>
       </footer>
     </div>
   );

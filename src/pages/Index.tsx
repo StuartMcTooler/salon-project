@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { isNativeApp } from "@/lib/platform";
 import { Loader2 } from "lucide-react";
-import Home from "./Home";
+import Discover from "./Discover";
 
 const Index = () => {
   const navigate = useNavigate();

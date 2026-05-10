@@ -9,6 +9,7 @@ import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { BackButtonHandler } from "./components/BackButtonHandler";
 import Index from "./pages/Index";
 import Discover from "./pages/Discover";
+import Home from "./pages/Home";
 import Salon from "./pages/Salon";
 import PublicBooking from "./pages/PublicBooking";
 import Auth from "./pages/Auth";

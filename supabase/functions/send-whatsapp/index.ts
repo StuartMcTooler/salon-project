@@ -112,10 +112,55 @@ Deno.serve(async (req) => {
       throw new Error(`Rate limit exceeded. Maximum ${MAX_MESSAGES_PER_HOUR} messages per hour to this number`);
     }
 
-    // TEMPORARY: Force SMS-only while awaiting WhatsApp template approval
-    // Once templates are approved, restore business notification_method logic
-    const notificationMethod = 'sms_only';
-    console.log('Using SMS-only mode (WhatsApp templates pending approval)');
+    // Resolve notification method: business-level setting (defaults to 'sms_only')
+    // Set business_accounts.notification_method to 'hybrid' or 'whatsapp_only' to enable WhatsApp.
+    let notificationMethod: 'sms_only' | 'hybrid' | 'whatsapp_only' = 'sms_only';
+    if (businessId) {
+      const { data: biz } = await supabase
+        .from('business_accounts')
+        .select('notification_method')
+        .eq('id', businessId)
+        .maybeSingle();
+      if (biz?.notification_method) {
+        notificationMethod = biz.notification_method as typeof notificationMethod;
+      }
+    }
+
+    // For WhatsApp paths, also require client opt-in. If not opted in, downgrade to SMS.
+    if (notificationMethod !== 'sms_only') {
+      const { data: clientRow } = await supabase
+        .from('clients')
+        .select('whatsapp_opted_in, last_inbound_message_at')
+        .eq('phone', to)
+        .maybeSingle();
+
+      if (!clientRow?.whatsapp_opted_in) {
+        console.log('Recipient not opted in to WhatsApp, downgrading to SMS');
+        notificationMethod = 'sms_only';
+      } else {
+        // 24-hour session window check — outside the window, WhatsApp requires an approved template.
+        const lastInbound = clientRow.last_inbound_message_at
+          ? new Date(clientRow.last_inbound_message_at).getTime()
+          : 0;
+        const withinSession = Date.now() - lastInbound < 24 * 60 * 60 * 1000;
+
+        if (!withinSession) {
+          // Look up a template ContentSid for this messageType, e.g. TWILIO_TEMPLATE_BOOKING_LINK
+          const templateEnvKey = `TWILIO_TEMPLATE_${messageType.toUpperCase()}`;
+          const templateSid = Deno.env.get(templateEnvKey);
+          if (!templateSid) {
+            console.log(`No approved template for messageType="${messageType}" (${templateEnvKey} unset). Falling back to SMS.`);
+            notificationMethod = notificationMethod === 'whatsapp_only' ? 'whatsapp_only' : 'sms_only';
+            // For whatsapp_only with no template, we'll still try WhatsApp free-form and likely fail; safer to SMS.
+            if (notificationMethod === 'whatsapp_only') notificationMethod = 'sms_only';
+          } else {
+            // Stash for use in the WhatsApp send block below
+            (globalThis as any).__twilioContentSid = templateSid;
+          }
+        }
+      }
+    }
+    console.log(`Notification method resolved: ${notificationMethod}`);
 
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
     let deliveryMethod = 'whatsapp';
@@ -131,11 +176,21 @@ Deno.serve(async (req) => {
         const formData = new URLSearchParams();
         formData.append('To', formattedTo);
         formData.append('From', formattedFrom);
-        formData.append('Body', sanitizedMessage);
-        
+
+        const contentSid = (globalThis as any).__twilioContentSid;
+        if (contentSid) {
+          // Outside 24h window — send approved template with the message body as variable {{1}}
+          formData.append('ContentSid', contentSid);
+          formData.append('ContentVariables', JSON.stringify({ '1': sanitizedMessage }));
+          (globalThis as any).__twilioContentSid = undefined;
+        } else {
+          formData.append('Body', sanitizedMessage);
+        }
+
         if (mediaUrl) {
           formData.append('MediaUrl', mediaUrl);
         }
+
 
         const response = await fetch(twilioUrl, {
           method: 'POST',

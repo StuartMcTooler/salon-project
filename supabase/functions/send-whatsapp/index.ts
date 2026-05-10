@@ -176,11 +176,21 @@ Deno.serve(async (req) => {
         const formData = new URLSearchParams();
         formData.append('To', formattedTo);
         formData.append('From', formattedFrom);
-        formData.append('Body', sanitizedMessage);
-        
+
+        const contentSid = (globalThis as any).__twilioContentSid;
+        if (contentSid) {
+          // Outside 24h window — send approved template with the message body as variable {{1}}
+          formData.append('ContentSid', contentSid);
+          formData.append('ContentVariables', JSON.stringify({ '1': sanitizedMessage }));
+          (globalThis as any).__twilioContentSid = undefined;
+        } else {
+          formData.append('Body', sanitizedMessage);
+        }
+
         if (mediaUrl) {
           formData.append('MediaUrl', mediaUrl);
         }
+
 
         const response = await fetch(twilioUrl, {
           method: 'POST',

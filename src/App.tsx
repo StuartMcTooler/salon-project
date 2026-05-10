@@ -66,7 +66,8 @@ const App = () => (
           <PasswordRecoveryHandler />
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/discover" element={<Discover />} />
+            <Route path="/home" element={<Home />} />
+            <Route path="/discover" element={<Discover />} />},
             <Route path="/salon" element={<Salon />} />
             <Route path="/book/:staffId" element={<PublicBooking />} />
             <Route path="/auth" element={<Auth />} />

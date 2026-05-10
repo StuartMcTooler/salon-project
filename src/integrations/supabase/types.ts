@@ -500,6 +500,7 @@ export type Database = {
           first_visit_date: string | null
           id: string
           is_test_user: boolean | null
+          last_inbound_message_at: string | null
           last_visit_date: string | null
           name: string
           notes: string | null
@@ -507,6 +508,8 @@ export type Database = {
           primary_creative_id: string | null
           total_visits: number | null
           updated_at: string | null
+          whatsapp_opted_in: boolean
+          whatsapp_opted_in_at: string | null
         }
         Insert: {
           created_at?: string | null
@@ -514,6 +517,7 @@ export type Database = {
           first_visit_date?: string | null
           id?: string
           is_test_user?: boolean | null
+          last_inbound_message_at?: string | null
           last_visit_date?: string | null
           name: string
           notes?: string | null
@@ -521,6 +525,8 @@ export type Database = {
           primary_creative_id?: string | null
           total_visits?: number | null
           updated_at?: string | null
+          whatsapp_opted_in?: boolean
+          whatsapp_opted_in_at?: string | null
         }
         Update: {
           created_at?: string | null
@@ -528,6 +534,7 @@ export type Database = {
           first_visit_date?: string | null
           id?: string
           is_test_user?: boolean | null
+          last_inbound_message_at?: string | null
           last_visit_date?: string | null
           name?: string
           notes?: string | null
@@ -535,6 +542,8 @@ export type Database = {
           primary_creative_id?: string | null
           total_visits?: number | null
           updated_at?: string | null
+          whatsapp_opted_in?: boolean
+          whatsapp_opted_in_at?: string | null
         }
         Relationships: [
           {

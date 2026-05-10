@@ -128,7 +128,7 @@ const Index = () => {
   }
 
   if (showHome) {
-    return <Home />;
+    return <Discover />;
   }
 
   return null;

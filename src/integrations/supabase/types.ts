@@ -2772,6 +2772,30 @@ export type Database = {
         Args: { p_staff_id: string }
         Returns: string
       }
+      get_content_request_by_token: {
+        Args: { _token: string }
+        Returns: {
+          appointment_id: string
+          client_email: string
+          client_id: string | null
+          client_name: string
+          client_phone: string | null
+          created_at: string
+          creative_id: string
+          id: string
+          request_type: string
+          status: string
+          token: string
+          token_expires_at: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "content_requests"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

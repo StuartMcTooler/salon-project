@@ -101,3 +101,6 @@ verify_jwt = false
 
 [functions.preview-og]
 verify_jwt = false
+
+[functions.reset-onboarding-state]
+verify_jwt = true

@@ -148,6 +148,7 @@ serve(async (req) => {
         success: true,
         accountLinkUrl: accountLink.url,
         accountId: accountId,
+        stripeMode: isTestMode ? 'test' : 'live',
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

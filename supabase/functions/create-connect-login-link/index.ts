@@ -101,6 +101,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         url: loginLink.url,
+        stripeMode: isTestMode ? 'test' : 'live',
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -78,23 +78,30 @@ serve(async (req) => {
       const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-      // Update existing terminal settings OR create new one with location ID
-      const { data: existing } = await supabase
-        .from("terminal_settings")
-        .select("id")
-        .eq("staff_id", staffId)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (existing) {
-        console.log("[create-terminal-location] Updating existing terminal_settings with location ID");
-        await supabase
+      // Race-safe upsert: try UPDATE first, fall back to INSERT.
+      // A unique partial index (terminal_settings_one_active_per_staff) guarantees
+      // only one active row per staff_id, so a concurrent insert will fail with
+      // 23505 — in that case we retry the update against the now-existing row.
+      const writeActiveRow = async (): Promise<void> => {
+        const { data: updated, error: updateError } = await supabase
           .from("terminal_settings")
-          .update({ stripe_location_id: location.id })
-          .eq("id", existing.id);
-      } else {
-        console.log("[create-terminal-location] Creating new terminal_settings with location ID");
-        await supabase
+          .update({
+            stripe_location_id: location.id,
+            connection_type: "tap_to_pay",
+          })
+          .eq("staff_id", staffId)
+          .eq("is_active", true)
+          .select("id");
+
+        if (updateError) throw updateError;
+
+        if (updated && updated.length > 0) {
+          console.log(`[create-terminal-location] Updated ${updated.length} existing active row(s)`);
+          return;
+        }
+
+        console.log("[create-terminal-location] No active row found, inserting new one");
+        const { error: insertError } = await supabase
           .from("terminal_settings")
           .insert({
             staff_id: staffId,
@@ -102,8 +109,28 @@ serve(async (req) => {
             connection_type: "tap_to_pay",
             is_active: true,
           });
-      }
-      
+
+        if (insertError) {
+          // Unique-violation from the partial index — another concurrent save won.
+          // Retry the update so we still persist this location id.
+          if ((insertError as any).code === "23505") {
+            console.log("[create-terminal-location] Concurrent insert detected, retrying update");
+            const { error: retryError } = await supabase
+              .from("terminal_settings")
+              .update({
+                stripe_location_id: location.id,
+                connection_type: "tap_to_pay",
+              })
+              .eq("staff_id", staffId)
+              .eq("is_active", true);
+            if (retryError) throw retryError;
+            return;
+          }
+          throw insertError;
+        }
+      };
+
+      await writeActiveRow();
       console.log("[create-terminal-location] ✅ Database updated");
     }
 

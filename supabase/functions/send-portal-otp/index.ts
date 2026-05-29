@@ -183,12 +183,13 @@ Deno.serve(async (req) => {
 
     console.log('OTP sent successfully');
 
-    // SECURITY: Return consistent success message (same as when client not found)
+    // SECURITY: Return consistent success message (same as when client not found).
+    // Do NOT include clientId here — leaking it would let attackers enumerate which
+    // phone numbers are registered.
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
         message: 'If this number is registered, an OTP will be sent.',
-        clientId: client.id, // Only included when client exists
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -65,9 +65,13 @@ serve(async (req) => {
         );
       }
     } else {
-      // No signature — development/testing without verification
-      console.warn('Webhook signature not verified — no stripe-signature header');
-      event = JSON.parse(body);
+      // Stripe always sends a signature. Reject unsigned requests so attackers
+      // cannot forge account.updated payloads.
+      console.error('Webhook rejected: missing stripe-signature header');
+      return new Response(
+        JSON.stringify({ error: 'Missing stripe-signature header' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     console.log('Received Connect webhook event:', event!.type, '| environment:', isTestEnvironment ? 'TEST' : 'LIVE');

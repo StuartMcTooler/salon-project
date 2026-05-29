@@ -5,11 +5,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import { BackButtonHandler } from "./components/BackButtonHandler";
 import Index from "./pages/Index";
 import Discover from "./pages/Discover";
-import Home from "./pages/Home";
 import Salon from "./pages/Salon";
 import PublicBooking from "./pages/PublicBooking";
 import Auth from "./pages/Auth";
@@ -40,7 +39,7 @@ import AdminPreviewsList from "./pages/AdminPreviewsList";
 import RequestInvite from "./pages/RequestInvite";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
-import Whatsapp from "./pages/Whatsapp";
+import ForBarbers from "./pages/ForBarbers";
 
 const queryClient = new QueryClient();
 

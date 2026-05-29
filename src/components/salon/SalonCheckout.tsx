@@ -163,13 +163,15 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
 
       console.log('[SALON] Fetching appointments for', staff.id, dateKey);
       
+      // Use the public availability view so unauthenticated visitors can
+      // see which slots are already booked (RLS on salon_appointments
+      // blocks anon SELECT for customer privacy).
       const { data, error } = await supabase
-        .from('salon_appointments')
+        .from('salon_appointments_availability' as any)
         .select('appointment_date, duration_minutes')
         .eq('staff_id', staff.id)
         .gte('appointment_date', startOfDay.toISOString())
-        .lte('appointment_date', endOfDay.toISOString())
-        .in('status', ['pending', 'confirmed']);
+        .lte('appointment_date', endOfDay.toISOString());
 
       if (error) throw error;
       console.log('[SALON] Got appointments:', data?.length);

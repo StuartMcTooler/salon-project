@@ -65,17 +65,28 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  // Sanitize id to prevent CSS injection — only allow alphanumerics, dashes, underscores.
+  const safeId = String(id).replace(/[^a-zA-Z0-9_-]/g, "");
+
+  // Validate color values to a whitelist of safe CSS color forms.
+  const isSafeColor = (c: string) =>
+    /^#[0-9a-fA-F]{3,8}$/.test(c) ||
+    /^(rgb|rgba|hsl|hsla)\([\d\s.,%/-]+\)$/.test(c) ||
+    /^[a-zA-Z]+$/.test(c) ||
+    /^[\d.]+\s+[\d.%]+\s+[\d.%]+(\s*\/\s*[\d.%]+)?$/.test(c);
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart=${safeId}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    const safeKey = String(key).replace(/[^a-zA-Z0-9_-]/g, "");
+    return color && isSafeColor(color) ? `  --color-${safeKey}: ${color};` : null;
   })
   .join("\n")}
 }

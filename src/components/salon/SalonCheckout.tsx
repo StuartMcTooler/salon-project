@@ -175,7 +175,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
 
       if (error) throw error;
       console.log('[SALON] Got appointments:', data?.length);
-      return data || [];
+      return (data || []) as Array<{ appointment_date: string; duration_minutes: number }>;
     },
     enabled: !!date,
     staleTime: 0,

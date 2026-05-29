@@ -38,6 +38,9 @@ import PreviewPage from "./pages/PreviewPage";
 import AdminNewPreview from "./pages/AdminNewPreview";
 import AdminPreviewsList from "./pages/AdminPreviewsList";
 import RequestInvite from "./pages/RequestInvite";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Whatsapp from "./pages/Whatsapp";
 
 const queryClient = new QueryClient();
 
@@ -96,6 +99,9 @@ const App = () => (
             <Route path="/admin/new-preview" element={<AdminNewPreview />} />
             <Route path="/admin/previews" element={<AdminPreviewsList />} />
             <Route path="/request-invite" element={<RequestInvite />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/whatsapp" element={<Whatsapp />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -678,14 +678,14 @@ const Home = () => {
               <span className="text-sm text-neutral-500">Made in Ireland</span>
             </div>
             <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
-              <Link
-                to="/privacy-policy"
-                className="text-neutral-600 hover:text-neutral-900"
-              >
+              <Link to="/privacy" className="text-neutral-600 hover:text-neutral-900">
                 Privacy
               </Link>
-              <Link to="/support" className="text-neutral-600 hover:text-neutral-900">
+              <Link to="/terms" className="text-neutral-600 hover:text-neutral-900">
                 Terms
+              </Link>
+              <Link to="/whatsapp" className="text-neutral-600 hover:text-neutral-900">
+                How we use WhatsApp
               </Link>
               <Link to="/support" className="text-neutral-600 hover:text-neutral-900">
                 Contact

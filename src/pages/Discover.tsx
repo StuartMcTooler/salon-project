@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { DiscoveryHeader } from "@/components/discovery/DiscoveryHeader";
+import { BarberBanner } from "@/components/discovery/BarberBanner";
 import { CreativeCard } from "@/components/discovery/CreativeCard";
 import { useCreativeDiscovery } from "@/hooks/useCreativeDiscovery";
+import SiteFooter from "@/components/SiteFooter";
 import { Loader2 } from "lucide-react";
 
 const Discover = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [availableToday, setAvailableToday] = useState(false);
-  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [selectedCity] = useState<string | null>(null);
 
   const { data, isLoading } = useCreativeDiscovery({
     searchQuery,
@@ -23,6 +25,7 @@ const Discover = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <BarberBanner />
       <DiscoveryHeader
         searchQuery={searchQuery}
         selectedServiceId={selectedServiceId}
@@ -56,20 +59,7 @@ const Discover = () => {
         )}
       </div>
 
-      {/* Site footer with nav links */}
-      <footer className="border-t border-border mt-8">
-        <div className="container mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} Bookd. All rights reserved.</span>
-          <nav className="flex gap-4">
-            <a href="/marketing" className="hover:text-foreground transition-colors">About</a>
-            <a href="/support" className="hover:text-foreground transition-colors">Support</a>
-            <a href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy Policy</a>
-          </nav>
-        </div>
-        <div className="border-t border-border px-4 py-3 text-center text-xs text-muted-foreground">
-          Bookd is a product of Downthesofa Irl Limited, trading as Lunch.Team.
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 };

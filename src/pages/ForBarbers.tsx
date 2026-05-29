@@ -13,8 +13,10 @@ import {
   Smartphone,
   Check,
   X,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import SiteFooter from "@/components/SiteFooter";
 
 const ACCENT = "#10b981";
 const BLACK = "#0a0a0a";
@@ -26,15 +28,23 @@ const scrollTo = (id: string) => (e: React.MouseEvent) => {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 };
 
-const Home = () => {
+const ForBarbers = () => {
   return (
     <>
       <Helmet>
-        <title>Bookd — The booking platform built for barbers</title>
+        <title>Bookd for Barbers — The booking platform built for independent barbers</title>
         <meta
           name="description"
-          content="Take card payments on your phone, fill last-minute gaps, and own your customer list. Built for independent barbers. Invite-only."
+          content="Take card payments on your phone, fill last-minute gaps, and own your customer list. Built for independent barbers, not chains. €20/month, no commission."
         />
+        <link rel="canonical" href="https://bookd.ie/for-barbers" />
+        <meta property="og:title" content="Bookd for Barbers — The booking platform built for independent barbers" />
+        <meta
+          property="og:description"
+          content="Take card payments on your phone, fill last-minute gaps, and own your customer list. €20/month, no commission."
+        />
+        <meta property="og:url" content="https://bookd.ie/for-barbers" />
+        <meta property="og:type" content="website" />
         <style>{`
           @media (max-width: 720px) {
             .bookd-vs-grid { grid-template-columns: 1fr !important; }
@@ -46,37 +56,24 @@ const Home = () => {
         {/* NAV */}
         <header className="sticky top-0 z-50 border-b border-neutral-200 bg-white/80 backdrop-blur-md">
           <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-            <Link to="/" className="text-xl font-extrabold tracking-tight">
+            <Link to="/for-barbers" className="text-xl font-extrabold tracking-tight" style={{ letterSpacing: "-0.03em" }}>
               Bookd
             </Link>
             <div className="hidden items-center gap-8 md:flex">
-              <a
-                href="#how"
-                onClick={scrollTo("how")}
-                className="text-sm font-medium text-neutral-700 hover:text-neutral-900"
-              >
+              <a href="#how" onClick={scrollTo("how")} className="text-sm font-medium text-neutral-700 hover:text-neutral-900">
                 How it works
               </a>
-              <a
-                href="#why"
-                onClick={scrollTo("why")}
-                className="text-sm font-medium text-neutral-700 hover:text-neutral-900"
-              >
+              <a href="#why" onClick={scrollTo("why")} className="text-sm font-medium text-neutral-700 hover:text-neutral-900">
                 Why Bookd
               </a>
-              <a
-                href="#pricing"
-                onClick={scrollTo("pricing")}
-                className="text-sm font-medium text-neutral-700 hover:text-neutral-900"
-              >
+              <a href="#pricing" onClick={scrollTo("pricing")} className="text-sm font-medium text-neutral-700 hover:text-neutral-900">
                 Pricing
               </a>
+              <Link to="/" className="text-sm font-medium text-neutral-700 hover:text-neutral-900">
+                Find a barber
+              </Link>
             </div>
-            <Button
-              asChild
-              className="rounded-full"
-              style={{ backgroundColor: BLACK, color: "white" }}
-            >
+            <Button asChild className="rounded-full" style={{ backgroundColor: BLACK, color: "white" }}>
               <Link to="/request-invite">Request invite</Link>
             </Button>
           </nav>
@@ -87,27 +84,25 @@ const Home = () => {
           <div className="mx-auto max-w-6xl px-4 py-20 md:py-28">
             <div className="mx-auto max-w-3xl">
               <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-neutral-700 bg-neutral-900/60 px-4 py-1.5 text-sm">
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: ACCENT }}
-                />
-                <span className="text-neutral-300">
-                  The booking platform built for barbers
-                </span>
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: ACCENT }} />
+                <span className="text-neutral-300">For independent barbers</span>
               </div>
               <h1
-                className="mb-8 text-5xl leading-[1.05] md:text-6xl lg:text-7xl"
+                className="mb-6 text-5xl leading-[1.05] md:text-6xl lg:text-7xl"
                 style={{ letterSpacing: "-0.03em", fontWeight: 800 }}
               >
-                Book your clients.
-                <br />
-                Build your brand.
-                <br />
-                <span style={{ color: ACCENT }}>Boost your income.</span>
+                The booking platform{" "}
+                <span style={{ color: ACCENT }}>built for barbers</span>.
               </h1>
-              <p className="mb-10 max-w-2xl text-lg text-neutral-300 md:text-xl">
-                Take card payments on your phone, fill last-minute gaps, and own your customer
-                list — on a platform built for independent barbers, not chains.
+              <p
+                className="mb-6 text-xl text-neutral-200 md:text-2xl"
+                style={{ letterSpacing: "-0.01em", fontWeight: 600 }}
+              >
+                Book your clients. Build your brand. Boost your income.
+              </p>
+              <p className="mb-10 max-w-2xl text-lg text-neutral-300">
+                Take card payments on your phone, fill last-minute gaps, and own your customer list —
+                on a platform built for independent barbers, not chains.
               </p>
               <div className="mb-6 flex flex-col gap-3 sm:flex-row">
                 <Button
@@ -126,9 +121,7 @@ const Home = () => {
                   variant="outline"
                   className="rounded-2xl border-neutral-700 bg-transparent px-8 text-base font-semibold text-white hover:bg-white/10 hover:text-white"
                 >
-                  <a href="#how" onClick={scrollTo("how")}>
-                    See how it works
-                  </a>
+                  <a href="#how" onClick={scrollTo("how")}>See how it works</a>
                 </Button>
               </div>
               <div className="flex items-center gap-3">
@@ -152,10 +145,7 @@ const Home = () => {
                 { h: "Yours", p: "Customer list you can take anywhere" },
               ].map((s) => (
                 <div key={s.h} className="p-8" style={{ backgroundColor: BLACK }}>
-                  <div
-                    className="text-2xl font-extrabold"
-                    style={{ letterSpacing: "-0.02em" }}
-                  >
+                  <div className="text-2xl font-extrabold" style={{ letterSpacing: "-0.02em" }}>
                     {s.h}
                   </div>
                   <p className="mt-2 text-sm text-neutral-400">{s.p}</p>
@@ -169,16 +159,10 @@ const Home = () => {
         <section id="how" className="bg-white">
           <div className="mx-auto max-w-6xl px-4 py-20 md:py-28">
             <div className="mb-14 max-w-2xl">
-              <p
-                className="mb-3 text-sm font-bold uppercase tracking-[0.2em]"
-                style={{ color: ACCENT }}
-              >
+              <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
                 How it works
               </p>
-              <h2
-                className="text-3xl font-extrabold tracking-tight md:text-4xl lg:text-5xl"
-                style={{ letterSpacing: "-0.02em" }}
-              >
+              <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl lg:text-5xl" style={{ letterSpacing: "-0.02em" }}>
                 Three steps from invite to first booking.
               </h2>
               <p className="mt-4 text-lg text-neutral-500">
@@ -187,21 +171,9 @@ const Home = () => {
             </div>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               {[
-                {
-                  n: "1",
-                  h: "Get your invite",
-                  p: "We DM you a link. Sign up with your phone number — no apps, no app stores, no kit to order.",
-                },
-                {
-                  n: "2",
-                  h: "Set your column",
-                  p: "Working hours, services, prices, deposit rules. Drop your booking link into your Instagram bio.",
-                },
-                {
-                  n: "3",
-                  h: "Get paid",
-                  p: "Customers book and pay through your link. You take card via Tap to Pay in person. Money lands same day.",
-                },
+                { n: "1", h: "Get your invite.", p: "We DM you a link. Sign up with your phone number — no apps, no app stores, no kit to order." },
+                { n: "2", h: "Set your column.", p: "Working hours, services, prices, deposit rules. Drop your booking link into your Instagram bio." },
+                { n: "3", h: "Get paid.", p: "Customers book and pay through your link. You take card via Tap to Pay in person. Money lands same day." },
               ].map((s) => (
                 <div key={s.n} className="rounded-2xl border border-neutral-200 bg-white p-8">
                   <div
@@ -222,16 +194,10 @@ const Home = () => {
         <section id="why" style={{ backgroundColor: SOFT }}>
           <div className="mx-auto max-w-6xl px-4 py-20 md:py-28">
             <div className="mb-14 max-w-2xl">
-              <p
-                className="mb-3 text-sm font-bold uppercase tracking-[0.2em]"
-                style={{ color: ACCENT }}
-              >
+              <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
                 Why Bookd
               </p>
-              <h2
-                className="text-3xl font-extrabold tracking-tight md:text-4xl lg:text-5xl"
-                style={{ letterSpacing: "-0.02em" }}
-              >
+              <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl lg:text-5xl" style={{ letterSpacing: "-0.02em" }}>
                 Built for the way you actually work.
               </h2>
               <p className="mt-4 text-lg text-neutral-500">
@@ -246,7 +212,7 @@ const Home = () => {
                   tag: "You own the relationship. Take it with you anywhere.",
                   bullets: [
                     "Customer database that's yours — export anytime",
-                    "Look book: photo at checkout, linked to their phone",
+                    "Look Book: photo at checkout, linked to their phone",
                     "Voice notes after the cut, transcribed and saved",
                     "Customer referrals via social — both get rewarded",
                   ],
@@ -274,31 +240,17 @@ const Home = () => {
                   ],
                 },
               ].map((p) => (
-                <div
-                  key={p.n}
-                  className="rounded-2xl border border-neutral-200 bg-white p-8 md:p-10"
-                >
-                  <div
-                    className="mb-4 text-sm font-bold tracking-widest"
-                    style={{ color: ACCENT }}
-                  >
+                <div key={p.n} className="rounded-2xl border border-neutral-200 bg-white p-8 md:p-10">
+                  <div className="mb-4 text-sm font-bold tracking-widest" style={{ color: ACCENT }}>
                     {p.n}
                   </div>
-                  <h3
-                    className="mb-2 text-2xl font-extrabold tracking-tight md:text-3xl"
-                    style={{ letterSpacing: "-0.02em" }}
-                  >
+                  <h3 className="mb-2 text-2xl font-extrabold tracking-tight md:text-3xl" style={{ letterSpacing: "-0.02em" }}>
                     {p.h}
                   </h3>
-                  <p className="mb-6 text-base italic" style={{ color: TAG }}>
-                    {p.tag}
-                  </p>
+                  <p className="mb-6 text-base italic" style={{ color: TAG }}>{p.tag}</p>
                   <ul className="space-y-3">
                     {p.bullets.map((b) => (
-                      <li
-                        key={b}
-                        className="flex items-start gap-3 text-neutral-700"
-                      >
+                      <li key={b} className="flex items-start gap-3 text-neutral-700">
                         <span
                           className="mt-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full"
                           style={{ backgroundColor: ACCENT }}
@@ -315,13 +267,10 @@ const Home = () => {
           </div>
         </section>
 
-        {/* MANIFESTO */}
+        {/* MANIFESTO — The Bookd Promise */}
         <section className="text-white" style={{ backgroundColor: BLACK }}>
           <div className="mx-auto max-w-5xl px-4 py-24 text-center md:py-32">
-            <p
-              className="mb-8 text-sm font-bold uppercase tracking-[0.2em]"
-              style={{ color: ACCENT }}
-            >
+            <p className="mb-8 text-sm font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
               The Bookd Promise
             </p>
             <h2
@@ -337,32 +286,21 @@ const Home = () => {
           </div>
         </section>
 
-        {/* VS THE OLD WAY — side-by-side, collapses <720px */}
+        {/* VS THE OLD WAY */}
         <section className="bg-white">
           <div className="mx-auto max-w-6xl px-4 py-20 md:py-28">
             <div className="mb-14 max-w-2xl">
-              <p
-                className="mb-3 text-sm font-bold uppercase tracking-[0.2em]"
-                style={{ color: ACCENT }}
-              >
+              <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
                 vs. The old way
               </p>
-              <h2
-                className="text-3xl font-extrabold tracking-tight md:text-4xl lg:text-5xl"
-                style={{ letterSpacing: "-0.02em" }}
-              >
+              <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl lg:text-5xl" style={{ letterSpacing: "-0.02em" }}>
                 Built for you. Not the chain across the road.
               </h2>
             </div>
             <div
               className="bookd-vs-grid"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "20px",
-              }}
+              style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}
             >
-              {/* LEFT — Booksy / Square — muted grey */}
               <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-8 md:p-10">
                 <h3 className="mb-6 text-sm font-bold uppercase tracking-widest text-neutral-500">
                   Booksy / Square / others
@@ -375,25 +313,15 @@ const Home = () => {
                     "Card reader hardware to buy and lose",
                     "Flat pricing — chains only get the surge",
                   ].map((b) => (
-                    <li
-                      key={b}
-                      className="flex items-start gap-3 text-neutral-600"
-                    >
+                    <li key={b} className="flex items-start gap-3 text-neutral-600">
                       <X className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
                       <span>{b}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-              {/* RIGHT — Bookd — black */}
-              <div
-                className="rounded-2xl p-8 text-white md:p-10"
-                style={{ backgroundColor: BLACK }}
-              >
-                <h3
-                  className="mb-6 text-sm font-bold uppercase tracking-widest"
-                  style={{ color: ACCENT }}
-                >
+              <div className="rounded-2xl p-8 text-white md:p-10" style={{ backgroundColor: BLACK }}>
+                <h3 className="mb-6 text-sm font-bold uppercase tracking-widest" style={{ color: ACCENT }}>
                   Bookd
                 </h3>
                 <ul className="space-y-4">
@@ -405,10 +333,7 @@ const Home = () => {
                     "Dynamic pricing for solo barbers, opt-in",
                   ].map((b) => (
                     <li key={b} className="flex items-start gap-3 text-white">
-                      <Check
-                        className="mt-0.5 h-5 w-5 shrink-0"
-                        style={{ color: ACCENT }}
-                      />
+                      <Check className="mt-0.5 h-5 w-5 shrink-0" style={{ color: ACCENT }} />
                       <span className="font-medium">{b}</span>
                     </li>
                   ))}
@@ -422,16 +347,10 @@ const Home = () => {
         <section style={{ backgroundColor: SOFT }}>
           <div className="mx-auto max-w-6xl px-4 py-20 md:py-28">
             <div className="mb-14 max-w-2xl">
-              <p
-                className="mb-3 text-sm font-bold uppercase tracking-[0.2em]"
-                style={{ color: ACCENT }}
-              >
+              <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
                 In the box
               </p>
-              <h2
-                className="text-3xl font-extrabold tracking-tight md:text-4xl lg:text-5xl"
-                style={{ letterSpacing: "-0.02em" }}
-              >
+              <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl lg:text-5xl" style={{ letterSpacing: "-0.02em" }}>
                 Everything an independent shop needs.
               </h2>
               <p className="mt-4 text-lg text-neutral-500">
@@ -440,41 +359,14 @@ const Home = () => {
             </div>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                {
-                  icon: Activity,
-                  h: "Revenue dashboard",
-                  p: "What's earned, what's pending, what's trending — in one view.",
-                },
-                {
-                  icon: ImageIcon,
-                  h: "Look book / visual history",
-                  p: "Photo at checkout, linked to their phone. Pull up the last cut in a tap.",
-                },
-                {
-                  icon: Mic,
-                  h: "Voice notes → text",
-                  p: "Talk into your phone after the cut. Transcribed and saved against the client.",
-                },
-                {
-                  icon: Users,
-                  h: "Customer referrals",
-                  p: "Clients post about you on social, both get rewarded automatically.",
-                },
-                {
-                  icon: Shield,
-                  h: "Rewards & loyalty",
-                  p: "Built-in loyalty so regulars keep coming back without a stamp card.",
-                },
-                {
-                  icon: ShieldCheck,
-                  h: "GDPR sign-off built in",
-                  p: "Clean consent flow for using client images. No paperwork to worry about.",
-                },
+                { icon: Activity, h: "Revenue dashboard", p: "What's earned, what's pending, what's trending — in one view." },
+                { icon: ImageIcon, h: "Look Book / visual history", p: "Photo at checkout, linked to their phone. Pull up the last cut in a tap." },
+                { icon: Mic, h: "Voice notes → text", p: "Talk into your phone after the cut. Transcribed and saved against the client." },
+                { icon: Users, h: "Customer referrals", p: "Clients post about you on social, both get rewarded automatically." },
+                { icon: Shield, h: "Rewards & loyalty", p: "Built-in loyalty so regulars keep coming back without a stamp card." },
+                { icon: ShieldCheck, h: "GDPR sign-off built in", p: "Clean consent flow for using client images. No paperwork to worry about." },
               ].map((f) => (
-                <div
-                  key={f.h}
-                  className="rounded-2xl border border-neutral-200 bg-white p-7"
-                >
+                <div key={f.h} className="rounded-2xl border border-neutral-200 bg-white p-7">
                   <div
                     className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-xl"
                     style={{ backgroundColor: `${ACCENT}1a` }}
@@ -500,16 +392,10 @@ const Home = () => {
               }}
             >
               <div className="mb-12 max-w-2xl">
-                <p
-                  className="mb-4 text-sm font-bold uppercase tracking-[0.2em]"
-                  style={{ color: ACCENT }}
-                >
+                <p className="mb-4 text-sm font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
                   Built for what's coming next
                 </p>
-                <h2
-                  className="text-3xl font-extrabold tracking-tight md:text-4xl lg:text-5xl"
-                  style={{ letterSpacing: "-0.02em" }}
-                >
+                <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl lg:text-5xl" style={{ letterSpacing: "-0.02em" }}>
                   The AI bookings layer is on the way. We're building so you benefit.
                 </h2>
                 <p className="mt-4 text-lg text-neutral-400">
@@ -520,26 +406,11 @@ const Home = () => {
               </div>
               <div className="grid gap-5 md:grid-cols-3">
                 {[
-                  {
-                    icon: Zap,
-                    h: "AI booking routing",
-                    p: "Booked out? AI finds your customer the best matching barber on Bookd. You both get paid.",
-                  },
-                  {
-                    icon: Wand2,
-                    h: "AI marketing content",
-                    p: "Auto-generated posts and captions, pulled from your look book.",
-                  },
-                  {
-                    icon: Smartphone,
-                    h: "Smart booking pages",
-                    p: "Pages that update themselves with your seasonal pricing and availability.",
-                  },
+                  { icon: Zap, h: "AI booking routing", p: "Booked out? AI finds your customer the best matching barber on Bookd. You both get paid." },
+                  { icon: Wand2, h: "AI marketing content", p: "Auto-generated posts and captions, pulled from your Look Book." },
+                  { icon: Smartphone, h: "Smart booking pages", p: "Pages that update themselves with your seasonal pricing and availability." },
                 ].map((i) => (
-                  <div
-                    key={i.h}
-                    className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-6"
-                  >
+                  <div key={i.h} className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-6">
                     <div
                       className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl"
                       style={{ backgroundColor: `${ACCENT}1a` }}
@@ -559,16 +430,10 @@ const Home = () => {
         <section id="pricing" className="bg-white">
           <div className="mx-auto max-w-6xl px-4 py-20 md:py-28">
             <div className="mb-12 text-center">
-              <p
-                className="mb-3 text-sm font-bold uppercase tracking-[0.2em]"
-                style={{ color: ACCENT }}
-              >
+              <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
                 Pricing
               </p>
-              <h2
-                className="text-3xl font-extrabold tracking-tight md:text-4xl lg:text-5xl"
-                style={{ letterSpacing: "-0.02em" }}
-              >
+              <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl lg:text-5xl" style={{ letterSpacing: "-0.02em" }}>
                 One flat fee. No commission.
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-lg text-neutral-500">
@@ -580,43 +445,26 @@ const Home = () => {
               <div className="rounded-3xl border border-neutral-200 bg-white p-10 text-center shadow-sm">
                 <span
                   className="mb-8 inline-flex items-center rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-widest"
-                  style={{
-                    borderColor: ACCENT,
-                    color: ACCENT,
-                    backgroundColor: `${ACCENT}10`,
-                  }}
+                  style={{ borderColor: ACCENT, color: ACCENT, backgroundColor: `${ACCENT}10` }}
                 >
                   Bookd Pro
                 </span>
                 <div className="mb-1 flex items-baseline justify-center gap-1">
-                  <span
-                    className="text-6xl font-extrabold"
-                    style={{ letterSpacing: "-0.03em" }}
-                  >
-                    €20
-                  </span>
+                  <span className="text-6xl font-extrabold" style={{ letterSpacing: "-0.03em" }}>€20</span>
                   <span className="text-lg text-neutral-500">/month</span>
                 </div>
-                <p className="mb-8 text-sm text-neutral-500">
-                  Then €0 per booking. Forever.
-                </p>
+                <p className="mb-8 text-sm text-neutral-500">Then €0 per booking. Forever.</p>
                 <ul className="mb-8 space-y-3 text-left">
                   {[
                     "Tap to Pay, no card reader needed",
                     "Same-day payouts to your bank",
                     "Unlimited bookings, customers, and SMS reminders",
-                    "Look book, voice notes, customer database",
+                    "Look Book, voice notes, customer database",
                     "Dynamic pricing & smart deposits",
                     "Barber-to-barber referral revenue share",
                   ].map((b) => (
-                    <li
-                      key={b}
-                      className="flex items-start gap-2 text-sm text-neutral-800"
-                    >
-                      <Check
-                        className="mt-0.5 h-4 w-4 shrink-0"
-                        style={{ color: ACCENT }}
-                      />
+                    <li key={b} className="flex items-start gap-2 text-sm text-neutral-800">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0" style={{ color: ACCENT }} />
                       <span>{b}</span>
                     </li>
                   ))}
@@ -640,65 +488,39 @@ const Home = () => {
           </div>
         </section>
 
-        {/* CUSTOMER CTA STRIP */}
+        {/* HOW WE USE WHATSAPP */}
         <section style={{ backgroundColor: SOFT }}>
-          <div className="mx-auto max-w-6xl px-4 py-16">
-            <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
-              <div>
-                <h2
-                  className="text-3xl font-extrabold tracking-tight md:text-4xl"
-                  style={{ letterSpacing: "-0.02em" }}
-                >
-                  Looking for a barber?
-                </h2>
-                <p className="mt-3 text-lg text-neutral-500">
-                  Find one near you on Bookd — book in seconds, no calls, no DMs.
-                </p>
-              </div>
-              <Button
-                asChild
-                variant="outline"
-                size="lg"
-                className="rounded-2xl border-neutral-900 px-6 text-base font-semibold"
+          <div className="mx-auto max-w-4xl px-4 py-16 md:py-20">
+            <div className="rounded-2xl border border-neutral-200 bg-white p-8 md:p-10">
+              <div
+                className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-xl"
+                style={{ backgroundColor: `${ACCENT}1a` }}
               >
-                <Link to="/discover">
-                  Find a barber <ArrowRight className="ml-1 h-4 w-4" />
-                </Link>
-              </Button>
+                <MessageCircle className="h-5 w-5" style={{ color: ACCENT }} />
+              </div>
+              <h2 className="mb-3 text-2xl font-extrabold tracking-tight md:text-3xl" style={{ letterSpacing: "-0.02em" }}>
+                How we use WhatsApp
+              </h2>
+              <p className="mb-4 text-neutral-700">
+                Bookd uses WhatsApp Business to send booking confirmations and reminders with
+                Look Book photos to clients who opt in at checkout. If a client doesn't use
+                WhatsApp, we fall back to SMS automatically.
+              </p>
+              <Link
+                to="/whatsapp"
+                className="inline-flex items-center gap-1 text-sm font-semibold underline underline-offset-2"
+                style={{ color: "#047857" }}
+              >
+                Read our WhatsApp policy →
+              </Link>
             </div>
           </div>
         </section>
 
-        {/* FOOTER */}
-        <footer className="border-t border-neutral-200 bg-white">
-          <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-4 py-10 md:flex-row md:items-center">
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-extrabold tracking-tight">Bookd</span>
-              <span className="text-neutral-400">·</span>
-              <span className="text-sm text-neutral-500">Made in Ireland</span>
-            </div>
-            <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
-              <Link to="/privacy" className="text-neutral-600 hover:text-neutral-900">
-                Privacy
-              </Link>
-              <Link to="/terms" className="text-neutral-600 hover:text-neutral-900">
-                Terms
-              </Link>
-              <Link to="/whatsapp" className="text-neutral-600 hover:text-neutral-900">
-                How we use WhatsApp
-              </Link>
-              <Link to="/support" className="text-neutral-600 hover:text-neutral-900">
-                Contact
-              </Link>
-            </div>
-          </div>
-          <div className="border-t border-neutral-100 px-4 py-4 text-center text-xs text-neutral-500">
-            Bookd is a product of Downthesofa Irl Limited, trading as Lunch.Team.
-          </div>
-        </footer>
+        <SiteFooter />
       </div>
     </>
   );
 };
 
-export default Home;
+export default ForBarbers;

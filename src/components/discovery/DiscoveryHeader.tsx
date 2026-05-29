@@ -1,6 +1,6 @@
-import { User, Scissors } from "lucide-react";
+import { User } from "lucide-react";
 import { BookdScissors } from "@/components/ui/BookdScissors";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "./SearchBar";
 import { FilterChips } from "./FilterChips";
@@ -32,14 +32,22 @@ export const DiscoveryHeader = ({
           <BookdScissors className="w-6 h-6" />
           <span className="font-semibold text-lg">Discover</span>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate('/portal')}
-          aria-label="User profile"
-        >
-          <User className="w-5 h-5" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Link
+            to="/for-barbers"
+            className="px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            For Barbers
+          </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/portal')}
+            aria-label="User profile"
+          >
+            <User className="w-5 h-5" />
+          </Button>
+        </div>
       </div>
 
       {/* Search Bar */}

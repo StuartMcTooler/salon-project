@@ -39,6 +39,7 @@ import AdminPreviewsList from "./pages/AdminPreviewsList";
 import RequestInvite from "./pages/RequestInvite";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import Whatsapp from "./pages/Whatsapp";
 import ForBarbers from "./pages/ForBarbers";
 
 const queryClient = new QueryClient();
@@ -69,7 +70,8 @@ const App = () => (
           <PasswordRecoveryHandler />
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/home" element={<Home />} />
+            <Route path="/for-barbers" element={<ForBarbers />} />
+            <Route path="/home" element={<Navigate to="/for-barbers" replace />} />
             <Route path="/discover" element={<Discover />} />
             <Route path="/salon" element={<Salon />} />
             <Route path="/book/:staffId" element={<PublicBooking />} />

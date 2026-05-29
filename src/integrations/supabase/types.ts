@@ -426,6 +426,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "client_content_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments_availability"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "client_content_creative_id_fkey"
             columns: ["creative_id"]
             isOneToOne: false
@@ -647,6 +654,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "content_requests_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments_availability"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "content_requests_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
@@ -715,6 +729,13 @@ export type Database = {
             columns: ["appointment_id"]
             isOneToOne: false
             referencedRelation: "salon_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creative_earnings_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments_availability"
             referencedColumns: ["id"]
           },
           {
@@ -1335,6 +1356,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "loyalty_transactions_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments_availability"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "loyalty_transactions_creative_id_fkey"
             columns: ["creative_id"]
             isOneToOne: false
@@ -1760,6 +1788,13 @@ export type Database = {
             columns: ["appointment_id"]
             isOneToOne: false
             referencedRelation: "salon_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_transactions_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments_availability"
             referencedColumns: ["id"]
           },
           {
@@ -2464,6 +2499,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "switching_bonus_ledger_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments_availability"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "switching_bonus_ledger_creative_id_fkey"
             columns: ["creative_id"]
             isOneToOne: false
@@ -2700,6 +2742,48 @@ export type Database = {
       }
     }
     Views: {
+      salon_appointments_availability: {
+        Row: {
+          appointment_date: string | null
+          duration_minutes: number | null
+          id: string | null
+          is_blocked: boolean | null
+          staff_id: string | null
+          status: string | null
+        }
+        Insert: {
+          appointment_date?: string | null
+          duration_minutes?: number | null
+          id?: string | null
+          is_blocked?: boolean | null
+          staff_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          appointment_date?: string | null
+          duration_minutes?: number | null
+          id?: string | null
+          is_blocked?: boolean | null
+          staff_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salon_appointments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salon_appointments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_members_public: {
         Row: {
           area: string | null

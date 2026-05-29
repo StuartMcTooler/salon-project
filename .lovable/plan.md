@@ -1,61 +1,93 @@
-# Marketing Homepage — Final Build Plan
+# Pass 2 — Marketing page, banner, global footer (revised)
 
-All corrections from the thread are locked in. Approve this plan and I'll write the files.
+Booking app at `/` already renders `<Discover />` (via `Index.tsx`). The existing barber marketing copy at `/home` (`src/pages/Home.tsx`) is superseded by a new canonical `/for-barbers` page; `/home` becomes a redirect.
 
-## Files
+## 1. New: `src/components/SiteFooter.tsx`
 
-**Create**
-- `src/pages/Home.tsx` — full marketing page with `<Helmet>` (your exact title + description). Tokens: accent `#10b981`, black `#0a0a0a`, soft grey `#f6f6f5`, italic tag colour `#2a2a2a`. Hero h1 + manifesto h2 use `font-weight: 800` + `letter-spacing: -0.03em`. Smooth-scroll anchors `#how`, `#why`, `#pricing`.
-- `src/pages/RequestInvite.tsx` — placeholder. Black bg, "Invite-only" pill, h1 "Bookd is invite-only right now.", body copy referencing @bookd_ie, single CTA "Open Instagram →" → `https://instagram.com/bookd_ie`. No form. No backend.
+Shared footer used by Discover, `/for-barbers`, `/privacy`, `/terms`, `/whatsapp`.
 
-**Modify**
-- `src/pages/Index.tsx` — replace `navigate("/discover")` web branch with an in-place render of `<Home />` via a `showHome` state flag. Native (`isNativeApp()`) routing, password-recovery flow, and authenticated-redirect logic untouched.
-- `src/App.tsx` — add `import RequestInvite` and register `<Route path="/request-invite" element={<RequestInvite />} />` above the catch-all.
+Three link groups:
+- **Product** — About (`/for-barbers`) · For Barbers (`/for-barbers`) · Pricing (`/for-barbers#pricing`) · Find a barber (`/`)
+- **Legal** — Privacy Policy (`/privacy`) · Terms (`/terms`) · How we use WhatsApp (`/whatsapp`)
+- **Contact** — `mailto:support@bookd.ie`
 
-**Untouched:** `Marketing.tsx`, `/discover`, `/preview/:handle`, all DB / edge functions, all Capacitor logic.
+Attribution line (replaces existing):
+> "Bookd is operated by Downthesofa Ireland Limited (registered in Ireland, CRO 538446, 17 Northbrook Terrace, North Strand, Dublin, D03WV44). Downthesofa Ireland Limited also operates Lunch.Team."
 
-## Locked corrections (all in)
+White bg, neutral-200 border, brand row "Bookd · Made in Ireland".
 
-### A. "In the box" — 6 complement tiles (no overlap with pillars)
-Revenue dashboard · Look book / visual history · Voice notes → text · Customer referrals · Rewards & loyalty · GDPR sign-off built in. Exact descriptions from your message.
+## 2. New page: `src/pages/ForBarbers.tsx`
 
-### B. Comparison columns — Bookd card BLACK, Booksy card MUTED GREY
-Bookd: `backgroundColor: #0a0a0a`, white text, accent-green check marks. Booksy/Square: `bg-neutral-50`, red `X` marks.
+Same design tokens as existing Home (accent `#10b981`, black `#0a0a0a`, soft grey `#f6f6f5`, italic tag `#2a2a2a`), restructured to match the prompt content:
 
-### C. Pillar sub-headlines — italic `#2a2a2a` tag between H3 and bullets
-- Pillar 1: *"You own the relationship. Take it with you anywhere."*
-- Pillar 2: *"Even when you're booked out, you still get paid."*
-- Pillar 3: *"Stop watching gaps appear at 3pm."*
+1. Sticky nav — Bookd logo, anchors `#how` / `#why` / `#pricing`, black "Request invite" pill → `/request-invite`
+2. Hero (black) — "The booking platform built for barbers" + subhead + support line, green "Request invite" + outline "See how it works" (→ `#how`), invite-only badge, 3 stat tiles (No hardware / Same day / Yours)
+3. How it works (white, `id="how"`) — 3 numbered cards
+4. Why Bookd (soft grey, `id="why"`) — 3 pillars with italic tag + bullets
+5. The Bookd Promise (black manifesto band)
+6. vs The Old Way (white) — side-by-side 2-col grid, Booksy/Square left (grey, red X), Bookd right (black, green check), collapses <720px
+7. In the box (soft grey) — 6 tiles
+8. Built for what's coming next (black rounded card on white) — 3 AI tiles
+9. Pricing (white, `id="pricing"`) — Bookd Pro €20/month, 6 features, 50¢ fine print, "Request an invite" CTA
+10. How we use WhatsApp (soft grey) — 2-sentence summary + "Read our WhatsApp policy →" → `/whatsapp`
+11. `<SiteFooter />`
 
-### D. NEW — Comparison cards SIDE-BY-SIDE on desktop/tablet
-Container is an inline-style grid:
-```
-display: grid;
-grid-template-columns: 1fr 1fr;
-gap: 20px;
-```
-Collapses to single column only at `max-width: 720px` (via a Tailwind arbitrary-variant override `[@media(max-width:720px)]:!grid-cols-1`). Booksy/Square card on the LEFT, Bookd card on the RIGHT.
+`<Helmet>`: title "Bookd for Barbers — The booking platform built for independent barbers", description per prompt, canonical `https://bookd.ie/for-barbers`.
 
-## Section order (final)
+## 3. `src/components/discovery/DiscoveryHeader.tsx`
 
-1. Sticky white nav — anchors + black "Request invite" CTA
-2. Hero (black) — eyebrow pill, 3-line H1 with green "Boost your income.", subhead, green primary + outline secondary CTA, invite-only badge row, 3 stat tiles (No hardware / Same day / Yours)
-3. How it works (white) — 3 numbered cards (Get your invite / Set your column / Get paid)
-4. Why Bookd (soft grey) — 3 pillar cards with italic tag (correction C) + 4 bullets each
-5. Manifesto (black) — "Your chair. Your clients. **Your money.** Your rules."
-6. vs. The old way (white) — **2-column grid** (correction D), Booksy LEFT (grey), Bookd RIGHT (black)
-7. In the box (soft grey) — 6 complement tiles (correction A)
-8. Built for what's coming next (black rounded card on white) — 3 AI roadmap items with your exact copy
-9. Pricing (white) — Bookd Pro card, €20/month, 6 features, 50¢ fine print, "Request an invite" CTA
-10. Customer CTA strip (soft grey) — "Looking for a barber?" + outline "Find a barber" → /discover
-11. Footer (white) — Bookd · Made in Ireland · Privacy / Terms / Contact
+Add "For Barbers" `<Link to="/for-barbers">` in the top bar, immediately before the user/profile icon.
 
-## Technical notes
+## 4. New: `src/components/discovery/BarberBanner.tsx`
 
-- All custom hex values applied via inline `style={{}}` so `index.css` / `tailwind.config.ts` stay untouched.
-- shadcn `Button` + `lucide-react` icons (already installed): ArrowRight, Activity, Image, Mic, Users, Shield, ShieldCheck, Wand2, Zap, Smartphone, Check, X, Instagram, ArrowLeft.
-- Native (Capacitor) staff users still hit Index.tsx routing logic — they never see the homepage.
-- No new dependencies. No DB migration. No edge function changes. No security-relevant changes.
+Slim dismissible banner rendered in `Discover.tsx` above `<DiscoveryHeader />` (keeps sticky header untouched).
 
-## After build
-You'll get a diff-style before/after summary covering all 4 touched files.
+- Copy: "Are you a barber? Run your own column with Bookd Pro — Learn more →" → `/for-barbers`
+- `×` dismiss; persists via `localStorage["bookd:barber-banner-dismissed"] = "1"`; hidden on mount if set
+- Subtle accent-tinted bg, single line desktop, wraps on mobile
+
+## 5. `src/pages/Discover.tsx`
+
+- Render `<BarberBanner />` above `<DiscoveryHeader />`
+- Replace inline footer with `<SiteFooter />`
+
+## 6. `src/pages/LegalPage.tsx`
+
+- Replace inline footer with `<SiteFooter />`
+- Update top-nav anchor links so they cross-navigate to the marketing page:
+  - `/#how` → `/for-barbers#how`
+  - `/#why` → `/for-barbers#why`
+  - `/#pricing` → `/for-barbers#pricing`
+
+(Markdown content untouched.)
+
+## 7. Remove `/home` duplication
+
+- Delete `src/pages/Home.tsx`
+- In `src/App.tsx`, replace the `/home` route with a redirect: `<Route path="/home" element={<Navigate to="/for-barbers" replace />} />` (import `Navigate` from `react-router-dom`; drop the `Home` import)
+
+## 8. `src/App.tsx`
+
+- `import ForBarbers from "./pages/ForBarbers";`
+- `import { Navigate } from "react-router-dom";` (alongside existing imports)
+- Drop `import Home`
+- Routes: `<Route path="/for-barbers" element={<ForBarbers />} />` and `<Route path="/home" element={<Navigate to="/for-barbers" replace />} />` (both above the catch-all). All other routes untouched.
+
+## 9. SEO
+
+- `/for-barbers` — Helmet inside `ForBarbers.tsx` per prompt
+- `/privacy`, `/terms`, `/whatsapp` — already correct via existing `LegalPage` Helmet; no change
+
+## Out of scope
+
+- No changes to Discover search bar / filters / stylist cards / hooks / data layer
+- No changes to `src/content/*.md`
+- No backend, RLS, or edge-function changes
+- No new dependencies
+- `Index.tsx` routing logic untouched
+
+## Files touched
+
+**Create:** `src/components/SiteFooter.tsx`, `src/components/discovery/BarberBanner.tsx`, `src/pages/ForBarbers.tsx`
+**Modify:** `src/App.tsx`, `src/pages/Discover.tsx`, `src/pages/LegalPage.tsx`, `src/components/discovery/DiscoveryHeader.tsx`
+**Delete:** `src/pages/Home.tsx`

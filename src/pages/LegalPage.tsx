@@ -2,6 +2,8 @@ import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import SiteFooter from "@/components/SiteFooter";
+
 
 interface LegalPageProps {
   title: string;
@@ -31,9 +33,9 @@ const LegalPage = ({ title, description, path, content }: LegalPageProps) => {
               Bookd
             </Link>
             <nav className="flex items-center gap-6 text-sm">
-              <Link to="/#how" className="hidden text-neutral-600 hover:text-neutral-900 sm:inline">How it works</Link>
-              <Link to="/#why" className="hidden text-neutral-600 hover:text-neutral-900 sm:inline">Why Bookd</Link>
-              <Link to="/#pricing" className="hidden text-neutral-600 hover:text-neutral-900 sm:inline">Pricing</Link>
+              <Link to="/for-barbers#how" className="hidden text-neutral-600 hover:text-neutral-900 sm:inline">How it works</Link>
+              <Link to="/for-barbers#why" className="hidden text-neutral-600 hover:text-neutral-900 sm:inline">Why Bookd</Link>
+              <Link to="/for-barbers#pricing" className="hidden text-neutral-600 hover:text-neutral-900 sm:inline">Pricing</Link>
               <Link
                 to="/request-invite"
                 className="rounded-full px-4 py-2 text-sm font-semibold text-white"
@@ -70,25 +72,7 @@ const LegalPage = ({ title, description, path, content }: LegalPageProps) => {
           </article>
         </main>
 
-        {/* FOOTER — matches Home.tsx */}
-        <footer className="border-t border-neutral-200 bg-white">
-          <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-4 py-10 md:flex-row md:items-center">
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-extrabold tracking-tight">Bookd</span>
-              <span className="text-neutral-400">·</span>
-              <span className="text-sm text-neutral-500">Made in Ireland</span>
-            </div>
-            <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
-              <Link to="/privacy" className="text-neutral-600 hover:text-neutral-900">Privacy</Link>
-              <Link to="/terms" className="text-neutral-600 hover:text-neutral-900">Terms</Link>
-              <Link to="/whatsapp" className="text-neutral-600 hover:text-neutral-900">How we use WhatsApp</Link>
-              <Link to="/support" className="text-neutral-600 hover:text-neutral-900">Contact</Link>
-            </div>
-          </div>
-          <div className="border-t border-neutral-100 px-4 py-4 text-center text-xs text-neutral-500">
-            Bookd is a product of Downthesofa Irl Limited, trading as Lunch.Team.
-          </div>
-        </footer>
+        <SiteFooter />
       </div>
     </>
   );

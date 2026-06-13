@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, startOfDay, addDays } from "date-fns";
+import { format, startOfDay, addDays, isSameDay } from "date-fns";
 import { useState, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -126,11 +126,20 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
     const hour = aptDate.getHours();
     const minute = aptDate.getMinutes();
 
-    const rowStart = ((hour - startHour) * (60 / slotSize)) + (minute / slotSize) + 1;
+    const rowStart = ((hour - startHour) * (60 / slotSize)) + (minute / slotSize) + 2;
     const rowSpan = Math.ceil(durationMinutes / slotSize);
 
     return { rowStart, rowSpan };
   };
+
+  const visibleAppointments = appointments?.filter((appointment) => {
+    if (!appointment.appointment_date) return false;
+
+    const appointmentDate = new Date(appointment.appointment_date);
+    const appointmentHour = appointmentDate.getHours();
+
+    return isSameDay(appointmentDate, selectedDate) && appointmentHour >= 9 && appointmentHour < 19;
+  }) || [];
 
   const isTimeSlotAvailable = (staffId: string, time: Date) => {
     if (!businessHours) return true;
@@ -240,7 +249,7 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
         ))}
 
         {/* Appointments as overlays */}
-        {appointments?.map((appointment) => {
+        {visibleAppointments.map((appointment) => {
           const staffIndex = staffMembers?.findIndex(s => s.id === appointment.staff_id);
           if (staffIndex === -1 || staffIndex === undefined) return null;
 

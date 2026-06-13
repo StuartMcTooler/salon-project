@@ -188,13 +188,15 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
     return <Skeleton className="h-[600px] w-full" />;
   }
 
+  const activeStaffMembers = staffMembers ?? [];
+
   const timeSlots = Array.from({ length: 37 }, (_, i) => {
     const hour = Math.floor(i / 4) + 9;
     const minute = (i % 4) * 15;
     return { hour, minute, label: i % 4 === 0 ? format(new Date(2000, 0, 1, hour, minute), 'h:mm a') : '' };
   });
 
-  const staffCount = staffMembers?.length || 0;
+  const staffCount = activeStaffMembers.length;
 
   if (!staffCount) {
     return (
@@ -217,11 +219,11 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
         <div className="bg-background sticky top-0 z-10 border-b font-semibold p-2 flex items-center">
           Time
         </div>
-        {staffMembers?.map((staff) => (
+        {activeStaffMembers.map((staff, staffIndex) => (
           <div
             key={`header-${staff.id}`}
             className="bg-background sticky top-0 z-10 border-b font-semibold p-2 flex items-center justify-center"
-            style={{ gridColumn: staffMembers.findIndex((member) => member.id === staff.id) + 2, gridRow: 1 }}
+            style={{ gridColumn: staffIndex + 2, gridRow: 1 }}
           >
             {staff.display_name}
           </div>
@@ -229,7 +231,7 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
 
         {/* Time slots and staff columns */}
         {timeSlots.map((slot, slotIndex) => (
-          <>
+          <div key={`time-row-${slotIndex}`} className="contents">
             {/* Time label */}
             <div 
               key={`time-${slotIndex}`}
@@ -239,7 +241,7 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
             </div>
 
             {/* Staff columns */}
-            {staffMembers?.map((staff) => {
+            {activeStaffMembers.map((staff, staffIndex) => {
               const slotTime = new Date(selectedDate);
               slotTime.setHours(slot.hour, slot.minute, 0, 0);
               const isAvailable = isTimeSlotAvailable(staff.id, slotTime);
@@ -249,7 +251,7 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
                   key={`slot-${staff.id}-${slotIndex}`}
                   className={`relative group ${isAvailable ? 'bg-background hover:bg-accent cursor-pointer' : 'bg-muted/50'}`}
                   style={{
-                    gridColumn: staffMembers.findIndex((member) => member.id === staff.id) + 2,
+                    gridColumn: staffIndex + 2,
                     gridRow: slotIndex + 2,
                     minHeight: '20px',
                   }}
@@ -260,12 +262,12 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
                 </div>
               );
             })}
-          </>
+          </div>
         ))}
 
         {/* Appointments as overlays */}
         {visibleAppointments.map((appointment) => {
-          const staffIndex = staffMembers?.findIndex(s => s.id === appointment.staff_id);
+          const staffIndex = activeStaffMembers.findIndex((staff) => staff.id === appointment.staff_id);
           if (staffIndex === -1 || staffIndex === undefined) return null;
 
           const { rowStart, rowSpan } = calculateGridPosition(

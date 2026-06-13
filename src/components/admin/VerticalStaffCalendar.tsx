@@ -1,10 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfDay, addDays, isSameDay } from "date-fns";
 import { useState, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { AppointmentDetailsDialog } from "@/components/booking/AppointmentDetailsDialog";
 import { TimeBlockModal } from "@/components/pos/TimeBlockModal";
 import { Ban } from "lucide-react";
@@ -19,9 +17,10 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
   const [blockModalOpen, setBlockModalOpen] = useState(false);
   const [blockStaffId, setBlockStaffId] = useState<string>("");
   const [blockStartTime, setBlockStartTime] = useState<Date>(new Date());
+  const selectedDayKey = format(selectedDate, "yyyy-MM-dd");
 
   const { data: staffMembers, isLoading: staffLoading } = useQuery({
-    queryKey: ["staff-members"],
+    queryKey: ["admin-vertical-calendar-staff-members"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff_members")
@@ -35,7 +34,7 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
   });
 
   const { data: appointments, isLoading: appointmentsLoading, refetch } = useQuery({
-    queryKey: ["vertical-calendar-appointments", selectedDate.toISOString()],
+    queryKey: ["admin-vertical-calendar-appointments", selectedDayKey],
     queryFn: async () => {
       const dayStart = startOfDay(selectedDate);
       const dayEnd = addDays(dayStart, 1);
@@ -51,13 +50,13 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
       if (error) throw error;
       return data;
     },
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: 'always',
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+    refetchOnMount: true,
   });
 
   const { data: businessHours } = useQuery({
-    queryKey: ["business-hours"],
+    queryKey: ["admin-vertical-calendar-business-hours"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("business_hours")

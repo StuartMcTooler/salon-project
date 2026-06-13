@@ -79,7 +79,7 @@ export default function Admin() {
     navigate("/auth");
   };
 
-  if (loading || configLoading || roleLoading || superAdminLoading) {
+  if (loading || configLoading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

@@ -49,17 +49,6 @@ export default function Admin() {
   
   const currentTab = searchParams.get('tab') || 'schedule';
 
-  console.log("[Admin] render state", {
-    loading,
-    configLoading,
-    roleLoading,
-    superAdminLoading,
-    role,
-    isAdmin,
-    isFrontDesk,
-    businessId,
-  });
-
   useEffect(() => {
     checkAdminAccess();
   }, [isAdmin, isFrontDesk, roleLoading]);

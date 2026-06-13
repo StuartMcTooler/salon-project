@@ -184,11 +184,11 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
     return colors[status] || 'bg-gray-300';
   };
 
-  if (staffLoading && !staffMembers?.length) {
+  const activeStaffMembers = staffMembers ?? [];
+
+  if (staffLoading && activeStaffMembers.length === 0) {
     return <Skeleton className="h-[600px] w-full" />;
   }
-
-  const activeStaffMembers = staffMembers ?? [];
 
   const timeSlots = Array.from({ length: 37 }, (_, i) => {
     const hour = Math.floor(i / 4) + 9;

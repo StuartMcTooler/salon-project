@@ -184,7 +184,7 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
     return colors[status] || 'bg-gray-300';
   };
 
-  if (staffLoading || appointmentsLoading) {
+  if (staffLoading && !staffMembers?.length) {
     return <Skeleton className="h-[600px] w-full" />;
   }
 
@@ -195,6 +195,14 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
   });
 
   const staffCount = staffMembers?.length || 0;
+
+  if (!staffCount) {
+    return (
+      <div className="border rounded-lg p-8 text-center text-muted-foreground">
+        No active barbers available.
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-x-auto">
@@ -210,7 +218,11 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
           Time
         </div>
         {staffMembers?.map((staff) => (
-          <div key={`header-${staff.id}`} className="bg-background sticky top-0 z-10 border-b font-semibold p-2 flex items-center justify-center">
+          <div
+            key={`header-${staff.id}`}
+            className="bg-background sticky top-0 z-10 border-b font-semibold p-2 flex items-center justify-center"
+            style={{ gridColumn: staffMembers.findIndex((member) => member.id === staff.id) + 2, gridRow: 1 }}
+          >
             {staff.display_name}
           </div>
         ))}
@@ -236,7 +248,11 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
                 <div
                   key={`slot-${staff.id}-${slotIndex}`}
                   className={`relative group ${isAvailable ? 'bg-background hover:bg-accent cursor-pointer' : 'bg-muted/50'}`}
-                  style={{ gridRow: slotIndex + 2 }}
+                  style={{
+                    gridColumn: staffMembers.findIndex((member) => member.id === staff.id) + 2,
+                    gridRow: slotIndex + 2,
+                    minHeight: '20px',
+                  }}
                   onClick={(e) => isAvailable && handleSlotClick(staff.id, slotTime, e)}
                   title={isAvailable ? "Click: New Booking | Shift+Click: Block Time" : "Outside business hours"}
                 >

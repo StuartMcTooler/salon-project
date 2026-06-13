@@ -1,10 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfDay, addDays, isSameDay } from "date-fns";
 import { useState, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { AppointmentDetailsDialog } from "@/components/booking/AppointmentDetailsDialog";
 import { TimeBlockModal } from "@/components/pos/TimeBlockModal";
 import { Ban } from "lucide-react";
@@ -19,9 +17,10 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
   const [blockModalOpen, setBlockModalOpen] = useState(false);
   const [blockStaffId, setBlockStaffId] = useState<string>("");
   const [blockStartTime, setBlockStartTime] = useState<Date>(new Date());
+  const selectedDayKey = format(selectedDate, "yyyy-MM-dd");
 
   const { data: staffMembers, isLoading: staffLoading } = useQuery({
-    queryKey: ["staff-members"],
+    queryKey: ["admin-vertical-calendar-staff-members"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff_members")
@@ -35,7 +34,7 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
   });
 
   const { data: appointments, isLoading: appointmentsLoading, refetch } = useQuery({
-    queryKey: ["vertical-calendar-appointments", selectedDate.toISOString()],
+    queryKey: ["admin-vertical-calendar-appointments", selectedDayKey],
     queryFn: async () => {
       const dayStart = startOfDay(selectedDate);
       const dayEnd = addDays(dayStart, 1);
@@ -51,13 +50,13 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
       if (error) throw error;
       return data;
     },
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: 'always',
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+    refetchOnMount: true,
   });
 
   const { data: businessHours } = useQuery({
-    queryKey: ["business-hours"],
+    queryKey: ["admin-vertical-calendar-business-hours"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("business_hours")
@@ -185,7 +184,9 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
     return colors[status] || 'bg-gray-300';
   };
 
-  if (staffLoading || appointmentsLoading) {
+  const activeStaffMembers = staffMembers ?? [];
+
+  if (staffLoading && activeStaffMembers.length === 0) {
     return <Skeleton className="h-[600px] w-full" />;
   }
 
@@ -195,7 +196,15 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
     return { hour, minute, label: i % 4 === 0 ? format(new Date(2000, 0, 1, hour, minute), 'h:mm a') : '' };
   });
 
-  const staffCount = staffMembers?.length || 0;
+  const staffCount = activeStaffMembers.length;
+
+  if (!staffCount) {
+    return (
+      <div className="border rounded-lg p-8 text-center text-muted-foreground">
+        No active barbers available.
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-x-auto">
@@ -210,15 +219,19 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
         <div className="bg-background sticky top-0 z-10 border-b font-semibold p-2 flex items-center">
           Time
         </div>
-        {staffMembers?.map((staff) => (
-          <div key={`header-${staff.id}`} className="bg-background sticky top-0 z-10 border-b font-semibold p-2 flex items-center justify-center">
+        {activeStaffMembers.map((staff, staffIndex) => (
+          <div
+            key={`header-${staff.id}`}
+            className="bg-background sticky top-0 z-10 border-b font-semibold p-2 flex items-center justify-center"
+            style={{ gridColumn: staffIndex + 2, gridRow: 1 }}
+          >
             {staff.display_name}
           </div>
         ))}
 
         {/* Time slots and staff columns */}
         {timeSlots.map((slot, slotIndex) => (
-          <>
+          <div key={`time-row-${slotIndex}`} className="contents">
             {/* Time label */}
             <div 
               key={`time-${slotIndex}`}
@@ -228,7 +241,7 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
             </div>
 
             {/* Staff columns */}
-            {staffMembers?.map((staff) => {
+            {activeStaffMembers.map((staff, staffIndex) => {
               const slotTime = new Date(selectedDate);
               slotTime.setHours(slot.hour, slot.minute, 0, 0);
               const isAvailable = isTimeSlotAvailable(staff.id, slotTime);
@@ -237,7 +250,11 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
                 <div
                   key={`slot-${staff.id}-${slotIndex}`}
                   className={`relative group ${isAvailable ? 'bg-background hover:bg-accent cursor-pointer' : 'bg-muted/50'}`}
-                  style={{ gridRow: slotIndex + 2 }}
+                  style={{
+                    gridColumn: staffIndex + 2,
+                    gridRow: slotIndex + 2,
+                    minHeight: '20px',
+                  }}
                   onClick={(e) => isAvailable && handleSlotClick(staff.id, slotTime, e)}
                   title={isAvailable ? "Click: New Booking | Shift+Click: Block Time" : "Outside business hours"}
                 >
@@ -245,12 +262,12 @@ export const VerticalStaffCalendar = ({ selectedDate }: VerticalStaffCalendarPro
                 </div>
               );
             })}
-          </>
+          </div>
         ))}
 
         {/* Appointments as overlays */}
         {visibleAppointments.map((appointment) => {
-          const staffIndex = staffMembers?.findIndex(s => s.id === appointment.staff_id);
+          const staffIndex = activeStaffMembers.findIndex((staff) => staff.id === appointment.staff_id);
           if (staffIndex === -1 || staffIndex === undefined) return null;
 
           const { rowStart, rowSpan } = calculateGridPosition(

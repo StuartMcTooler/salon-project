@@ -96,7 +96,7 @@ export const UpgradeToProCard = ({ staffMemberId }: UpgradeToProCardProps) => {
               <div>
                 <h4 className="font-semibold text-sm mb-1">Founder's Circle</h4>
                 <p className="text-xs text-muted-foreground">
-                  Recruit pros, earn 90% profit share for 24 months
+                  Invite barbers and earn on eligible appointments until they hit their cap
                 </p>
               </div>
             </div>

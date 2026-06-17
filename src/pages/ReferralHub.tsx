@@ -10,7 +10,6 @@ import { ClientNetworkHub } from "@/components/referral/ClientNetworkHub";
 import { CreativeInvite } from "@/components/referral/CreativeInvite";
 import { EarningsOverview } from "@/components/referral/EarningsOverview";
 import { useBusinessConfig } from "@/hooks/useBusinessConfig";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function ReferralHub() {
   const navigate = useNavigate();
@@ -76,39 +75,42 @@ export default function ReferralHub() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
+      <div className="border-b bg-gradient-to-b from-muted/40 to-background">
+        <div className="container mx-auto px-4 pb-5 pt-8 sm:py-5">
+          <div className="flex items-start gap-3 sm:items-center sm:gap-4">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate('/pos')}
+              className="mt-0.5 shrink-0 rounded-full border bg-background/80 shadow-sm sm:mt-0"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold">Partner Program</h1>
-              <p className="text-sm text-muted-foreground">
-                Build your network, unlock passive income
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold leading-tight tracking-tight">Partner Program</h1>
+              <p className="mt-1 max-w-md text-sm leading-snug text-muted-foreground">
+                Build your network, track weekly accelerator earnings
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="flex-wrap h-auto gap-1">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
+          <div className="-mx-1 overflow-x-auto px-1 pb-1">
+            <TabsList className="inline-flex h-auto min-w-full justify-start gap-1 rounded-2xl border bg-muted/60 p-1 shadow-sm">
+              <TabsTrigger value="overview" className="rounded-xl px-4 py-2.5 text-xs font-medium sm:text-sm">Overview</TabsTrigger>
             {isSoloProfessional && (
-              <TabsTrigger value="customer-codes">Customer Codes</TabsTrigger>
+                <TabsTrigger value="customer-codes" className="rounded-xl px-4 py-2.5 text-xs font-medium sm:text-sm">Customer Codes</TabsTrigger>
             )}
             {isSoloProfessional && (
-              <TabsTrigger value="client-network">Smart Waitlist</TabsTrigger>
+                <TabsTrigger value="client-network" className="rounded-xl px-4 py-2.5 text-xs font-medium sm:text-sm">Smart Waitlist</TabsTrigger>
             )}
-            <TabsTrigger value="pro-invites">Founder's Circle</TabsTrigger>
-            <TabsTrigger value="earnings">Earnings</TabsTrigger>
-          </TabsList>
+              <TabsTrigger value="pro-invites" className="rounded-xl px-4 py-2.5 text-xs font-medium sm:text-sm">Founder&apos;s Circle</TabsTrigger>
+              <TabsTrigger value="earnings" className="rounded-xl px-4 py-2.5 text-xs font-medium sm:text-sm">Earnings</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="overview">
             <ReferralOverview staffMemberId={staffMemberId} onNavigate={setActiveTab} isSoloProfessional={isSoloProfessional} />

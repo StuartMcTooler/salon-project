@@ -28,8 +28,11 @@ import PortalHome from "./pages/PortalHome";
 import ImageProcessingTest from "./pages/ImageProcessingTest";
 import AcceptInvite from "./pages/AcceptInvite";
 import MyProfile from "./pages/MyProfile";
+import TapToPayOnboarding from "./pages/TapToPayOnboarding";
+import TerminalHardware from "./pages/TerminalHardware";
 import ResetPassword from "./pages/ResetPassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import BrandPreviewLab from "./pages/BrandPreviewLab";
 
 const queryClient = new QueryClient();
 
@@ -79,7 +82,10 @@ const App = () => (
           <Route path="/test/image-processing" element={<ImageProcessingTest />} />
           <Route path="/accept-invite" element={<AcceptInvite />} />
           <Route path="/my-profile" element={<MyProfile />} />
+          <Route path="/my-profile/terminal-hardware" element={<TerminalHardware />} />
+          <Route path="/tap-to-pay-onboarding" element={<TapToPayOnboarding />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/brand-preview-lab" element={<BrandPreviewLab />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

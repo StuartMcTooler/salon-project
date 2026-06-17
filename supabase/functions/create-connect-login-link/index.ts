@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-force-test-mode, x-force-live-mode',
 };
 
 serve(async (req) => {
@@ -14,6 +14,13 @@ serve(async (req) => {
   }
 
   try {
+    const forceTestMode = req.headers.get('x-force-test-mode') === 'true';
+    const forceLiveMode = req.headers.get('x-force-live-mode') === 'true';
+
+    if (forceTestMode && forceLiveMode) {
+      throw new Error('Conflicting Stripe mode headers');
+    }
+
     // Get the authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -54,13 +61,21 @@ serve(async (req) => {
     }
 
     // Initialize Stripe
-    const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
+    const stripeSecretKey = forceTestMode
+      ? Deno.env.get('STRIPE_TEST_SECRET_KEY')
+      : Deno.env.get('STRIPE_SECRET_KEY');
     if (!stripeSecretKey) {
-      throw new Error('Stripe secret key not configured');
+      throw new Error(
+        forceTestMode
+          ? 'Stripe test secret key not configured'
+          : 'Stripe secret key not configured'
+      );
     }
     const stripe = new Stripe(stripeSecretKey, {
       apiVersion: '2023-10-16',
     });
+    const modeLabel = forceTestMode ? 'test' : (forceLiveMode ? 'live' : 'default');
+    console.log('create-connect-login-link using Stripe mode:', modeLabel);
 
     // Create a login link for the Express dashboard
     const loginLink = await stripe.accounts.createLoginLink(
@@ -73,6 +88,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         url: loginLink.url,
+        stripeMode: modeLabel,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

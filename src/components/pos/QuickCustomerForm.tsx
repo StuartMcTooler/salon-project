@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, CreditCard, Smartphone, Banknote, Camera } from "lucide-react";
+import { ArrowLeft, Loader2, CreditCard, Smartphone, Banknote, Camera, CheckCircle2 } from "lucide-react";
 import { LoyaltyPointsDisplay } from "./LoyaltyPointsDisplay";
 import { LoyaltyBalanceCard } from "./LoyaltyBalanceCard";
 import { normalizePhoneNumber } from "@/lib/utils";
@@ -18,6 +18,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescript
 import { useRef, ChangeEvent } from "react";
 import { isNativeApp, getPlatform } from "@/lib/platform";
 import { useTerminalPayment } from "@/hooks/useTerminalPayment";
+import { useNavigate } from "react-router-dom";
+import { TapToPayIosGlyph } from "@/components/pos/TapToPayIosGlyph";
 
 
 interface QuickCustomerFormProps {
@@ -33,6 +35,7 @@ export const QuickCustomerForm = ({
   onBack,
   onCheckoutComplete,
 }: QuickCustomerFormProps) => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -41,8 +44,15 @@ export const QuickCustomerForm = ({
   const [loyaltyResult, setLoyaltyResult] = useState<any>(null);
   const [appointmentId, setAppointmentId] = useState<string | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [paymentFlowStage, setPaymentFlowStage] = useState<"idle" | "initializing" | "processing">("idle");
   const [currentReaderId, setCurrentReaderId] = useState<string | null>(null);
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
+  const [completedAppointment, setCompletedAppointment] = useState<any>(null);
+  const [paymentSuccessState, setPaymentSuccessState] = useState<{
+    amount: number;
+    receiptSent: boolean;
+    receiptDestination: string | null;
+  } | null>(null);
   
   // Credit management
   const [availableCredits, setAvailableCredits] = useState<any[]>([]);
@@ -60,9 +70,28 @@ export const QuickCustomerForm = ({
   const [forceStripeMode, setForceStripeMode] = useState<string>("default");
   const [chosenPath, setChosenPath] = useState<string>("unknown");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isIosTapToPayFlow = isNativeApp() && getPlatform() === 'ios';
+  const cardPaymentLabel = isIosTapToPayFlow ? 'Tap to Pay on iPhone' : 'Card Reader';
+  const cardPaymentDescription = isIosTapToPayFlow
+    ? 'Accept contactless cards and wallets on this iPhone'
+    : 'Pay in-person with card reader';
+  const tapToPayButtonClassName = isIosTapToPayFlow
+    ? 'w-full min-h-[104px] justify-start rounded-3xl border border-zinc-900 bg-zinc-950 px-5 py-4 text-left text-white shadow-sm hover:bg-zinc-900 hover:text-white'
+    : 'w-full h-24 flex-col gap-2';
   
   // Native terminal payment hook for Tap to Pay
   const { processPayment, initializeNativeSDK, isProcessing, debugStage, error: terminalError } = useTerminalPayment();
+
+  const openTapToPaySetup = () => {
+    setProcessingPayment(false);
+    setPaymentFlowStage('idle');
+    setCurrentReaderId(null);
+    toast({
+      title: "Set up Tap to Pay on iPhone",
+      description: "Review the Terms & Conditions and finish setup before taking a Tap to Pay payment.",
+    });
+    navigate(`/tap-to-pay-onboarding?staffId=${encodeURIComponent(staffMember.id)}`);
+  };
 
   useEffect(() => {
     try {
@@ -410,6 +439,9 @@ export const QuickCustomerForm = ({
 
   const handleCardReaderPayment = async (apptId: string) => {
     setProcessingPayment(true);
+    setPaymentSuccessState(null);
+    setCompletedAppointment(null);
+    setPaymentFlowStage(isIosTapToPayFlow ? 'initializing' : 'processing');
     
     try {
       // Get current user's staff record
@@ -446,11 +478,16 @@ export const QuickCustomerForm = ({
 
         // Hard-prefer Tap to Pay on iOS to avoid falling back to S700
         if (isNative && currentPlatform === 'ios' && canUseTapToPay) {
+          if (!staffTerminal?.stripe_location_id) {
+            openTapToPaySetup();
+            return;
+          }
           console.log('[QuickCustomerForm] Forcing Tap to Pay on iOS');
           setChosenPath('tap_to_pay');
+          setPaymentFlowStage('initializing');
           toast({
-            title: "Initializing Tap to Pay",
-            description: "Please wait...",
+            title: "Initializing Tap to Pay on iPhone",
+            description: "Tap to Pay will be available in a moment.",
           });
           console.log('[QuickCustomerForm] About to call initializeNativeSDK() for forced iOS Tap to Pay');
           await initializeNativeSDK();
@@ -474,11 +511,16 @@ export const QuickCustomerForm = ({
               .update({ payment_processed_by: staffData.id })
               .eq('id', apptId);
 
-            toast({
-              title: "Payment Successful",
-              description: "Card payment completed!",
+            setPaymentFlowStage('processing');
+            await new Promise((resolve) => setTimeout(resolve, 700));
+            const paymentResult = await finalizeSuccessfulPayment(apptId);
+            setCompletedAppointment(paymentResult.updatedAppointment);
+            setPaymentSuccessState({
+              amount: Number(paymentResult.updatedAppointment?.price ?? adjustedPrice),
+              receiptSent: paymentResult.receiptSent,
+              receiptDestination: paymentResult.receiptDestination,
             });
-            await handlePaymentComplete(apptId);
+            setProcessingPayment(false);
           } else {
             throw new Error(result.error || 'Payment failed');
           }
@@ -486,12 +528,17 @@ export const QuickCustomerForm = ({
         }
 
         if (prefersTapToPay) {
+          if (!staffTerminal?.stripe_location_id) {
+            openTapToPaySetup();
+            return;
+          }
           console.log('[QuickCustomerForm] Using native Tap to Pay');
           setChosenPath('tap_to_pay');
+          setPaymentFlowStage('initializing');
           
           toast({
-            title: "Initializing Tap to Pay",
-            description: "Please wait...",
+            title: "Initializing Tap to Pay on iPhone",
+            description: "Tap to Pay will be available in a moment.",
           });
 
           // Initialize native SDK
@@ -521,11 +568,16 @@ export const QuickCustomerForm = ({
               .update({ payment_processed_by: staffData.id })
               .eq('id', apptId);
 
-            toast({
-              title: "Payment Successful",
-              description: "Card payment completed!",
+            setPaymentFlowStage('processing');
+            await new Promise((resolve) => setTimeout(resolve, 700));
+            const paymentResult = await finalizeSuccessfulPayment(apptId);
+            setCompletedAppointment(paymentResult.updatedAppointment);
+            setPaymentSuccessState({
+              amount: Number(paymentResult.updatedAppointment?.price ?? adjustedPrice),
+              receiptSent: paymentResult.receiptSent,
+              receiptDestination: paymentResult.receiptDestination,
             });
-            await handlePaymentComplete(apptId);
+            setProcessingPayment(false);
           } else {
             throw new Error(result.error || 'Payment failed');
           }
@@ -548,10 +600,15 @@ export const QuickCustomerForm = ({
       }
 
       if (!readerId) {
+        if (isIosTapToPayFlow) {
+          openTapToPaySetup();
+          return;
+        }
         throw new Error('No terminal reader configured. Please set up Tap to Pay in Settings → Terminal & Hardware, or contact your business owner.');
       }
 
       setChosenPath('internet_reader');
+      setPaymentFlowStage('processing');
       setCurrentReaderId(readerId);
 
       // Check reader health before processing payment
@@ -603,6 +660,7 @@ export const QuickCustomerForm = ({
         variant: "destructive",
       });
       setProcessingPayment(false);
+      setPaymentFlowStage('idle');
       setCurrentReaderId(null);
     }
   };
@@ -631,6 +689,7 @@ export const QuickCustomerForm = ({
       });
       
       setProcessingPayment(false);
+      setPaymentFlowStage('idle');
       setCurrentReaderId(null);
       setAppointmentId(null);
       
@@ -664,6 +723,7 @@ export const QuickCustomerForm = ({
 
       if (!appointment) {
         setProcessingPayment(false);
+        setPaymentFlowStage('idle');
         toast({
           title: "Error",
           description: "Could not find appointment",
@@ -674,12 +734,23 @@ export const QuickCustomerForm = ({
 
       if (appointment.payment_status === 'paid') {
         // Payment succeeded!
-        await handlePaymentComplete(apptId);
+        setPaymentFlowStage('processing');
+        await new Promise((resolve) => setTimeout(resolve, 700));
+        const paymentResult = await finalizeSuccessfulPayment(apptId);
+        setCompletedAppointment(paymentResult.updatedAppointment);
+        setPaymentSuccessState({
+          amount: Number(paymentResult.updatedAppointment?.price ?? adjustedPrice),
+          receiptSent: paymentResult.receiptSent,
+          receiptDestination: paymentResult.receiptDestination,
+        });
+        setProcessingPayment(false);
+        setPaymentFlowStage('idle');
         return;
       }
 
       if (appointment.payment_status === 'failed') {
         setProcessingPayment(false);
+        setPaymentFlowStage('idle');
         toast({
           title: "Payment Failed",
           description: "The card payment was declined. Please try again.",
@@ -693,6 +764,7 @@ export const QuickCustomerForm = ({
         setTimeout(checkStatus, 2000); // Check every 2 seconds
       } else if (attempts >= maxAttempts) {
         setProcessingPayment(false);
+        setPaymentFlowStage('idle');
         toast({
           title: "Payment Timeout",
           description: "Payment is taking longer than expected. Please check the terminal.",
@@ -705,7 +777,7 @@ export const QuickCustomerForm = ({
     setTimeout(checkStatus, 2000);
   };
 
-  const handlePaymentComplete = async (apptId: string) => {
+  const finalizeSuccessfulPayment = async (apptId: string) => {
     // Award loyalty points if we have customer contact info
     if (customerEmail || customerPhone) {
       try {
@@ -730,15 +802,16 @@ export const QuickCustomerForm = ({
         console.error('Failed to award loyalty points:', loyaltyErr);
       }
     }
-    
-    // Fetch the updated appointment
+
     const { data: updatedAppointment } = await supabase
       .from('salon_appointments')
       .select()
       .eq('id', apptId)
       .single();
-    
-    // Send booking confirmation with portal link
+
+    let receiptSent = false;
+    let receiptDestination: string | null = null;
+
     if (customerPhone && updatedAppointment) {
       try {
         const appointmentDate = new Date(updatedAppointment.appointment_date);
@@ -754,26 +827,43 @@ export const QuickCustomerForm = ({
         });
 
         const portalLink = `${window.location.origin}/portal`;
-        const message = `Booking Confirmed! ${formattedDate} at ${formattedTime} - ${service.service.name} with ${staffMember.display_name}. Total: €${Number(service.custom_price).toFixed(2)}. Access your portal to view appointments, loyalty points & more: ${portalLink}`;
+        const amountPaid = Number(updatedAppointment.price ?? adjustedPrice).toFixed(2);
+        const normalizedPhone = normalizePhoneNumber(customerPhone);
+        const message = `Booking Confirmed! ${formattedDate} at ${formattedTime} - ${service.service.name} with ${staffMember.display_name}. Total: €${amountPaid}. Access your portal to view appointments, loyalty points & more: ${portalLink}`;
 
         await supabase.functions.invoke('send-whatsapp', {
           body: {
-            to: normalizePhoneNumber(customerPhone),
+            to: normalizedPhone,
             message,
             businessId: staffMember.business_id,
             messageType: 'booking_confirmation'
           }
         });
+        receiptSent = true;
+        receiptDestination = normalizedPhone;
       } catch (whatsappError) {
         console.error('Failed to send confirmation:', whatsappError);
       }
     }
-    
-    if (updatedAppointment) {
-      onCheckoutComplete(updatedAppointment);
+
+    return {
+      updatedAppointment,
+      receiptSent,
+      receiptDestination,
+    };
+  };
+
+  const completeCheckoutAfterSuccess = () => {
+    if (completedAppointment) {
+      onCheckoutComplete(completedAppointment);
     }
-    
+
+    setPaymentSuccessState(null);
+    setCompletedAppointment(null);
     setProcessingPayment(false);
+    setPaymentFlowStage('idle');
+    setCurrentReaderId(null);
+    setAppointmentId(null);
   };
 
   const handleCashPayment = async () => {
@@ -796,7 +886,15 @@ export const QuickCustomerForm = ({
         description: "Transaction completed successfully",
       });
 
-      await handlePaymentComplete(appointmentId);
+      setPaymentFlowStage('processing');
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      const paymentResult = await finalizeSuccessfulPayment(appointmentId);
+      setCompletedAppointment(paymentResult.updatedAppointment);
+      setPaymentSuccessState({
+        amount: Number(paymentResult.updatedAppointment?.price ?? adjustedPrice),
+        receiptSent: paymentResult.receiptSent,
+        receiptDestination: paymentResult.receiptDestination,
+      });
     } catch (error: any) {
       console.error("Cash payment error:", error);
       toast({
@@ -897,17 +995,52 @@ export const QuickCustomerForm = ({
   }
   */
 
+  if (paymentSuccessState) {
+    return (
+      <Card className="border-emerald-200 bg-emerald-50/40">
+        <CardContent className="flex flex-col items-center justify-center py-12 space-y-6">
+          <CheckCircle2 className="h-16 w-16 text-emerald-600" />
+          <div className="text-center space-y-3 max-w-sm">
+            <h3 className="text-2xl font-semibold text-emerald-900">Payment processed</h3>
+            <p className="text-sm text-emerald-800">
+              Tap to Pay on iPhone payment completed successfully.
+            </p>
+            <p className="text-3xl font-bold text-emerald-900">€{paymentSuccessState.amount.toFixed(2)}</p>
+            <p className="text-sm text-emerald-800">
+              {paymentSuccessState.receiptSent && paymentSuccessState.receiptDestination
+                ? `A receipt has been sent to ${paymentSuccessState.receiptDestination}.`
+                : 'Payment recorded successfully.'}
+            </p>
+          </div>
+          <Button size="lg" className="min-w-48" onClick={completeCheckoutAfterSuccess}>
+            Done
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (processingPayment) {
+    const isTapToPayPath = chosenPath === 'tap_to_pay';
+    const paymentTitle = paymentFlowStage === 'initializing'
+      ? 'Initializing Tap to Pay on iPhone'
+      : isTapToPayPath
+        ? 'Processing payment'
+        : 'Processing Payment';
+    const paymentDescription = paymentFlowStage === 'initializing'
+      ? 'Tap to Pay will be available in a moment.'
+      : isTapToPayPath
+        ? 'Card presented. Processing the payment securely now.'
+        : 'Present card to the Stripe S700 reader';
+
     return (
       <Card className="border-primary/50">
         <CardContent className="flex flex-col items-center justify-center py-12 space-y-6">
           <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <div className="text-center space-y-2">
-            <h3 className="text-xl font-semibold">Processing Payment</h3>
-            <p className="text-muted-foreground">
-              {chosenPath === 'tap_to_pay' ? 'Preparing Tap to Pay on iPhone' : 'Present card to the Stripe S700 reader'}
-            </p>
-            <p className="text-2xl font-bold mt-4">€{Number(service.custom_price).toFixed(2)}</p>
+          <div className="text-center space-y-2 max-w-sm">
+            <h3 className="text-xl font-semibold">{paymentTitle}</h3>
+            <p className="text-muted-foreground">{paymentDescription}</p>
+            <p className="text-2xl font-bold mt-4">€{adjustedPrice.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground mt-2">
               This may take up to 2 minutes
             </p>
@@ -948,6 +1081,22 @@ export const QuickCustomerForm = ({
           <CardContent className="space-y-4">
             <div className="space-y-3">
               <Button
+                onClick={() => appointmentId && handleCardReaderPayment(appointmentId)}
+                className={tapToPayButtonClassName}
+                variant={isIosTapToPayFlow ? 'default' : 'outline'}
+              >
+                <div className={isIosTapToPayFlow ? 'flex w-full items-center gap-4' : 'flex items-center gap-2'}>
+                  {isIosTapToPayFlow ? <TapToPayIosGlyph className="h-10 w-10 shrink-0" /> : <CreditCard className="h-8 w-8" />}
+                  <div className={isIosTapToPayFlow ? 'min-w-0 text-left' : 'text-center'}>
+                    <div className="font-semibold">{cardPaymentLabel}</div>
+                    <div className={isIosTapToPayFlow ? 'text-xs text-zinc-300' : 'text-xs text-muted-foreground'}>
+                      {cardPaymentDescription}
+                    </div>
+                  </div>
+                </div>
+              </Button>
+
+              <Button
                 onClick={handleCashPayment}
                 className="w-full h-24 flex-col gap-2"
                 variant="outline"
@@ -957,20 +1106,6 @@ export const QuickCustomerForm = ({
                   <div className="font-semibold">Cash</div>
                   <div className="text-xs text-muted-foreground">
                     Customer paid with cash
-                  </div>
-                </div>
-              </Button>
-
-              <Button
-                onClick={() => appointmentId && handleCardReaderPayment(appointmentId)}
-                className="w-full h-24 flex-col gap-2"
-                variant="outline"
-              >
-                <CreditCard className="h-8 w-8" />
-                <div className="text-center">
-                  <div className="font-semibold">Card Reader</div>
-                  <div className="text-xs text-muted-foreground">
-                    Pay in-person with card reader
                   </div>
                 </div>
               </Button>

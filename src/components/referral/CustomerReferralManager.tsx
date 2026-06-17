@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy, Check, Plus, Lock } from "lucide-react";
+import { Copy, Check, Plus, Lock, Sparkles, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useReferralDiscount } from "@/hooks/useReferralDiscount";
 import { HowItWorksCard } from "./HowItWorksCard";
@@ -157,18 +157,24 @@ export const CustomerReferralManager = ({ staffMemberId }: CustomerReferralManag
         color="blue"
       />
 
-      <Card>
+      <Card className="overflow-hidden border-blue-200 shadow-sm dark:border-blue-900">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+                <Sparkles className="h-3.5 w-3.5" />
+                Turn loyal clients into growth
+              </div>
+              <div>
               <CardTitle>Customer Referral Codes</CardTitle>
               <CardDescription>
                 Generate codes for customers to share with friends
               </CardDescription>
+              </div>
             </div>
             <Dialog open={showDialog} onOpenChange={setShowDialog}>
               <DialogTrigger asChild>
-                <Button className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700">
+                <Button className="bg-blue-600 shadow-sm hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700">
                   <Plus className="h-4 w-4 mr-2" />
                   Generate Code
                 </Button>
@@ -210,20 +216,23 @@ export const CustomerReferralManager = ({ staffMemberId }: CustomerReferralManag
         </CardHeader>
         <CardContent>
           {codes.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground mb-4">No codes generated yet</p>
-              <p className="text-sm text-muted-foreground">
-                Start by generating a code for your happy customers to share
+            <div className="rounded-2xl border border-dashed bg-gradient-to-br from-blue-50/60 to-background px-4 py-8 text-center dark:from-blue-950/10">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300">
+                <Users className="h-5 w-5" />
+              </div>
+              <p className="mb-2 text-base font-medium">No referral codes yet</p>
+              <p className="mx-auto max-w-sm text-sm text-muted-foreground">
+                Generate your first code for a loyal customer so they can share it with friends and bring new bookings in.
               </p>
             </div>
           ) : (
             <div className="space-y-3">
               {codes.map(code => (
-                <div key={code.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div key={code.id} className="flex items-center justify-between rounded-2xl border bg-background/70 p-4 shadow-sm">
                   <div className="flex-1">
                     <div className="font-medium">{code.referrer_name}</div>
-                    <div className="text-sm text-muted-foreground font-mono">{code.referrer_phone}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
+                    <div className="mt-0.5 text-sm font-mono text-muted-foreground">{code.referrer_phone}</div>
+                    <div className="mt-2 inline-flex rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
                       Created: {new Date(code.created_at).toLocaleDateString()}
                     </div>
                   </div>
@@ -235,6 +244,7 @@ export const CustomerReferralManager = ({ staffMemberId }: CustomerReferralManag
                     <Button
                       variant="outline"
                       size="icon"
+                      className="rounded-xl"
                       onClick={() => copyCode(code.code)}
                     >
                       {copiedCode === code.code ? (

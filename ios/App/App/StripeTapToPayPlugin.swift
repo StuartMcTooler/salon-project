@@ -1,5 +1,6 @@
 import Foundation
 import Capacitor
+import ProximityReader
 import StripeTerminal
 
 @available(iOS 15.0, *)
@@ -15,7 +16,8 @@ import StripeTerminal
         CAPPluginMethod(name: "collectPaymentMethod", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "confirmPaymentIntent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancelPaymentIntent", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "isDeviceCapable", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "isDeviceCapable", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "presentTapToPayEducation", returnType: CAPPluginReturnPromise)
     ]
     private var connectionTokenCompletion: ConnectionTokenCompletionBlock?
     private var discoverCancelable: Cancelable?
@@ -308,6 +310,32 @@ import StripeTerminal
             call.resolve(["value": true])
         case .failure(let error):
             call.resolve(["value": false, "error": error.localizedDescription])
+        }
+    }
+
+    @objc func presentTapToPayEducation(_ call: CAPPluginCall) {
+        CAPLog.print("⚡️ [StripeTapToPay] presentTapToPayEducation() called")
+
+        guard #available(iOS 18.0, *) else {
+            call.reject("ProximityReaderDiscovery requires iOS 18 or later")
+            return
+        }
+
+        guard let viewController = bridge?.viewController else {
+            call.reject("Unable to access presenting view controller")
+            return
+        }
+
+        Task { @MainActor in
+            do {
+                let discovery = ProximityReaderDiscovery()
+                let content = try await discovery.content(for: .payment(.howToTap))
+                try await discovery.presentContent(content, from: viewController)
+                call.resolve(["presented": true])
+            } catch {
+                CAPLog.print("⚡️ [StripeTapToPay] presentTapToPayEducation failed: \(error.localizedDescription)")
+                call.reject(error.localizedDescription)
+            }
         }
     }
 

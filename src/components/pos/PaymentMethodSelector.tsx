@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTerminalPayment, isStripeTerminalAvailable } from "@/hooks/useTerminalPayment";
 import { isNativeApp, getPlatform } from "@/lib/platform";
+import { useNavigate } from "react-router-dom";
+import { TapToPayIosGlyph } from "@/components/pos/TapToPayIosGlyph";
 
 interface PaymentMethodSelectorProps {
   appointmentId: string;
@@ -38,6 +40,7 @@ export const PaymentMethodSelector = ({
   remainingBalance,
   onPaymentComplete,
 }: PaymentMethodSelectorProps) => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"card_reader" | "payment_link" | "cash" | null>(null);
   const addDebugLog = (msg: string) => {
@@ -51,6 +54,14 @@ export const PaymentMethodSelector = ({
   const amountToCharge = (depositPaid && remainingBalance) 
     ? remainingBalance 
     : amount;
+  const isIosTapToPayFlow = isNativeApp() && getPlatform() === 'ios';
+  const cardPaymentLabel = isIosTapToPayFlow ? 'Tap to Pay on iPhone' : 'Card Reader';
+  const cardPaymentDescription = isIosTapToPayFlow
+    ? 'Accept contactless cards and wallets on this iPhone'
+    : 'Pay in-person with card reader';
+  const tapToPayButtonClassName = isIosTapToPayFlow
+    ? 'w-full min-h-[104px] justify-start rounded-3xl border border-zinc-900 bg-zinc-950 px-5 py-4 text-left text-white shadow-sm hover:bg-zinc-900 hover:text-white'
+    : 'w-full h-24 flex-col gap-2';
 
   // Record payment_processed_by for audit trail
   const recordPaymentAudit = async (paymentMethod: string) => {
@@ -64,6 +75,11 @@ export const PaymentMethodSelector = ({
     } catch (error) {
       console.error('Failed to record payment audit:', error);
     }
+  };
+
+  const openTapToPaySetup = () => {
+    toast.info('Finish Tap to Pay setup before taking a payment.');
+    navigate(`/tap-to-pay-onboarding?staffId=${encodeURIComponent(staffId)}`);
   };
 
   const pollPaymentStatus = async () => {
@@ -259,7 +275,8 @@ export const PaymentMethodSelector = ({
           // If we're native but Tap to Pay isn't configured
           if (isNative && !staffTerminal?.connection_type) {
             addDebugLog(`❌ Native app but no terminal settings found for this staff`);
-            throw new Error(`You're in the native app but Tap to Pay isn't configured for your account. Go to Settings → Terminal & Hardware to enable it.`);
+            openTapToPaySetup();
+            return;
           }
         }
       } else {
@@ -277,7 +294,13 @@ export const PaymentMethodSelector = ({
         .maybeSingle();
       if (termErr) throw termErr;
       const readerId = terminalData?.reader_id;
-      if (!readerId) throw new Error('No terminal reader configured. Please set up Tap to Pay in your profile settings.');
+      if (!readerId) {
+        if (isIosTapToPayFlow) {
+          openTapToPaySetup();
+          return;
+        }
+        throw new Error('No terminal reader configured. Please set up Tap to Pay in your profile settings.');
+      }
 
       const { data: readerStatus, error: readerError } = await supabase.functions.invoke(
         'check-terminal-reader',
@@ -391,21 +414,21 @@ export const PaymentMethodSelector = ({
           <Button
             onClick={handleCardReaderPayment}
             disabled={loading}
-            className="w-full h-24 flex-col gap-2"
-            variant="outline"
+            className={tapToPayButtonClassName}
+            variant={isIosTapToPayFlow ? 'default' : 'outline'}
           >
             {loading && paymentMethod === "card_reader" ? (
               <Loader2 className="h-8 w-8 animate-spin" />
             ) : (
-              <>
-                <CreditCard className="h-8 w-8" />
-                <div className="text-center">
-                  <div className="font-semibold">Card Reader</div>
-                  <div className="text-xs text-muted-foreground">
-                    Pay in-person with card reader
+              <div className={isIosTapToPayFlow ? 'flex w-full items-center gap-4' : 'flex items-center gap-2'}>
+                {isIosTapToPayFlow ? <TapToPayIosGlyph className="h-10 w-10 shrink-0" /> : <CreditCard className="h-8 w-8" />}
+                <div className={isIosTapToPayFlow ? 'min-w-0 text-left' : 'text-center'}>
+                  <div className="font-semibold">{cardPaymentLabel}</div>
+                  <div className={isIosTapToPayFlow ? 'text-xs text-zinc-300' : 'text-xs text-muted-foreground'}>
+                    {cardPaymentDescription}
                   </div>
                 </div>
-              </>
+              </div>
             )}
           </Button>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,13 +20,17 @@ import { DemandHeatmap } from "@/components/admin/DemandHeatmap";
 import { PayoutActivationCard } from "@/components/dashboard/PayoutActivationCard";
 import { SoloAvailabilitySettings } from "@/components/dashboard/SoloAvailabilitySettings";
 import { BookingLeadTimeSettings } from "@/components/admin/BookingLeadTimeSettings";
+import { SoloGettingStartedChecklist } from "@/components/dashboard/SoloGettingStartedChecklist";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [staffId, setStaffId] = useState<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const shouldShowSetup = searchParams.get("setup") === "1";
+  const currentTab = searchParams.get("tab") || (shouldShowSetup ? "setup" : "today");
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -95,6 +99,17 @@ const Dashboard = () => {
     return null;
   }
 
+  const updateTab = (value: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("tab", value);
+
+    if (value !== "setup" && !shouldShowSetup) {
+      nextParams.delete("setup");
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b safe-area-top">
@@ -118,14 +133,25 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="today" className="space-y-4">
+        <Tabs value={currentTab} onValueChange={updateTab} className="space-y-4">
           <TabsList>
+            {shouldShowSetup && <TabsTrigger value="setup">Getting Started</TabsTrigger>}
             <TabsTrigger value="today">Today</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="content">Content</TabsTrigger>
             <TabsTrigger value="income">Income</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
+
+          {shouldShowSetup && (
+            <TabsContent value="setup" className="space-y-4">
+              <SoloGettingStartedChecklist
+                staffId={staffId}
+                onOpenSettings={() => updateTab("settings")}
+                onOpenToday={() => updateTab("today")}
+              />
+            </TabsContent>
+          )}
 
           <TabsContent value="today" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">

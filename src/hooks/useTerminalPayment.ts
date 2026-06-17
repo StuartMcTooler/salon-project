@@ -102,6 +102,10 @@ let initializationPromise: Promise<void> | null = null;
 let initializationStartedAt: number | null = null;
 let tokenListenerRegistered = false;
 let inFlightConnectionTokenPromise: Promise<string> | null = null;
+let cachedAuthEmail: string | null = null;
+
+const isTestStyleEmail = (email?: string | null): boolean =>
+  Boolean(email && /(^test|test@|@test\.|@example\.|demo|qa)/i.test(email));
 
 const getForcedStripeMode = (): StripeMode => {
   try {
@@ -113,6 +117,48 @@ const getForcedStripeMode = (): StripeMode => {
     // Ignore localStorage access failures in native/webview edge cases
   }
   return 'default';
+};
+
+const getCurrentAuthEmail = async (): Promise<string | null> => {
+  if (cachedAuthEmail) return cachedAuthEmail;
+  try {
+    const { data } = await supabase.auth.getUser();
+    cachedAuthEmail = data.user?.email ?? null;
+    return cachedAuthEmail;
+  } catch {
+    return null;
+  }
+};
+
+const getEffectiveStripeMode = async (): Promise<StripeMode> => {
+  const forcedMode = getForcedStripeMode();
+  if (forcedMode === 'test' || forcedMode === 'live') {
+    return forcedMode;
+  }
+
+  const email = await getCurrentAuthEmail();
+  if (isTestStyleEmail(email)) {
+    return 'test';
+  }
+
+  return 'default';
+};
+
+const getEffectiveStripeHeaders = async (): Promise<Record<string, string>> => {
+  const headers = getTestModeHeaders();
+  if (headers['x-force-test-mode'] === 'true' || headers['x-force-live-mode'] === 'true') {
+    return headers;
+  }
+
+  const effectiveMode = await getEffectiveStripeMode();
+  if (effectiveMode === 'test') {
+    return { 'x-force-test-mode': 'true' };
+  }
+  if (effectiveMode === 'live') {
+    return { 'x-force-live-mode': 'true' };
+  }
+
+  return headers;
 };
 
 export const useTerminalPayment = () => {
@@ -134,8 +180,8 @@ export const useTerminalPayment = () => {
     }
 
     inFlightConnectionTokenPromise = (async () => {
-      const headers = getTestModeHeaders();
-      const stripeMode = getForcedStripeMode();
+      const headers = await getEffectiveStripeHeaders();
+      const stripeMode = await getEffectiveStripeMode();
       console.log('[TerminalPayment] Fetching connection token...', { stripeMode, headers });
       const { data, error } = await supabase.functions.invoke('create-terminal-connection-token', {
         headers,
@@ -240,7 +286,7 @@ export const useTerminalPayment = () => {
         // Initialize SDK
         console.log('[TerminalPayment] Initializing SDK...');
         console.log('[TerminalPayment] Platform:', getPlatform());
-        const stripeMode = getForcedStripeMode();
+        const stripeMode = await getEffectiveStripeMode();
         const isTest = stripeMode !== 'live';
         console.log('[TerminalPayment] initialize() mode:', { stripeMode, isTest });
         
@@ -534,8 +580,8 @@ export const useTerminalPayment = () => {
 
     // Step 2: Create PaymentIntent on server
     console.log('[TerminalPayment] Creating PaymentIntent on server...');
-    const paymentHeaders = getTestModeHeaders();
-    const stripeMode = getForcedStripeMode();
+    const paymentHeaders = await getEffectiveStripeHeaders();
+    const stripeMode = await getEffectiveStripeMode();
     const { data: intentData, error: intentError } = await supabase.functions.invoke(
       'create-terminal-payment-intent',
       {

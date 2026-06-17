@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, User, Image, Settings, Calendar } from "lucide-react";
+import { ArrowLeft, User, Image, Settings, Calendar, CreditCard } from "lucide-react";
 import { ProfilePictureSettings } from "@/components/dashboard/ProfilePictureSettings";
 import { ContentHub } from "@/components/dashboard/ContentHub";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,21 +13,33 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { BookingLinkCard } from "@/components/profile/BookingLinkCard";
 import { ProfileCompletionCard } from "@/components/profile/ProfileCompletionCard";
-import { StaffTerminalSettings } from "@/components/profile/StaffTerminalSettings";
-import { SmartSlotSettings } from "@/components/admin/SmartSlotSettings";
 import { CalendarManager } from "@/components/profile/CalendarManager";
+import { ServiceManager } from "@/components/dashboard/ServiceManager";
 import { PayoutActivationCard } from "@/components/dashboard/PayoutActivationCard";
 import { SoloAvailabilitySettings } from "@/components/dashboard/SoloAvailabilitySettings";
-import { StaffLeadTimeCard } from "@/components/profile/StaffLeadTimeCard";
-import { ServiceManager } from "@/components/dashboard/ServiceManager";
+import { BookingLeadTimeSettings } from "@/components/admin/BookingLeadTimeSettings";
+import { WalkInToggle } from "@/components/dashboard/WalkInToggle";
+import { MyLoyaltySettings } from "@/components/dashboard/MyLoyaltySettings";
+import { SmartSlotSettings } from "@/components/admin/SmartSlotSettings";
+import { StaffTerminalSettings } from "@/components/profile/StaffTerminalSettings";
 
 const MyProfile = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [staffMember, setStaffMember] = useState<any>(null);
   const [editedBio, setEditedBio] = useState("");
   const [savingBio, setSavingBio] = useState(false);
+  const [activeTab, setActiveTab] = useState("profile");
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get("tab");
+    if (tab && ["profile", "calendar", "content", "settings"].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     const loadStaffProfile = async () => {
@@ -50,7 +62,7 @@ const MyProfile = () => {
           description: "Staff profile not found",
           variant: "destructive",
         });
-        navigate('/');
+        navigate('/dashboard', { replace: true });
         return;
       }
 
@@ -105,7 +117,16 @@ const MyProfile = () => {
   }
 
   if (!staffMember) {
-    return null;
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="flex min-h-screen items-center justify-center p-6">
+          <div className="space-y-4 text-center">
+            <p className="text-sm text-muted-foreground">Profile not available for this account.</p>
+            <Button onClick={() => navigate("/dashboard", { replace: true })}>Go to Dashboard</Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -133,7 +154,7 @@ const MyProfile = () => {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-6 sm:p-6">
-        <Tabs defaultValue="profile" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-4 mb-6">
             <TabsTrigger value="profile" className="gap-2">
               <User className="h-4 w-4" />
@@ -220,11 +241,33 @@ const MyProfile = () => {
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
-            <PayoutActivationCard staffId={staffMember.id} />
-            <SoloAvailabilitySettings staffId={staffMember.id} />
-            <StaffLeadTimeCard staffId={staffMember.id} />
-            <StaffTerminalSettings staffId={staffMember.id} />
-            <SmartSlotSettings staffId={staffMember.id} />
+            <div className="space-y-4">
+              <PayoutActivationCard staffId={staffMember.id} />
+
+              <Card id="terminal-hardware">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5" />
+                    Terminal &amp; Hardware
+                  </CardTitle>
+                  <CardDescription>
+                    Choose how you want to accept payments, including Tap to Pay on iPhone and Bluetooth readers.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <StaffTerminalSettings
+                    staffId={staffMember.id}
+                    returnToPath="/my-profile?tab=settings#terminal-hardware"
+                  />
+                </CardContent>
+              </Card>
+
+              <SoloAvailabilitySettings staffId={staffMember.id} />
+              <BookingLeadTimeSettings />
+              <WalkInToggle businessId={staffMember.business_id} />
+              <MyLoyaltySettings staffId={staffMember.id} businessId={staffMember.business_id} />
+              <SmartSlotSettings staffId={staffMember.id} />
+            </div>
           </TabsContent>
         </Tabs>
       </div>

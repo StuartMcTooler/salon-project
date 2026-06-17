@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Loader2, User, Wrench } from "lucide-react";
+import { LogOut, Loader2, Wrench } from "lucide-react";
 import { StaffManagement } from "@/components/admin/StaffManagement";
 import { ServicePricing } from "@/components/admin/ServicePricing";
 import { ServiceManagement } from "@/components/admin/ServiceManagement";
@@ -92,22 +92,21 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* COMMENTED FOR VIDEO
       {isSuperAdmin && <TestModeWarningBanner />}
-      */}
       
-      <header className="border-b safe-area-top">
-        <div className="container mx-auto px-4 py-4 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+      <header className="border-b">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate("/my-profile")}>
-              <User className="mr-2 h-4 w-4" />
-              My Profile
-            </Button>
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate("/pos")}>
+          <div className="flex gap-2">
+            {isAdmin && (
+              <Button variant="outline" onClick={() => navigate("/admin/previews")}>
+                Previews
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => navigate("/pos")}>
               Walk-In POS
             </Button>
-            <Button variant="outline" className="w-full sm:w-auto" onClick={handleSignOut}>
+            <Button variant="outline" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out
             </Button>
@@ -140,10 +139,31 @@ export default function Admin() {
                   {features.loyaltyProgram && <DropdownMenuItem onClick={() => setSearchParams({ tab: 'loyalty' })}>Loyalty</DropdownMenuItem>}
                   <DropdownMenuItem onClick={() => setSearchParams({ tab: 'feedback' })}>Feedback</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setSearchParams({ tab: 'front-desk' })}>Front Desk</DropdownMenuItem>
+                  {isSuperAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setSearchParams({ tab: 'devtools' })} className="text-orange-600 font-medium">
+                        🔧 God Mode Panel
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSearchParams({ tab: 'availability-test' })} className="text-orange-600">
+                        Availability Testing
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSearchParams({ tab: 'test-users' })} className="text-orange-600">
+                        Test Users & Logs
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSearchParams({ tab: 'referral-testing' })} className="text-orange-600">
+                        Referral Testing
+                      </DropdownMenuItem>
+                      {features.staffManagement && (
+                        <DropdownMenuItem onClick={() => setSearchParams({ tab: 'overflow' })} className="text-orange-600">
+                          Overflow Test Mode
+                        </DropdownMenuItem>
+                      )}
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            {/* COMMENTED FOR VIDEO - Super Admin Dev Tools Dropdown
             {isSuperAdmin && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -174,7 +194,6 @@ export default function Admin() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            */}
           </TabsList>
 
           <TabsContent value="schedule">
@@ -234,7 +253,7 @@ export default function Admin() {
 
               {features.servicePricing && (
                 <TabsContent value="pricing">
-                  <ServicePricing />
+                  <ServicePricing businessId={businessId} />
                 </TabsContent>
               )}
 
@@ -266,7 +285,6 @@ export default function Admin() {
             </>
           )}
 
-          {/* COMMENTED FOR VIDEO - Super Admin Only Tabs
           {isSuperAdmin && (
             <>
               <TabsContent value="devtools">
@@ -295,7 +313,6 @@ export default function Admin() {
               </TabsContent>
             </>
           )}
-          */}
         </Tabs>
       </main>
     </div>

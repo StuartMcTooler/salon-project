@@ -52,27 +52,21 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
         clientsReferred = earned?.length || 0;
       }
 
-      // Pro invites completed + upfront bonuses
+      // Barber invites + weekly accelerator earnings
       const { data: invitesData } = await supabase
         .from('creative_invites')
-        .select('upfront_bonus_amount, upfront_bonus_paid, signup_completed_at')
+        .select('signup_completed_at')
         .eq('inviter_creative_id', staffMemberId)
         .not('signup_completed_at', 'is', null);
 
       const invitesCount = invitesData?.length || 0;
-      const proBonusTotal = invitesData?.reduce((sum, inv) => 
-        sum + (inv.upfront_bonus_paid ? Number(inv.upfront_bonus_amount || 0) : 0), 0) || 0;
 
-      // C2C revenue share earnings
-      const { data: c2cEarnings } = await supabase
-        .from('c2c_revenue_share')
-        .select('share_amount')
+      const { data: acceleratorEarnings } = await supabase
+        .from('switching_bonus_ledger')
+        .select('bonus_amount')
         .eq('inviter_creative_id', staffMemberId);
 
-      const totalC2C = c2cEarnings?.reduce((sum, tx) => sum + Number(tx.share_amount), 0) || 0;
-
-      // Total Founder's Circle earnings = Pro Bonuses + Revenue Share
-      const totalFoundersEarnings = proBonusTotal + totalC2C;
+      const totalFoundersEarnings = acceleratorEarnings?.reduce((sum, tx) => sum + Number(tx.bonus_amount), 0) || 0;
 
       setStats({
         customerReferrals: codesCount || 0,
@@ -103,43 +97,46 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
     return (
       <div className="space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
+        <div className="space-y-3 text-center">
           <div className="flex items-center justify-center gap-2">
             <Crown className="h-8 w-8 text-amber-500" />
             <h2 className="text-3xl font-bold">Become a Pro Creative</h2>
           </div>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Unlock the Smart Waitlist and start earning passive income from your overflow bookings.
+          <p className="mx-auto max-w-md text-balance text-muted-foreground">
+            Unlock the Smart Waitlist and your weekly accelerator tools once you hit Pro.
           </p>
         </div>
 
         {/* Progress Card (The Gate) */}
-        <Card className="border-2 border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-50/50 to-background dark:from-amber-950/20">
-          <CardHeader className="pb-2">
+        <Card className="border-2 border-amber-200 bg-gradient-to-br from-amber-50/80 via-background to-background shadow-sm dark:border-amber-800 dark:from-amber-950/20">
+          <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
               <Sparkles className="h-5 w-5" />
               Your Progress to Pro
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
             {/* Bookings Progress */}
-            <div>
-              <div className="flex justify-between mb-2">
+            <div className="rounded-2xl border bg-background/60 p-4">
+              <div className="mb-2 flex justify-between">
                 <span className="text-sm font-medium">Completed Bookings</span>
                 <span className="text-sm font-bold text-amber-600 dark:text-amber-400">
-                  {metrics.bookings}/50 {bookingsMet && '✅'}
+                  {metrics.bookings}/50
                 </span>
               </div>
               <Progress value={metrics.progress} className="h-3" />
+              <div className="mt-2 text-right text-xs font-medium text-muted-foreground">
+                {bookingsMet ? "Unlocked" : `${metrics.progress.toFixed(0)}% complete`}
+              </div>
             </div>
 
             {/* Rating */}
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+            <div className="flex items-center justify-between rounded-2xl border bg-background/60 p-4">
               <div className="flex items-center gap-2">
                 <span className="text-lg">⭐</span>
                 <span className="text-sm font-medium">Rating: {metrics.rating.toFixed(1)}</span>
               </div>
-              <Badge variant={ratingMet ? "default" : "secondary"}>
+              <Badge variant={ratingMet ? "default" : "secondary"} className="rounded-full px-3">
                 {ratingMet ? 'Qualified ✓' : 'Maintain 4.8+'}
               </Badge>
             </div>
@@ -222,14 +219,14 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
         </div>
 
         {/* Founder's Circle - Partially Accessible */}
-        <Card className="border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50/50 to-background dark:from-purple-950/20">
-          <CardHeader>
+        <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50/70 via-background to-background shadow-sm dark:border-purple-800 dark:from-purple-950/20">
+          <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <UserPlus className="h-6 w-6 text-purple-600 dark:text-purple-400" />
                 <div>
                   <CardTitle className="text-purple-700 dark:text-purple-300">Founder's Circle</CardTitle>
-                  <CardDescription>Recruiting • 90% Profit Share</CardDescription>
+                  <CardDescription>Recruiting • Weekly Accelerator</CardDescription>
                 </div>
               </div>
               <Badge variant="outline" className="border-purple-400 text-purple-600 dark:text-purple-400">
@@ -238,8 +235,8 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Invite other professionals to join. As a Founder, you earn <strong>90% profit share</strong> on every booking they make for 24 months.
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Invite a barber, then earn on each eligible appointment they complete until they hit their cap.
             </p>
             
             {/* Clickable Stats Grid */}
@@ -247,11 +244,11 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
               className={`grid grid-cols-2 gap-3 text-center ${stats.proInvites > 0 ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
               onClick={() => stats.proInvites > 0 && setShowRecruitBreakdown(!showRecruitBreakdown)}
             >
-              <div className="p-3 bg-purple-100/50 dark:bg-purple-900/20 rounded-lg">
+              <div className="rounded-2xl border bg-purple-100/50 p-3 dark:bg-purple-900/20">
                 <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.proInvites}</p>
                 <p className="text-xs text-muted-foreground">Recruits</p>
               </div>
-              <div className="p-3 bg-purple-100/50 dark:bg-purple-900/20 rounded-lg">
+              <div className="rounded-2xl border bg-purple-100/50 p-3 dark:bg-purple-900/20">
                 <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">€{stats.proInviteEarnings.toFixed(0)}</p>
                 <p className="text-xs text-muted-foreground">Earnings</p>
               </div>
@@ -279,13 +276,13 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
             )}
 
             {/* Fast-Track CTA */}
-            <div className="p-3 border border-dashed border-purple-300 dark:border-purple-700 rounded-lg bg-purple-50/50 dark:bg-purple-950/20">
+            <div className="rounded-2xl border border-dashed border-purple-300 bg-purple-50/50 p-3 dark:border-purple-700 dark:bg-purple-950/20">
               <div className="flex items-center gap-2 mb-2">
                 <Shield className="h-4 w-4 text-purple-600" />
                 <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Fast-Track Access</span>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                Want to start recruiting immediately? Verify your identity to unlock full Founder's Circle access.
+                Want to start recruiting immediately? Verify your identity to unlock early accelerator access.
               </p>
               <Button 
                 variant="outline" 
@@ -316,7 +313,7 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
             {tier && <TierBadge tier={tier} />}
           </div>
           <p className="text-muted-foreground">
-            You are earning on the Founder's Tier
+            You are earning on the Founder accelerator tier
           </p>
         </div>
       </div>
@@ -364,7 +361,7 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
         </Card>
 
         {/* Founder's Circle (Recruiting) - Expandable */}
-        <Card className="border-purple-200 dark:border-purple-800 md:col-span-2 lg:col-span-1">
+        <Card className="border-purple-200 shadow-sm dark:border-purple-800 md:col-span-2 lg:col-span-1">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -372,22 +369,25 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
                 <CardTitle className="text-base text-purple-700 dark:text-purple-300">Founder's Circle</CardTitle>
               </div>
               <Badge variant="outline" className="text-xs border-purple-500 text-purple-600">
-                90% Share
+                Weekly Accelerator
               </Badge>
             </div>
             <CardDescription className="text-xs">Recruiting</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Earn on each eligible appointment your invited barber completes until they hit their cap.
+            </p>
             {/* Clickable Stats Grid */}
             <div 
               className="grid grid-cols-2 gap-2 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => setShowRecruitBreakdown(!showRecruitBreakdown)}
             >
-              <div className="text-center p-2 bg-muted/50 rounded relative">
+              <div className="relative rounded-2xl border bg-muted/50 p-3 text-center">
                 <p className="text-xl font-bold text-purple-600 dark:text-purple-400">{stats.proInvites}</p>
                 <p className="text-xs text-muted-foreground">Recruits</p>
               </div>
-              <div className="text-center p-2 bg-muted/50 rounded">
+              <div className="rounded-2xl border bg-muted/50 p-3 text-center">
                 <p className="text-xl font-bold text-purple-600 dark:text-purple-400">€{stats.proInviteEarnings.toFixed(0)}</p>
                 <p className="text-xs text-muted-foreground">Earnings</p>
               </div>

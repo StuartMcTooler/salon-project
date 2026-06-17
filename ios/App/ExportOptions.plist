@@ -7,12 +7,7 @@
     <key>teamID</key>
     <string>5NYK73WG56</string>
     <key>signingStyle</key>
-    <string>manual</string>
-    <key>provisioningProfiles</key>
-    <dict>
-        <key>app.lovable.744b93d1b5ba4b6b84e84219b1a2924b</key>
-        <string>Salon</string>
-    </dict>
+    <string>automatic</string>
     <key>uploadBitcode</key>
     <false/>
     <key>uploadSymbols</key>

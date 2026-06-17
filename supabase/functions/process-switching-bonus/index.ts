@@ -19,7 +19,8 @@ Deno.serve(async (req) => {
     const { creativeId, appointmentId, paymentIntentId } = await req.json();
     console.log('Processing switching bonus for:', { creativeId, appointmentId });
 
-    // Check if creative has a campaign code
+    // Weekly Accelerator is inviter -> invited barber.
+    // The paid barber must have both an invite relationship and an active campaign.
     const { data: creative } = await supabase
       .from('staff_members')
       .select('campaign_code, display_name')
@@ -27,9 +28,37 @@ Deno.serve(async (req) => {
       .single();
 
     if (!creative?.campaign_code) {
-      console.log('No campaign code assigned - no switching bonus');
+      console.log('No campaign code assigned - no weekly accelerator');
       return new Response(
         JSON.stringify({ bonusAwarded: false, reason: 'no_campaign' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { data: invite } = await supabase
+      .from('creative_invites')
+      .select(`
+        inviter_creative_id,
+        weekly_reward_amount,
+        earnings_cap_amount,
+        accelerator_started_at,
+        accelerator_completed_at
+      `)
+      .eq('invited_creative_id', creativeId)
+      .maybeSingle();
+
+    if (!invite?.inviter_creative_id) {
+      console.log('No inviter linked - no weekly accelerator');
+      return new Response(
+        JSON.stringify({ bonusAwarded: false, reason: 'no_inviter' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (invite.accelerator_completed_at) {
+      console.log('Accelerator already completed');
+      return new Response(
+        JSON.stringify({ bonusAwarded: false, reason: 'accelerator_completed' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -50,31 +79,44 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get current cumulative count
-    const { count: currentCount } = await supabase
+    const bonusAmount = Number(invite.weekly_reward_amount ?? campaign.switching_bonus_per_booking ?? 1);
+    const earningsCap = Number(
+      invite.earnings_cap_amount ??
+      campaign.earnings_cap_amount ??
+      ((campaign.switching_bonus_cap ?? 500) * bonusAmount)
+    );
+
+    const { data: existingEntries } = await supabase
       .from('switching_bonus_ledger')
-      .select('*', { count: 'exact', head: true })
+      .select('bonus_amount')
       .eq('creative_id', creativeId)
       .eq('campaign_code', creative.campaign_code);
 
-    const cumulativeCount = (currentCount || 0) + 1;
+    const currentCount = existingEntries?.length || 0;
+    const earnedSoFar = (existingEntries || []).reduce((sum, entry) => sum + Number(entry.bonus_amount || 0), 0);
+    const cumulativeCount = currentCount + 1;
 
     // Check if at cap
-    if (cumulativeCount > campaign.switching_bonus_cap) {
-      console.log('Switching bonus cap reached:', campaign.switching_bonus_cap);
+    if (earnedSoFar + bonusAmount > earningsCap) {
+      console.log('Weekly accelerator cap reached:', earningsCap);
+
+      await supabase
+        .from('creative_invites')
+        .update({ accelerator_completed_at: new Date().toISOString() })
+        .eq('invited_creative_id', creativeId);
+
       return new Response(
         JSON.stringify({ bonusAwarded: false, reason: 'cap_reached' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Award bonus
-    const bonusAmount = campaign.switching_bonus_per_booking;
-
     const { data: ledgerEntry, error: ledgerError } = await supabase
       .from('switching_bonus_ledger')
       .insert({
         creative_id: creativeId,
+        invited_creative_id: creativeId,
+        inviter_creative_id: invite.inviter_creative_id,
         campaign_code: creative.campaign_code,
         appointment_id: appointmentId,
         bonus_amount: bonusAmount,
@@ -89,34 +131,47 @@ Deno.serve(async (req) => {
       throw ledgerError;
     }
 
-    console.log('Switching bonus awarded:', { bonusAmount, cumulativeCount });
+    if (!invite.accelerator_started_at) {
+      await supabase
+        .from('creative_invites')
+        .update({ accelerator_started_at: new Date().toISOString() })
+        .eq('invited_creative_id', creativeId);
+    }
+
+    const totalEarned = earnedSoFar + bonusAmount;
+    const percentage = Math.min(100, Math.round((totalEarned / earningsCap) * 100));
+    const capReached = totalEarned >= earningsCap;
+
+    if (capReached) {
+      await supabase
+        .from('creative_invites')
+        .update({ accelerator_completed_at: new Date().toISOString() })
+        .eq('invited_creative_id', creativeId);
+    }
+
+    console.log('Weekly accelerator awarded:', { bonusAmount, cumulativeCount, totalEarned, earningsCap });
 
     // === CREATE DOPAMINE NOTIFICATION ===
     // Notify on every 10th bonus, or when reaching 50%, 75%, 100% of cap
-    const milestones = [
-      Math.floor(campaign.switching_bonus_cap * 0.5),
-      Math.floor(campaign.switching_bonus_cap * 0.75),
-      campaign.switching_bonus_cap
+    const milestoneAmounts = [
+      Math.round(earningsCap * 0.5),
+      Math.round(earningsCap * 0.75),
+      Math.round(earningsCap)
     ];
     
-    const isMilestone = milestones.includes(cumulativeCount) || cumulativeCount % 10 === 0;
+    const isMilestone = milestoneAmounts.includes(Math.round(totalEarned)) || cumulativeCount % 10 === 0;
     
     if (isMilestone) {
-      const percentage = Math.round((cumulativeCount / campaign.switching_bonus_cap) * 100);
-      const totalEarned = cumulativeCount * bonusAmount;
-      
       await supabase
         .from('bonus_notifications')
         .insert({
-          creative_id: creativeId,
+          creative_id: invite.inviter_creative_id,
           notification_type: 'switching_bonus',
           bonus_amount: totalEarned,
-          title: cumulativeCount === campaign.switching_bonus_cap 
-            ? '🎉 Switching Bonus Complete!' 
-            : `💰 €${bonusAmount.toFixed(2)} Earned!`,
-          message: cumulativeCount === campaign.switching_bonus_cap
-            ? `Congratulations! You've earned €${totalEarned.toFixed(2)} in switching bonuses. Maximum reached!`
-            : `You're ${percentage}% to your €${(campaign.switching_bonus_cap * bonusAmount).toFixed(2)} switching bonus goal. Keep going!`
+          title: capReached ? '🎉 Weekly Accelerator Complete!' : `💰 €${bonusAmount.toFixed(2)} Added`,
+          message: capReached
+            ? `${creative.display_name} just completed your Weekly Accelerator. Total earned: €${totalEarned.toFixed(2)}.`
+            : `${creative.display_name} completed another eligible appointment. You're ${percentage}% to your €${earningsCap.toFixed(2)} cap.`
         });
       
       console.log('Milestone notification created:', percentage + '%');
@@ -127,7 +182,8 @@ Deno.serve(async (req) => {
         bonusAwarded: true, 
         bonusAmount,
         cumulativeCount,
-        capRemaining: campaign.switching_bonus_cap - cumulativeCount
+        totalEarned,
+        capRemaining: Math.max(0, earningsCap - totalEarned)
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

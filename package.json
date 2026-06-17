@@ -8,7 +8,8 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sync:ios": "npx cap sync ios && node scripts/ensure-ios-capacitor-plugin.mjs"
   },
   "dependencies": {
     "@capacitor-community/stripe-terminal": "^7.2.2",

@@ -333,6 +333,7 @@ export type Database = {
           created_at: string | null
           demo_access_token: string | null
           double_sided_bonus: number | null
+          earnings_cap_amount: number | null
           id: string
           is_active: boolean | null
           switching_bonus_cap: number | null
@@ -345,6 +346,7 @@ export type Database = {
           created_at?: string | null
           demo_access_token?: string | null
           double_sided_bonus?: number | null
+          earnings_cap_amount?: number | null
           id?: string
           is_active?: boolean | null
           switching_bonus_cap?: number | null
@@ -357,6 +359,7 @@ export type Database = {
           created_at?: string | null
           demo_access_token?: string | null
           double_sided_bonus?: number | null
+          earnings_cap_amount?: number | null
           id?: string
           is_active?: boolean | null
           switching_bonus_cap?: number | null
@@ -726,8 +729,11 @@ export type Database = {
       }
       creative_invites: {
         Row: {
+          accelerator_completed_at: string | null
+          accelerator_started_at: string | null
           bonus_qualification_met_at: string | null
           created_at: string | null
+          earnings_cap_amount: number | null
           id: string
           invite_code: string
           invited_creative_id: string | null
@@ -737,10 +743,14 @@ export type Database = {
           unique_payment_methods_count: number | null
           upfront_bonus_amount: number | null
           upfront_bonus_paid: boolean | null
+          weekly_reward_amount: number | null
         }
         Insert: {
+          accelerator_completed_at?: string | null
+          accelerator_started_at?: string | null
           bonus_qualification_met_at?: string | null
           created_at?: string | null
+          earnings_cap_amount?: number | null
           id?: string
           invite_code: string
           invited_creative_id?: string | null
@@ -750,10 +760,14 @@ export type Database = {
           unique_payment_methods_count?: number | null
           upfront_bonus_amount?: number | null
           upfront_bonus_paid?: boolean | null
+          weekly_reward_amount?: number | null
         }
         Update: {
+          accelerator_completed_at?: string | null
+          accelerator_started_at?: string | null
           bonus_qualification_met_at?: string | null
           created_at?: string | null
+          earnings_cap_amount?: number | null
           id?: string
           invite_code?: string
           invited_creative_id?: string | null
@@ -763,6 +777,7 @@ export type Database = {
           unique_payment_methods_count?: number | null
           upfront_bonus_amount?: number | null
           upfront_bonus_paid?: boolean | null
+          weekly_reward_amount?: number | null
         }
         Relationships: [
           {
@@ -2314,6 +2329,8 @@ export type Database = {
           creative_id: string
           cumulative_count: number
           id: string
+          invited_creative_id: string | null
+          inviter_creative_id: string | null
           paid_at: string | null
           status: string | null
         }
@@ -2325,6 +2342,8 @@ export type Database = {
           creative_id: string
           cumulative_count: number
           id?: string
+          invited_creative_id?: string | null
+          inviter_creative_id?: string | null
           paid_at?: string | null
           status?: string | null
         }
@@ -2336,6 +2355,8 @@ export type Database = {
           creative_id?: string
           cumulative_count?: number
           id?: string
+          invited_creative_id?: string | null
+          inviter_creative_id?: string | null
           paid_at?: string | null
           status?: string | null
         }
@@ -2357,6 +2378,34 @@ export type Database = {
           {
             foreignKeyName: "switching_bonus_ledger_creative_id_fkey"
             columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "switching_bonus_ledger_invited_creative_id_fkey"
+            columns: ["invited_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "switching_bonus_ledger_invited_creative_id_fkey"
+            columns: ["invited_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "switching_bonus_ledger_inviter_creative_id_fkey"
+            columns: ["inviter_creative_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "switching_bonus_ledger_inviter_creative_id_fkey"
+            columns: ["inviter_creative_id"]
             isOneToOne: false
             referencedRelation: "staff_members_public"
             referencedColumns: ["id"]

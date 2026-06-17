@@ -64,7 +64,7 @@ export const SoloSetup = () => {
         description: "Welcome to your solo professional dashboard.",
       });
 
-      navigate("/dashboard");
+      navigate("/dashboard?setup=1&tab=setup");
     } catch (error: any) {
       toast({
         title: "Setup failed",

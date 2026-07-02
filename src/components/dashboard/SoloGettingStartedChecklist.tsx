@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { getTestModeHeaders } from "@/hooks/useTestModeOverride";
+import { usePlatform } from "@/hooks/usePlatform";
 import { CheckCircle2, Circle, CreditCard, Loader2, Receipt, Scissors, Smartphone } from "lucide-react";
 
 interface SoloGettingStartedChecklistProps {

@@ -123,9 +123,59 @@ const TapToPayOnboarding = () => {
   }, [isNative]);
 
   useEffect(() => {
+    let cancelled = false;
+    let authSubscription: { unsubscribe: () => void } | null = null;
+
+    // Wait for the Supabase session to rehydrate after a native deep-link
+    // return from Stripe. On cold launch the persisted session may not be
+    // loaded from storage yet when this effect runs, so we must not redirect
+    // to /auth on the first null check.
+    const waitForUser = async () => {
+      // 1. Immediate session check (fast path — session already in memory).
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session?.user) return sessionData.session.user;
+
+      // 2. Race an onAuthStateChange listener against a bounded poll of
+      //    getSession(). Whichever surfaces a user first wins.
+      return await new Promise<typeof sessionData.session extends { user: infer U } ? U : any>((resolve) => {
+        let settled = false;
+        const finish = (user: any) => {
+          if (settled) return;
+          settled = true;
+          resolve(user);
+        };
+
+        const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+          if (session?.user) finish(session.user);
+        });
+        authSubscription = sub.subscription;
+
+        // Poll getSession() a few times over ~6s while storage rehydrates.
+        let attempts = 0;
+        const maxAttempts = 12;
+        const poll = async () => {
+          if (settled || cancelled) return;
+          attempts += 1;
+          const { data } = await supabase.auth.getSession();
+          if (data.session?.user) {
+            finish(data.session.user);
+            return;
+          }
+          if (attempts >= maxAttempts) {
+            // Last resort — verify with the auth server before giving up.
+            const { data: userData } = await supabase.auth.getUser();
+            finish(userData.user ?? null);
+            return;
+          }
+          setTimeout(poll, 500);
+        };
+        setTimeout(poll, 250);
+      });
+    };
+
     const loadContext = async () => {
-      const { data: authData } = await supabase.auth.getUser();
-      const user = authData.user;
+      const user = await waitForUser();
+      if (cancelled) return;
       if (!user) {
         navigate("/auth", { replace: true });
         return;

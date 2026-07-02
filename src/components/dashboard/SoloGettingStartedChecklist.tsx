@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { getTestModeHeaders } from "@/hooks/useTestModeOverride";
+import { usePlatform } from "@/hooks/usePlatform";
 import { CheckCircle2, Circle, CreditCard, Loader2, Receipt, Scissors, Smartphone } from "lucide-react";
 
 interface SoloGettingStartedChecklistProps {
@@ -24,6 +25,7 @@ export const SoloGettingStartedChecklist = ({
 }: SoloGettingStartedChecklistProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isNative } = usePlatform();
   const [tapToPayComplete, setTapToPayComplete] = useState(false);
   const [posStarted, setPosStarted] = useState(false);
   const [activatingPayouts, setActivatingPayouts] = useState(false);
@@ -91,6 +93,7 @@ export const SoloGettingStartedChecklist = ({
 
       const { data: response, error } = await supabase.functions.invoke('create-connect-account', {
         headers,
+        body: { platform: isNative ? 'native' : 'web', resumeFlow: 'payouts' },
       });
 
       if (error) throw error;

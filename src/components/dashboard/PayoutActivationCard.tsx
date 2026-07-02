@@ -12,11 +12,17 @@ import { getTestModeHeaders } from "@/hooks/useTestModeOverride";
 
 interface PayoutActivationCardProps {
   staffId: string;
+  /**
+   * Which flow to resume after Stripe onboarding returns to the app.
+   * 'payouts' returns to the dashboard/settings; 'tap_to_pay' returns to
+   * the Tap to Pay onboarding screen so the merchant can finish setup.
+   */
+  resumeFlow?: 'payouts' | 'tap_to_pay';
 }
 
 type ConnectStatus = 'not_started' | 'pending' | 'restricted' | 'active' | 'disabled';
 
-export const PayoutActivationCard = ({ staffId }: PayoutActivationCardProps) => {
+export const PayoutActivationCard = ({ staffId, resumeFlow: resumeFlowProp }: PayoutActivationCardProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isNative, isIOS, canUseTapToPay } = usePlatform();
@@ -119,15 +125,22 @@ export const PayoutActivationCard = ({ staffId }: PayoutActivationCardProps) => 
   const handleActivatePayouts = useCallback(async () => {
     setActivating(true);
     try {
+      // Prefer the caller-supplied prop; fall back to a URL param so
+      // deep-linked entry points (e.g. Tap to Pay setup) can indicate
+      // which flow the merchant should resume after Stripe returns.
+      const params = new URLSearchParams(window.location.search);
+      const urlResumeFlow = params.get('resumeFlow') as 'payouts' | 'tap_to_pay' | null;
+      const resumeFlow = resumeFlowProp ?? urlResumeFlow ?? 'payouts';
+
       const { data, error } = await supabase.functions.invoke('create-connect-account', {
         headers: getConnectHeaders(),
-        body: { platform: isNative ? 'native' : 'web', resumeFlow: 'payouts' },
+        body: { platform: isNative ? 'native' : 'web', resumeFlow },
       });
 
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Failed to create account');
 
-      console.log('[PayoutActivationCard] create-connect-account mode:', data?.stripeMode || 'unknown');
+      console.log('[PayoutActivationCard] create-connect-account mode:', data?.stripeMode || 'unknown', 'resumeFlow:', resumeFlow);
 
       if (data.accountLinkUrl) {
         window.location.href = data.accountLinkUrl;
@@ -141,7 +154,7 @@ export const PayoutActivationCard = ({ staffId }: PayoutActivationCardProps) => 
       });
       setActivating(false);
     }
-  }, [getConnectHeaders, toast]);
+  }, [getConnectHeaders, isNative, resumeFlowProp, toast]);
 
   useEffect(() => {
     if (loading || activating || !isVisible || status === 'active') {

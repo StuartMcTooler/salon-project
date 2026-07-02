@@ -72,8 +72,7 @@ export const EarningsOverview = ({ staffMemberId }: EarningsOverviewProps) => {
           status: tx.status,
         })),
         ...(acceleratorTxs || []).map((tx) => {
-          const recruit = tx.invited_creative as { display_name?: string | null; full_name?: string | null } | null;
-          const recruitName = recruit?.display_name || recruit?.full_name || "invited barber";
+          const recruitName = "invited barber";
 
           return {
             id: tx.id,

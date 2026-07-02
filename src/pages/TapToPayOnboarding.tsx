@@ -447,6 +447,35 @@ const TapToPayOnboarding = () => {
         <div className="space-y-4">
           {onboardingStep === "intro" && (
             <>
+              {!payoutsActive && (
+                <Card className="w-full max-w-full overflow-hidden rounded-3xl border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20">
+                  <CardContent className="min-w-0 p-5">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                      <div className="min-w-0 space-y-3">
+                        <div>
+                          <p className="font-medium text-amber-900 dark:text-amber-100">Activate payouts to unlock {tapToPayShortLabel}</p>
+                          <p className="text-sm text-amber-800 dark:text-amber-200 break-words">
+                            Stripe Connect onboarding is required before you can take contactless payments. We&apos;ll bring you straight back here when it&apos;s done.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={handleActivatePayoutsForTapToPay}
+                          disabled={activatingPayouts}
+                          className="w-full sm:w-auto"
+                        >
+                          {activatingPayouts ? (
+                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Opening Stripe...</>
+                          ) : (
+                            "Activate payouts to continue"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
               <Card className="w-full max-w-full overflow-hidden rounded-3xl"><CardContent className="min-w-0 p-5"><div className="flex items-start gap-3"><Smartphone className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><div className="min-w-0 space-y-2"><p className="font-medium">{tapToPayShortLabel}</p><p className="text-sm text-muted-foreground break-words">Accept contactless payments directly on a supported iPhone without a separate reader.</p></div></div></CardContent></Card>
               <Card className="w-full max-w-full overflow-hidden rounded-3xl"><CardContent className="min-w-0 p-5"><p className="text-sm font-medium">New to Tap to Pay?</p><p className="mt-2 text-sm text-muted-foreground break-words">If you&apos;re new to Tap to Pay on iPhone, follow these steps after Stripe Connect onboarding to finish setup on this device.</p></CardContent></Card>
               <Card className="w-full max-w-full overflow-hidden rounded-3xl"><CardContent className="min-w-0 p-5"><p className="text-sm font-medium">Already using Bookd?</p><p className="mt-2 text-sm text-muted-foreground break-words">If you already use Bookd, you can come here at any time to enable Tap to Pay on iPhone and review the guidance again.</p></CardContent></Card>

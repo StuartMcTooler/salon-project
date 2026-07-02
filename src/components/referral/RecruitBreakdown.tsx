@@ -47,46 +47,49 @@ export const RecruitBreakdown = ({ staffMemberId }: RecruitBreakdownProps) => {
 
   const loadRecruitData = async () => {
     try {
-      const [{ data: revenueData, error: revenueError }, { data: invitesData }] = await Promise.all([
+      const [{ data: revenueDataRaw, error: revenueError }, { data: invitesDataRaw }] = await Promise.all([
         supabase
           .from("switching_bonus_ledger")
-          .select(`
-            bonus_amount,
-            created_at,
-            invited_creative_id,
-            invited_creative:staff_members!switching_bonus_ledger_invited_creative_id_fkey(
-              id,
-              full_name,
-              display_name
-            )
-          `)
-          .eq("inviter_creative_id", staffMemberId)
+          .select("bonus_amount, created_at, creative_id")
+          .eq("creative_id", staffMemberId)
           .order("created_at", { ascending: false }),
         supabase
           .from("creative_invites")
-          .select("invited_creative_id, earnings_cap_amount")
+          .select("invited_creative_id")
           .eq("inviter_creative_id", staffMemberId),
       ]);
 
       if (revenueError) throw revenueError;
 
-      const capByInvite = new Map(
-        (invitesData || []).map((invite) => [invite.invited_creative_id, Number(invite.earnings_cap_amount || 500)])
-      );
+      const invitesData = (invitesDataRaw as Array<{ invited_creative_id: string | null }> | null) || [];
+      const revenueData = (revenueDataRaw as Array<{ bonus_amount: number | null; created_at: string; creative_id: string | null }> | null) || [];
 
+      // Fetch recruit names separately
+      const recruitIds = invitesData
+        .map((i) => i.invited_creative_id)
+        .filter((id): id is string => !!id);
+      const nameById = new Map<string, string>();
+      if (recruitIds.length > 0) {
+        const { data: staffRows } = await supabase
+          .from("staff_members")
+          .select("id, full_name, display_name")
+          .in("id", recruitIds);
+        ((staffRows as Array<{ id: string; full_name: string | null; display_name: string | null }> | null) || []).forEach((s) => {
+          nameById.set(s.id, s.full_name || s.display_name || "Unknown");
+        });
+      }
+
+      const capByInvite = new Map(invitesData.map((invite) => [invite.invited_creative_id, 500]));
       const recruitMap = new Map<string, RecruitData>();
 
-      revenueData?.forEach((record) => {
-        const creativeId = record.invited_creative_id;
-        const creative = record.invited_creative as { full_name?: string | null; display_name?: string | null } | null;
-
-        if (!creativeId || !creative) return;
-
+      revenueData.forEach((record) => {
+        const creativeId = record.creative_id;
+        if (!creativeId) return;
         const existing = recruitMap.get(creativeId);
         const recordDate = new Date(record.created_at);
 
         if (existing) {
-          existing.totalEarnings += Number(record.bonus_amount);
+          existing.totalEarnings += Number(record.bonus_amount || 0);
           existing.transactionCount += 1;
           if (!existing.lastActiveDate || recordDate > existing.lastActiveDate) {
             existing.lastActiveDate = recordDate;
@@ -95,8 +98,8 @@ export const RecruitBreakdown = ({ staffMemberId }: RecruitBreakdownProps) => {
           recruitMap.set(creativeId, {
             capAmount: capByInvite.get(creativeId) || 500,
             id: creativeId,
-            name: creative.full_name || creative.display_name || "Unknown",
-            totalEarnings: Number(record.bonus_amount),
+            name: nameById.get(creativeId) || "Unknown",
+            totalEarnings: Number(record.bonus_amount || 0),
             transactionCount: 1,
             lastActiveDate: recordDate,
             status: "active",

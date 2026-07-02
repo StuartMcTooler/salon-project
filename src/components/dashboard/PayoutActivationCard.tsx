@@ -121,6 +121,7 @@ export const PayoutActivationCard = ({ staffId }: PayoutActivationCardProps) => 
     try {
       const { data, error } = await supabase.functions.invoke('create-connect-account', {
         headers: getConnectHeaders(),
+        body: { platform: isNative ? 'native' : 'web', resumeFlow: 'payouts' },
       });
 
       if (error) throw error;

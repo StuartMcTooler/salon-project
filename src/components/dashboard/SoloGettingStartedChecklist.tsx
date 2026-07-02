@@ -93,6 +93,7 @@ export const SoloGettingStartedChecklist = ({
 
       const { data: response, error } = await supabase.functions.invoke('create-connect-account', {
         headers,
+        body: { platform: isNative ? 'native' : 'web', resumeFlow: 'payouts' },
       });
 
       if (error) throw error;

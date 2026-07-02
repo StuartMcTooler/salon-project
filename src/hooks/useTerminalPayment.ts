@@ -447,11 +447,11 @@ export const useTerminalPayment = () => {
     setDebugStage('calling native discoverReaders');
     const discoverTimeoutMs = 45000;
     console.log('[TerminalPayment] Waiting up to', discoverTimeoutMs, 'ms for native discoverReaders()');
-    const result = await withTimeout(
+    const result = (await withTimeout(
       StripeTerminal.discoverReaders(discoveryConfig),
       discoverTimeoutMs,
       'discoverReaders'
-    );
+    )) as { readers?: any[] };
     
     console.log(`[TerminalPayment] ✅ Found ${result.readers?.length || 0} readers`);
     setDebugStage(`discover resolved: ${result.readers?.length || 0} readers`);

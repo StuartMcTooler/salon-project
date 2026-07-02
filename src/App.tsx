@@ -59,6 +59,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <BackButtonHandler />
+        <StripeDeepLinkHandler />
         <PasswordRecoveryHandler />
         <Routes>
           <Route path="/" element={<Index />} />

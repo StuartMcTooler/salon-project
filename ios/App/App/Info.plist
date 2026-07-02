@@ -49,6 +49,19 @@
 	<array>
 		<string>bluetooth-central</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>ie.bookd.salon</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>bookd</string>
+			</array>
+		</dict>
+	</array>
 	<key>Capacitor</key>
 	<dict>
 		<key>Plugins</key>

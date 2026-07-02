@@ -64,7 +64,7 @@ export const ReferralOverview = ({ staffMemberId, onNavigate, isSoloProfessional
       const { data: acceleratorEarnings } = await supabase
         .from('switching_bonus_ledger')
         .select('bonus_amount')
-        .eq('inviter_creative_id', staffMemberId);
+        .eq('creative_id', staffMemberId);
 
       const totalFoundersEarnings = acceleratorEarnings?.reduce((sum, tx) => sum + Number(tx.bonus_amount), 0) || 0;
 

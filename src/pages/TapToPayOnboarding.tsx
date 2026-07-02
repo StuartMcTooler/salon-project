@@ -49,6 +49,8 @@ const TapToPayOnboarding = () => {
   const [nativeEducationError, setNativeEducationError] = useState<string | null>(null);
   const [resolvedReturnTo, setResolvedReturnTo] = useState("/my-profile?tab=settings");
   const [resumeTick, setResumeTick] = useState(0);
+  const [payoutStatus, setPayoutStatus] = useState<string | null>(null);
+  const [activatingPayouts, setActivatingPayouts] = useState(false);
 
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const requestedStaffId = searchParams.get("staffId");

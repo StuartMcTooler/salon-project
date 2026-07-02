@@ -12,11 +12,17 @@ import { getTestModeHeaders } from "@/hooks/useTestModeOverride";
 
 interface PayoutActivationCardProps {
   staffId: string;
+  /**
+   * Which flow to resume after Stripe onboarding returns to the app.
+   * 'payouts' returns to the dashboard/settings; 'tap_to_pay' returns to
+   * the Tap to Pay onboarding screen so the merchant can finish setup.
+   */
+  resumeFlow?: 'payouts' | 'tap_to_pay';
 }
 
 type ConnectStatus = 'not_started' | 'pending' | 'restricted' | 'active' | 'disabled';
 
-export const PayoutActivationCard = ({ staffId }: PayoutActivationCardProps) => {
+export const PayoutActivationCard = ({ staffId, resumeFlow: resumeFlowProp }: PayoutActivationCardProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isNative, isIOS, canUseTapToPay } = usePlatform();

@@ -43,11 +43,8 @@ export const EarningsOverview = ({ staffMemberId }: EarningsOverviewProps) => {
           .eq("referrer_creative_id", staffMemberId),
         supabase
           .from("switching_bonus_ledger")
-          .select(`
-            *,
-            invited_creative:staff_members!switching_bonus_ledger_invited_creative_id_fkey(display_name, full_name)
-          `)
-          .eq("inviter_creative_id", staffMemberId)
+          .select("id, bonus_amount, created_at, status, creative_id")
+          .eq("creative_id", staffMemberId)
           .order("created_at", { ascending: false }),
         supabase
           .from("c2c_revenue_share")

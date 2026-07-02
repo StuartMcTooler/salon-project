@@ -43,11 +43,8 @@ export const EarningsOverview = ({ staffMemberId }: EarningsOverviewProps) => {
           .eq("referrer_creative_id", staffMemberId),
         supabase
           .from("switching_bonus_ledger")
-          .select(`
-            *,
-            invited_creative:staff_members!switching_bonus_ledger_invited_creative_id_fkey(display_name, full_name)
-          `)
-          .eq("inviter_creative_id", staffMemberId)
+          .select("id, bonus_amount, created_at, status, creative_id")
+          .eq("creative_id", staffMemberId)
           .order("created_at", { ascending: false }),
         supabase
           .from("c2c_revenue_share")
@@ -75,8 +72,7 @@ export const EarningsOverview = ({ staffMemberId }: EarningsOverviewProps) => {
           status: tx.status,
         })),
         ...(acceleratorTxs || []).map((tx) => {
-          const recruit = tx.invited_creative as { display_name?: string | null; full_name?: string | null } | null;
-          const recruitName = recruit?.display_name || recruit?.full_name || "invited barber";
+          const recruitName = "invited barber";
 
           return {
             id: tx.id,

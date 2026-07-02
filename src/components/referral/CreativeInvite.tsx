@@ -75,26 +75,27 @@ export const CreativeInvite = ({ staffMemberId }: CreativeInviteProps) => {
 
       const { data: config } = await supabase
         .from("campaign_configs")
-        .select("switching_bonus_per_booking, earnings_cap_amount, switching_bonus_cap")
+        .select("switching_bonus_per_booking, switching_bonus_cap")
         .eq("campaign_code", staff?.campaign_code || "standard_2025")
         .maybeSingle();
 
+      const cfg = config as { switching_bonus_per_booking?: number | null; switching_bonus_cap?: number | null } | null;
       setCampaign({
-        reward: Number(config?.switching_bonus_per_booking || 1),
-        cap: Number(config?.earnings_cap_amount || config?.switching_bonus_cap || 500),
+        reward: Number(cfg?.switching_bonus_per_booking || 1),
+        cap: Number(cfg?.switching_bonus_cap || 500),
       });
 
       const { data: ledger } = await supabase
         .from("switching_bonus_ledger")
-        .select("bonus_amount, invited_creative_id")
-        .eq("inviter_creative_id", staffMemberId);
+        .select("bonus_amount, creative_id")
+        .eq("creative_id", staffMemberId);
 
-      const grouped = (ledger || []).reduce<Record<string, InviteProgress>>((acc, row) => {
-        if (!row.invited_creative_id) return acc;
-        const current = acc[row.invited_creative_id] || { count: 0, earned: 0 };
+      const grouped = ((ledger as Array<{ bonus_amount: number | null; creative_id: string | null }> | null) || []).reduce<Record<string, InviteProgress>>((acc, row) => {
+        if (!row.creative_id) return acc;
+        const current = acc[row.creative_id] || { count: 0, earned: 0 };
         current.count += 1;
         current.earned += Number(row.bonus_amount || 0);
-        acc[row.invited_creative_id] = current;
+        acc[row.creative_id] = current;
         return acc;
       }, {});
 

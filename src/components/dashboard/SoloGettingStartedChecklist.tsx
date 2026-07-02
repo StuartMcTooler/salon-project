@@ -25,6 +25,7 @@ export const SoloGettingStartedChecklist = ({
 }: SoloGettingStartedChecklistProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isNative } = usePlatform();
   const [tapToPayComplete, setTapToPayComplete] = useState(false);
   const [posStarted, setPosStarted] = useState(false);
   const [activatingPayouts, setActivatingPayouts] = useState(false);

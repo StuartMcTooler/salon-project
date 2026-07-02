@@ -307,6 +307,39 @@ const TapToPayOnboarding = () => {
     navigate(resolvedReturnTo, { replace: true });
   };
 
+  // Tap to Pay-first entry into Stripe Connect onboarding. Ensures the
+  // resulting deep link comes back to /tap-to-pay-onboarding rather than
+  // dashboard/settings.
+  const handleActivatePayoutsForTapToPay = async () => {
+    setActivatingPayouts(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-connect-account", {
+        body: { platform: isNative ? "native" : "web", resumeFlow: "tap_to_pay" },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Failed to start payout setup");
+      console.log(
+        "[TapToPayOnboarding] create-connect-account resumeFlow: tap_to_pay, mode:",
+        data?.stripeMode || "unknown",
+      );
+      if (data.accountLinkUrl) {
+        window.location.href = data.accountLinkUrl;
+        return;
+      }
+      throw new Error("Stripe did not return an onboarding link");
+    } catch (err: any) {
+      console.error("[TapToPayOnboarding] Failed to start Stripe onboarding:", err);
+      toast({
+        title: "Activation failed",
+        description: err?.message || "Failed to start payout setup. Please try again.",
+        variant: "destructive",
+      });
+      setActivatingPayouts(false);
+    }
+  };
+
+  const payoutsActive = payoutStatus === "active";
+
   const stepTitle =
     onboardingStep === "intro"
       ? `${tapToPayShortLabel} setup`

@@ -253,7 +253,7 @@ export default function Admin() {
 
               {features.servicePricing && (
                 <TabsContent value="pricing">
-                  <ServicePricing businessId={businessId} />
+                  <ServicePricing />
                 </TabsContent>
               )}
 

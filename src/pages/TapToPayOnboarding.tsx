@@ -137,7 +137,7 @@ const TapToPayOnboarding = () => {
 
       // 2. Race an onAuthStateChange listener against a bounded poll of
       //    getSession(). Whichever surfaces a user first wins.
-      return await new Promise<typeof sessionData.session extends { user: infer U } ? U : any>((resolve) => {
+      return await new Promise<any>((resolve) => {
         let settled = false;
         const finish = (user: any) => {
           if (settled) return;

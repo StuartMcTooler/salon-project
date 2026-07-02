@@ -253,7 +253,12 @@ const TapToPayOnboarding = () => {
     };
 
     loadContext();
-  }, [navigate, requestedReturnTo, requestedStaffId, toast]);
+
+    return () => {
+      cancelled = true;
+      authSubscription?.unsubscribe();
+    };
+  }, [navigate, requestedReturnTo, requestedStaffId, toast, resumeTick]);
 
   const presentNativeEducation = async (options?: { auto?: boolean }) => {
     if (!isNative || !isIOS) return false;

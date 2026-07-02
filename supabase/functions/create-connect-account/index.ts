@@ -111,23 +111,46 @@ serve(async (req) => {
       console.log('Using existing Stripe Connect account:', accountId);
     }
 
-    // Get the origin for return URLs - use published URL for livemode compatibility
-    // Native apps send localhost as origin which Stripe rejects in livemode
-    const rawOrigin = req.headers.get('origin') || '';
-    const isLocalhost = rawOrigin.includes('localhost') || rawOrigin.includes('127.0.0.1') || !rawOrigin;
-    const origin = isLocalhost 
-      ? (Deno.env.get('FRONTEND_URL') || 'https://bookd.ie')
-      : rawOrigin;
+    // Parse optional body { platform: 'native' | 'web', resumeFlow: 'tap_to_pay' | 'payouts' }
+    let platform: 'native' | 'web' = 'web';
+    let resumeFlow: 'tap_to_pay' | 'payouts' = 'payouts';
+    try {
+      if (req.headers.get('content-type')?.includes('application/json')) {
+        const body = await req.json();
+        if (body?.platform === 'native') platform = 'native';
+        if (body?.resumeFlow === 'tap_to_pay' || body?.resumeFlow === 'payouts') {
+          resumeFlow = body.resumeFlow;
+        }
+      }
+    } catch (_) { /* ignore */ }
 
-    // Create an account link for onboarding
+    let returnUrl: string;
+    let refreshUrl: string;
+
+    if (platform === 'native') {
+      // Custom URL scheme handled by the native app (iOS + Android).
+      // The app's deep-link handler routes based on `resume`.
+      returnUrl = `bookd://stripe-return?resume=${resumeFlow}`;
+      refreshUrl = `bookd://stripe-refresh?resume=${resumeFlow}`;
+    } else {
+      // Web browsers - Stripe rejects localhost in livemode, so fall back to FRONTEND_URL
+      const rawOrigin = req.headers.get('origin') || '';
+      const isLocalhost = rawOrigin.includes('localhost') || rawOrigin.includes('127.0.0.1') || !rawOrigin;
+      const origin = isLocalhost
+        ? (Deno.env.get('FRONTEND_URL') || 'https://bookd.ie')
+        : rawOrigin;
+      returnUrl = `${origin}/dashboard?stripe_onboarded=true&resume=${resumeFlow}`;
+      refreshUrl = `${origin}/dashboard?stripe_refresh=true&resume=${resumeFlow}`;
+    }
+
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${origin}/dashboard?stripe_refresh=true`,
-      return_url: `${origin}/dashboard?stripe_onboarded=true`,
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
       type: 'account_onboarding',
     });
 
-    console.log('Created account link for onboarding');
+    console.log('Created account link for onboarding', { platform, resumeFlow });
 
     return new Response(
       JSON.stringify({

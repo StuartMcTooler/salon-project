@@ -218,21 +218,24 @@ const TapToPayOnboarding = () => {
       const safeReturnTo = await determineReturnTo();
       setResolvedReturnTo(safeReturnTo);
 
+      let connectStatus: string | null = null;
       if (resolvedStaffId) {
         const { data: staff } = await supabase
           .from("staff_members")
-          .select("id, display_name")
+          .select("id, display_name, stripe_connect_status")
           .eq("id", resolvedStaffId)
           .maybeSingle();
         displayName = staff?.display_name || "";
+        connectStatus = (staff?.stripe_connect_status as string | null) ?? null;
       } else {
         const { data: staff } = await supabase
           .from("staff_members")
-          .select("id, display_name")
+          .select("id, display_name, stripe_connect_status")
           .eq("user_id", user.id)
           .maybeSingle();
         resolvedStaffId = staff?.id || null;
         displayName = staff?.display_name || "";
+        connectStatus = (staff?.stripe_connect_status as string | null) ?? null;
       }
 
       if (!resolvedStaffId) {
@@ -250,6 +253,7 @@ const TapToPayOnboarding = () => {
       setStaffId(resolvedStaffId);
       setStaffName(displayName);
       setHasCompletedOnboarding(completed);
+      setPayoutStatus(connectStatus);
       setOnboardingStep(completed ? "education" : "intro");
       setLoading(false);
     };

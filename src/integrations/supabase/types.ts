@@ -333,7 +333,6 @@ export type Database = {
           created_at: string | null
           demo_access_token: string | null
           double_sided_bonus: number | null
-          earnings_cap_amount: number | null
           id: string
           is_active: boolean | null
           switching_bonus_cap: number | null
@@ -346,7 +345,6 @@ export type Database = {
           created_at?: string | null
           demo_access_token?: string | null
           double_sided_bonus?: number | null
-          earnings_cap_amount?: number | null
           id?: string
           is_active?: boolean | null
           switching_bonus_cap?: number | null
@@ -359,7 +357,6 @@ export type Database = {
           created_at?: string | null
           demo_access_token?: string | null
           double_sided_bonus?: number | null
-          earnings_cap_amount?: number | null
           id?: string
           is_active?: boolean | null
           switching_bonus_cap?: number | null
@@ -426,6 +423,13 @@ export type Database = {
             columns: ["appointment_id"]
             isOneToOne: false
             referencedRelation: "salon_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_content_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments_availability"
             referencedColumns: ["id"]
           },
           {
@@ -503,6 +507,7 @@ export type Database = {
           first_visit_date: string | null
           id: string
           is_test_user: boolean | null
+          last_inbound_message_at: string | null
           last_visit_date: string | null
           name: string
           notes: string | null
@@ -510,6 +515,8 @@ export type Database = {
           primary_creative_id: string | null
           total_visits: number | null
           updated_at: string | null
+          whatsapp_opted_in: boolean
+          whatsapp_opted_in_at: string | null
         }
         Insert: {
           created_at?: string | null
@@ -517,6 +524,7 @@ export type Database = {
           first_visit_date?: string | null
           id?: string
           is_test_user?: boolean | null
+          last_inbound_message_at?: string | null
           last_visit_date?: string | null
           name: string
           notes?: string | null
@@ -524,6 +532,8 @@ export type Database = {
           primary_creative_id?: string | null
           total_visits?: number | null
           updated_at?: string | null
+          whatsapp_opted_in?: boolean
+          whatsapp_opted_in_at?: string | null
         }
         Update: {
           created_at?: string | null
@@ -531,6 +541,7 @@ export type Database = {
           first_visit_date?: string | null
           id?: string
           is_test_user?: boolean | null
+          last_inbound_message_at?: string | null
           last_visit_date?: string | null
           name?: string
           notes?: string | null
@@ -538,6 +549,8 @@ export type Database = {
           primary_creative_id?: string | null
           total_visits?: number | null
           updated_at?: string | null
+          whatsapp_opted_in?: boolean
+          whatsapp_opted_in_at?: string | null
         }
         Relationships: [
           {
@@ -641,6 +654,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "content_requests_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments_availability"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "content_requests_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
@@ -712,6 +732,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "creative_earnings_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments_availability"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "creative_earnings_creative_id_fkey"
             columns: ["creative_id"]
             isOneToOne: false
@@ -729,11 +756,8 @@ export type Database = {
       }
       creative_invites: {
         Row: {
-          accelerator_completed_at: string | null
-          accelerator_started_at: string | null
           bonus_qualification_met_at: string | null
           created_at: string | null
-          earnings_cap_amount: number | null
           id: string
           invite_code: string
           invited_creative_id: string | null
@@ -743,14 +767,10 @@ export type Database = {
           unique_payment_methods_count: number | null
           upfront_bonus_amount: number | null
           upfront_bonus_paid: boolean | null
-          weekly_reward_amount: number | null
         }
         Insert: {
-          accelerator_completed_at?: string | null
-          accelerator_started_at?: string | null
           bonus_qualification_met_at?: string | null
           created_at?: string | null
-          earnings_cap_amount?: number | null
           id?: string
           invite_code: string
           invited_creative_id?: string | null
@@ -760,14 +780,10 @@ export type Database = {
           unique_payment_methods_count?: number | null
           upfront_bonus_amount?: number | null
           upfront_bonus_paid?: boolean | null
-          weekly_reward_amount?: number | null
         }
         Update: {
-          accelerator_completed_at?: string | null
-          accelerator_started_at?: string | null
           bonus_qualification_met_at?: string | null
           created_at?: string | null
-          earnings_cap_amount?: number | null
           id?: string
           invite_code?: string
           invited_creative_id?: string | null
@@ -777,7 +793,6 @@ export type Database = {
           unique_payment_methods_count?: number | null
           upfront_bonus_amount?: number | null
           upfront_bonus_paid?: boolean | null
-          weekly_reward_amount?: number | null
         }
         Relationships: [
           {
@@ -1341,6 +1356,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "loyalty_transactions_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments_availability"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "loyalty_transactions_creative_id_fkey"
             columns: ["creative_id"]
             isOneToOne: false
@@ -1544,14 +1566,108 @@ export type Database = {
           },
         ]
       }
+      preview_page_claims: {
+        Row: {
+          contacted_at: string | null
+          created_at: string
+          email: string
+          id: string
+          phone: string | null
+          preview_page_id: string
+        }
+        Insert: {
+          contacted_at?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          phone?: string | null
+          preview_page_id: string
+        }
+        Update: {
+          contacted_at?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          phone?: string | null
+          preview_page_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preview_page_claims_preview_page_id_fkey"
+            columns: ["preview_page_id"]
+            isOneToOne: false
+            referencedRelation: "preview_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      preview_pages: {
+        Row: {
+          archived_at: string | null
+          bio: string | null
+          city: string
+          claimed_by_user_id: string | null
+          created_at: string
+          created_by: string
+          dm_sent_at: string | null
+          handle: string
+          id: string
+          instagram_handle: string
+          name: string
+          photo_urls: string[]
+          services: Json
+          tagline: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          bio?: string | null
+          city: string
+          claimed_by_user_id?: string | null
+          created_at?: string
+          created_by: string
+          dm_sent_at?: string | null
+          handle: string
+          id?: string
+          instagram_handle: string
+          name: string
+          photo_urls?: string[]
+          services?: Json
+          tagline: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          bio?: string | null
+          city?: string
+          claimed_by_user_id?: string | null
+          created_at?: string
+          created_by?: string
+          dm_sent_at?: string | null
+          handle?: string
+          id?: string
+          instagram_handle?: string
+          name?: string
+          photo_urls?: string[]
+          services?: Json
+          tagline?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
           default_delivery_address: string | null
           email: string
           id: string
+          is_internal_tester: boolean
           name: string
           phone: string
+          stripe_mode_override: string
           updated_at: string
         }
         Insert: {
@@ -1559,8 +1675,10 @@ export type Database = {
           default_delivery_address?: string | null
           email: string
           id?: string
+          is_internal_tester?: boolean
           name: string
           phone: string
+          stripe_mode_override?: string
           updated_at?: string
         }
         Update: {
@@ -1568,8 +1686,10 @@ export type Database = {
           default_delivery_address?: string | null
           email?: string
           id?: string
+          is_internal_tester?: boolean
           name?: string
           phone?: string
+          stripe_mode_override?: string
           updated_at?: string
         }
         Relationships: []
@@ -1668,6 +1788,13 @@ export type Database = {
             columns: ["appointment_id"]
             isOneToOne: false
             referencedRelation: "salon_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_transactions_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "salon_appointments_availability"
             referencedColumns: ["id"]
           },
           {
@@ -2152,6 +2279,9 @@ export type Database = {
           stripe_connect_account_id: string | null
           stripe_connect_onboarded_at: string | null
           stripe_connect_status: string | null
+          stripe_connect_test_account_id: string | null
+          stripe_connect_test_onboarded_at: string | null
+          stripe_connect_test_status: string
           tier: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at: string | null
           total_bookings: number | null
@@ -2198,6 +2328,9 @@ export type Database = {
           stripe_connect_account_id?: string | null
           stripe_connect_onboarded_at?: string | null
           stripe_connect_status?: string | null
+          stripe_connect_test_account_id?: string | null
+          stripe_connect_test_onboarded_at?: string | null
+          stripe_connect_test_status?: string
           tier?: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at?: string | null
           total_bookings?: number | null
@@ -2244,6 +2377,9 @@ export type Database = {
           stripe_connect_account_id?: string | null
           stripe_connect_onboarded_at?: string | null
           stripe_connect_status?: string | null
+          stripe_connect_test_account_id?: string | null
+          stripe_connect_test_onboarded_at?: string | null
+          stripe_connect_test_status?: string
           tier?: Database["public"]["Enums"]["creative_tier"] | null
           tier_upgraded_at?: string | null
           total_bookings?: number | null
@@ -2329,8 +2465,6 @@ export type Database = {
           creative_id: string
           cumulative_count: number
           id: string
-          invited_creative_id: string | null
-          inviter_creative_id: string | null
           paid_at: string | null
           status: string | null
         }
@@ -2342,8 +2476,6 @@ export type Database = {
           creative_id: string
           cumulative_count: number
           id?: string
-          invited_creative_id?: string | null
-          inviter_creative_id?: string | null
           paid_at?: string | null
           status?: string | null
         }
@@ -2355,8 +2487,6 @@ export type Database = {
           creative_id?: string
           cumulative_count?: number
           id?: string
-          invited_creative_id?: string | null
-          inviter_creative_id?: string | null
           paid_at?: string | null
           status?: string | null
         }
@@ -2369,43 +2499,22 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "switching_bonus_ledger_creative_id_fkey"
-            columns: ["creative_id"]
+            foreignKeyName: "switching_bonus_ledger_appointment_id_fkey"
+            columns: ["appointment_id"]
             isOneToOne: false
-            referencedRelation: "staff_members"
+            referencedRelation: "salon_appointments_availability"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "switching_bonus_ledger_creative_id_fkey"
             columns: ["creative_id"]
             isOneToOne: false
-            referencedRelation: "staff_members_public"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "switching_bonus_ledger_invited_creative_id_fkey"
-            columns: ["invited_creative_id"]
-            isOneToOne: false
             referencedRelation: "staff_members"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "switching_bonus_ledger_invited_creative_id_fkey"
-            columns: ["invited_creative_id"]
-            isOneToOne: false
-            referencedRelation: "staff_members_public"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "switching_bonus_ledger_inviter_creative_id_fkey"
-            columns: ["inviter_creative_id"]
-            isOneToOne: false
-            referencedRelation: "staff_members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "switching_bonus_ledger_inviter_creative_id_fkey"
-            columns: ["inviter_creative_id"]
+            foreignKeyName: "switching_bonus_ledger_creative_id_fkey"
+            columns: ["creative_id"]
             isOneToOne: false
             referencedRelation: "staff_members_public"
             referencedColumns: ["id"]
@@ -2633,6 +2742,48 @@ export type Database = {
       }
     }
     Views: {
+      salon_appointments_availability: {
+        Row: {
+          appointment_date: string | null
+          duration_minutes: number | null
+          id: string | null
+          is_blocked: boolean | null
+          staff_id: string | null
+          status: string | null
+        }
+        Insert: {
+          appointment_date?: string | null
+          duration_minutes?: number | null
+          id?: string | null
+          is_blocked?: boolean | null
+          staff_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          appointment_date?: string | null
+          duration_minutes?: number | null
+          id?: string | null
+          is_blocked?: boolean | null
+          staff_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salon_appointments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salon_appointments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_members_public: {
         Row: {
           area: string | null
@@ -2704,6 +2855,30 @@ export type Database = {
       calculate_next_available_slot: {
         Args: { p_staff_id: string }
         Returns: string
+      }
+      get_content_request_by_token: {
+        Args: { _token: string }
+        Returns: {
+          appointment_id: string
+          client_email: string
+          client_id: string | null
+          client_name: string
+          client_phone: string | null
+          created_at: string
+          creative_id: string
+          id: string
+          request_type: string
+          status: string
+          token: string
+          token_expires_at: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "content_requests"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       has_role: {
         Args: {

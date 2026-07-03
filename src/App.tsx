@@ -34,6 +34,7 @@ import TerminalHardware from "./pages/TerminalHardware";
 import ResetPassword from "./pages/ResetPassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import BrandPreviewLab from "./pages/BrandPreviewLab";
+import StripeNativeReturn from "./pages/StripeNativeReturn";
 
 const queryClient = new QueryClient();
 
@@ -88,6 +89,7 @@ const App = () => (
           <Route path="/tap-to-pay-onboarding" element={<TapToPayOnboarding />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/brand-preview-lab" element={<BrandPreviewLab />} />
+          <Route path="/stripe-native-return" element={<StripeNativeReturn />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

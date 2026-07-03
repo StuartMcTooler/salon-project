@@ -137,10 +137,12 @@ serve(async (req) => {
     let refreshUrl: string;
 
     if (isNative) {
-      // Custom URL scheme handled by the native app (iOS + Android).
-      // The app's deep-link handler routes based on `resume`.
-      returnUrl = `bookd://stripe-return?resume=${resumeFlow}`;
-      refreshUrl = `bookd://stripe-refresh?resume=${resumeFlow}`;
+      // Stripe requires https return_url and rejects custom schemes like
+      // `bookd://`. Route native flows through an https bridge page that
+      // deep-links back into the app.
+      const bridgeOrigin = Deno.env.get('FRONTEND_URL') || 'https://bookd.ie';
+      returnUrl = `${bridgeOrigin}/stripe-native-return?target=return&resume=${resumeFlow}`;
+      refreshUrl = `${bridgeOrigin}/stripe-native-return?target=refresh&resume=${resumeFlow}`;
     } else {
       // Web browsers - Stripe rejects localhost in livemode, so fall back to FRONTEND_URL
       const rawOrigin = req.headers.get('origin') || '';

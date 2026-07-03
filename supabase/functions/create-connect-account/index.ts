@@ -111,23 +111,32 @@ serve(async (req) => {
       console.log('Using existing Stripe Connect account:', accountId);
     }
 
-    // Parse optional body { platform: 'native' | 'web', resumeFlow: 'tap_to_pay' | 'payouts' }
-    let platform: 'native' | 'web' = 'web';
+    // Parse optional body:
+    //   platform: 'native' | 'native_ios' | 'web'
+    //   flow | resumeFlow: 'tap_to_pay' | 'payouts'
+    //   staffId?: string (informational; auth-derived staff is source of truth)
+    //   returnTo?: string (optional web path override)
+    let platformRaw: string = 'web';
     let resumeFlow: 'tap_to_pay' | 'payouts' = 'payouts';
+    let returnTo: string | undefined;
     try {
       if (req.headers.get('content-type')?.includes('application/json')) {
         const body = await req.json();
-        if (body?.platform === 'native') platform = 'native';
-        if (body?.resumeFlow === 'tap_to_pay' || body?.resumeFlow === 'payouts') {
-          resumeFlow = body.resumeFlow;
+        if (typeof body?.platform === 'string') platformRaw = body.platform;
+        const flowVal = body?.flow ?? body?.resumeFlow;
+        if (flowVal === 'tap_to_pay' || flowVal === 'payouts') {
+          resumeFlow = flowVal;
         }
+        if (typeof body?.returnTo === 'string') returnTo = body.returnTo;
       }
     } catch (_) { /* ignore */ }
+
+    const isNative = platformRaw === 'native' || platformRaw === 'native_ios' || platformRaw === 'native_android';
 
     let returnUrl: string;
     let refreshUrl: string;
 
-    if (platform === 'native') {
+    if (isNative) {
       // Custom URL scheme handled by the native app (iOS + Android).
       // The app's deep-link handler routes based on `resume`.
       returnUrl = `bookd://stripe-return?resume=${resumeFlow}`;
@@ -139,8 +148,10 @@ serve(async (req) => {
       const origin = isLocalhost
         ? (Deno.env.get('FRONTEND_URL') || 'https://bookd.ie')
         : rawOrigin;
-      returnUrl = `${origin}/dashboard?stripe_onboarded=true&resume=${resumeFlow}`;
-      refreshUrl = `${origin}/dashboard?stripe_refresh=true&resume=${resumeFlow}`;
+      const defaultPath = resumeFlow === 'tap_to_pay' ? '/tap-to-pay-onboarding' : '/dashboard';
+      const path = returnTo && returnTo.startsWith('/') ? returnTo : defaultPath;
+      returnUrl = `${origin}${path}?stripe_onboarded=true&resume=${resumeFlow}`;
+      refreshUrl = `${origin}${path}?stripe_refresh=true&resume=${resumeFlow}`;
     }
 
     const accountLink = await stripe.accountLinks.create({
@@ -150,7 +161,7 @@ serve(async (req) => {
       type: 'account_onboarding',
     });
 
-    console.log('Created account link for onboarding', { platform, resumeFlow });
+    console.log('Created account link for onboarding', { platform: platformRaw, isNative, resumeFlow });
 
     return new Response(
       JSON.stringify({

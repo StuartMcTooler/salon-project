@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { requireAuth, sanitizeError } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const auth = await requireAuth(req);
+  if (auth instanceof Response) return auth;
 
   try {
     const { staffId, date, serviceDuration } = await req.json();
@@ -225,9 +229,9 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("[OVERFLOW] Error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    const __safe = sanitizeError(error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: __safe.message, code: __safe.code }),
       { 
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" }

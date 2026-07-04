@@ -14,7 +14,15 @@ export default function StripeNativeReturn() {
     const params = new URLSearchParams(window.location.search);
     const target = params.get("target") === "refresh" ? "stripe-refresh" : "stripe-return";
     const resume = params.get("resume") === "tap_to_pay" ? "tap_to_pay" : "payouts";
-    const url = `bookd://${target}?resume=${resume}`;
+    const staffId = params.get("staffId");
+    const returnTo = params.get("returnTo");
+
+    const dlParams = new URLSearchParams();
+    dlParams.set("resume", resume);
+    if (staffId) dlParams.set("staffId", staffId);
+    if (returnTo) dlParams.set("returnTo", returnTo);
+
+    const url = `bookd://${target}?${dlParams.toString()}`;
     setDeepLink(url);
     // Attempt automatic redirect
     window.location.href = url;

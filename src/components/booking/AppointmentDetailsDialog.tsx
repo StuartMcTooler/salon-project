@@ -18,6 +18,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InServicePhotoCapture } from "./InServicePhotoCapture";
 import { PhotoVisibilityControls } from "../dashboard/content-hub/PhotoVisibilityControls";
+import { SignedImage } from "@/components/common/SignedImage";
+
 import {
   AlertDialog,
   AlertDialogAction,

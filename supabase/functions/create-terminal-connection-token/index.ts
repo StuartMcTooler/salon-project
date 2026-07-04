@@ -65,9 +65,9 @@ serve(async (req) => {
       }
     );
   } catch (error: any) {
-    console.error("Error creating connection token:", error);
+    const safe = sanitizeError(error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: safe.message, code: safe.code }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { requireAuth, sanitizeError } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,7 +12,11 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const auth = await requireAuth(req);
+  if (auth instanceof Response) return auth;
+
   try {
+
     // Determine which Stripe key to use based on header
     const forceTestMode = req.headers.get("x-force-test-mode") === "true";
     const forceLiveMode = req.headers.get("x-force-live-mode") === "true";
@@ -60,9 +65,9 @@ serve(async (req) => {
       }
     );
   } catch (error: any) {
-    console.error("Error creating connection token:", error);
+    const safe = sanitizeError(error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: safe.message, code: safe.code }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,

@@ -18,6 +18,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InServicePhotoCapture } from "./InServicePhotoCapture";
 import { PhotoVisibilityControls } from "../dashboard/content-hub/PhotoVisibilityControls";
+import { SignedImage } from "@/components/common/SignedImage";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -403,11 +405,13 @@ export const AppointmentDetailsDialog = ({
                     <div className="grid grid-cols-2 gap-3">
                       {appointmentMedia.map((media) => (
                         <div key={media.id} className="relative group border rounded-lg overflow-hidden">
-                          <img
-                            src={`${supabase.storage.from('client-content-raw').getPublicUrl(media.raw_file_path).data.publicUrl}`}
+                          <SignedImage
+                            bucket="client-content-raw"
+                            path={media.raw_file_path}
                             alt="Appointment media"
                             className="w-full aspect-square object-cover"
                           />
+
                           <div className="absolute top-2 right-2 flex gap-1">
                             <Button
                               size="icon"

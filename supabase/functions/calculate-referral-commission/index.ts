@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { requireAuth, sanitizeError } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,6 +48,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const auth = await requireAuth(req);
+  if (auth instanceof Response) return auth;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -272,9 +276,9 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Error in calculate-referral-commission:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    const __safe = sanitizeError(error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: __safe.message, code: __safe.code }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

@@ -106,11 +106,12 @@ export default function ApproveContent() {
       let enhancedPublicUrl: string | undefined;
 
       if (rawPath) {
-        const { data: rawUrl } = supabase.storage
+        const { data: rawUrl } = await supabase.storage
           .from('client-content-raw')
-          .getPublicUrl(rawPath);
-        rawPublicUrl = rawUrl?.publicUrl;
+          .createSignedUrl(rawPath, 3600);
+        rawPublicUrl = rawUrl?.signedUrl;
       }
+
       if (enhancedPath) {
         const { data: enhUrl } = supabase.storage
           .from('client-content-enhanced')

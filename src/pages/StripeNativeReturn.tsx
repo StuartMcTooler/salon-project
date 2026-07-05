@@ -1,47 +1,59 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-/**
- * Bridge page for native Stripe Connect onboarding.
- *
- * Stripe requires an https return_url and rejects custom schemes like
- * `bookd://`. So for native flows we point Stripe at this https page, which
- * immediately redirects into the app via the custom scheme.
- */
-export default function StripeNativeReturn() {
-  const [deepLink, setDeepLink] = useState<string>("");
+const StripeNativeReturn = () => {
+  const search = useMemo(() => new URLSearchParams(window.location.search), []);
+
+  const deepLink = useMemo(() => {
+    const target = search.get("target") === "refresh" ? "stripe-refresh" : "stripe-return";
+    const params = new URLSearchParams();
+
+    const staffId = search.get("staffId");
+    const returnTo = search.get("returnTo");
+    const flow = search.get("flow") || search.get("resume") || "payouts";
+
+    if (staffId) params.set("staffId", staffId);
+    if (returnTo) params.set("returnTo", returnTo);
+    if (flow) {
+      params.set("flow", flow);
+      params.set("resume", flow);
+    }
+    if (flow === "tap_to_pay") params.set("resumeTapToPay", "1");
+
+    return `bookd://${target}${params.toString() ? `?${params.toString()}` : ""}`;
+  }, [search]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const target = params.get("target") === "refresh" ? "stripe-refresh" : "stripe-return";
-    const resume = params.get("resume") === "tap_to_pay" ? "tap_to_pay" : "payouts";
-    const staffId = params.get("staffId");
-    const returnTo = params.get("returnTo");
+    const timeoutId = window.setTimeout(() => {
+      window.location.replace(deepLink);
+    }, 150);
 
-    const dlParams = new URLSearchParams();
-    dlParams.set("resume", resume);
-    if (staffId) dlParams.set("staffId", staffId);
-    if (returnTo) dlParams.set("returnTo", returnTo);
-
-    const url = `bookd://${target}?${dlParams.toString()}`;
-    setDeepLink(url);
-    // Attempt automatic redirect
-    window.location.href = url;
-  }, []);
+    return () => window.clearTimeout(timeoutId);
+  }, [deepLink]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "1.5rem", textAlign: "center", fontFamily: "system-ui, sans-serif" }}>
-      <h1 style={{ fontSize: "1.25rem", marginBottom: "0.75rem" }}>Returning to the app…</h1>
-      <p style={{ color: "#555", marginBottom: "1.25rem" }}>
-        If the app doesn't open automatically, tap the button below.
-      </p>
-      {deepLink && (
-        <a
-          href={deepLink}
-          style={{ background: "#111", color: "#fff", padding: "0.75rem 1.25rem", borderRadius: 8, textDecoration: "none" }}
-        >
-          Open Bookd
-        </a>
-      )}
+    <div className="min-h-screen bg-background px-6 py-10">
+      <div className="mx-auto flex min-h-[70vh] max-w-lg items-center justify-center">
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>Returning to Bookd</CardTitle>
+            <CardDescription>
+              We&apos;re sending you back into the app now to continue Stripe setup and Tap to Pay onboarding.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button className="w-full" onClick={() => window.location.replace(deepLink)}>
+              Open Bookd App
+            </Button>
+            <Button className="w-full" variant="outline" asChild>
+              <a href={deepLink}>Open With Deep Link</a>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
-}
+};
+
+export default StripeNativeReturn;

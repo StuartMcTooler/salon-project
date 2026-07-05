@@ -5,17 +5,21 @@ PODS:
     - Capacitor
   - CapacitorCamera (7.0.2):
     - Capacitor
+  - CapacitorCommunityStripeTerminal (7.2.2):
+    - Capacitor
+    - StripeTerminal (= 4.7.3)
   - CapacitorCordova (7.4.4)
   - CapacitorGeolocation (8.0.0):
     - Capacitor
     - IONGeolocationLib (= 2.0.0)
   - IONGeolocationLib (2.0.0)
-  - StripeTerminal (5.2.0)
+  - StripeTerminal (4.7.3)
 
 DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
   - "CapacitorCamera (from `../../node_modules/@capacitor/camera`)"
+  - "CapacitorCommunityStripeTerminal (from `../../node_modules/@capacitor-community/stripe-terminal`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorGeolocation (from `../../node_modules/@capacitor/geolocation`)"
   - StripeTerminal
@@ -32,6 +36,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/app"
   CapacitorCamera:
     :path: "../../node_modules/@capacitor/camera"
+  CapacitorCommunityStripeTerminal:
+    :path: "../../node_modules/@capacitor-community/stripe-terminal"
   CapacitorCordova:
     :path: "../../node_modules/@capacitor/ios"
   CapacitorGeolocation:
@@ -41,11 +47,12 @@ SPEC CHECKSUMS:
   Capacitor: 358dd1c3fdd71d969547b17e159fd8a7736cb45f
   CapacitorApp: 3963a84197280757b84f126afd1520a85ae3b092
   CapacitorCamera: f9e54db0a18bb218a8dc360907d63aaefe9209ff
+  CapacitorCommunityStripeTerminal: 3b812deed0ca772987a15aa258eae42bf7b53fa8
   CapacitorCordova: bf648a636f3c153f652d312ae145fb508b6ffced
   CapacitorGeolocation: 8a405e707de9aff6ac9eca7f408966a370f7ca33
   IONGeolocationLib: a5e40b54edc2ee9902036eda5aaa41ddf07bb68d
-  StripeTerminal: ebc49b62056ffa89f64ab024a4e7f80c1ef5219b
+  StripeTerminal: b9e92913da8a08ff5c62af75056ad39bf8b02ac6
 
-PODFILE CHECKSUM: e23c5f4cd79b27261934a4a00a6dbb0234ab179e
+PODFILE CHECKSUM: b76ad64fbc12180b6e44c71978545beeee76ab5a
 
 COCOAPODS: 1.16.2

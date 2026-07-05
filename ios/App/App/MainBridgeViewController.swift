@@ -14,6 +14,14 @@ class MainBridgeViewController: CAPBridgeViewController {
         } else {
             CAPLog.print("⚡️ [StripeTapToPay] capacitor.config.json not found in bundle")
         }
-        bridge?.registerPluginType(StripeTapToPayPlugin.self)
+        // Force-register an instance of the custom plugin after the bridge loads.
+        // This is more reliable than registerPluginType(_:), which is ignored when
+        // Capacitor auto-registers plugins from capacitor.config.json.
+        if let bridge = bridge {
+            bridge.registerPluginInstance(StripeTapToPayPlugin())
+            CAPLog.print("⚡️ [StripeTapToPay] registerPluginInstance(StripeTapToPayPlugin())")
+        } else {
+            CAPLog.print("⚡️ [StripeTapToPay] bridge unavailable while registering StripeTapToPayPlugin")
+        }
     }
 }

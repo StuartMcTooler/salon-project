@@ -1,4 +1,6 @@
 import { useEffect } from "react";
+import { App as CapacitorApp } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +8,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { BackButtonHandler } from "./components/BackButtonHandler";
-import { StripeDeepLinkHandler } from "./components/StripeDeepLinkHandler";
 import Index from "./pages/Index";
 import Discover from "./pages/Discover";
 import Salon from "./pages/Salon";
@@ -38,6 +39,80 @@ import StripeNativeReturn from "./pages/StripeNativeReturn";
 
 const queryClient = new QueryClient();
 
+const NativeStripeReturnHandler = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const handleIncomingUrl = (incomingUrl?: string | null) => {
+      if (!incomingUrl) return;
+
+      try {
+        const url = new URL(incomingUrl);
+        const routeKey = url.host || url.pathname.replace(/^\/+/, "");
+
+        if (url.protocol !== "bookd:" || !routeKey.startsWith("stripe-")) {
+          return;
+        }
+
+        const staffId = url.searchParams.get("staffId");
+        const returnTo = url.searchParams.get("returnTo") || "/my-profile?tab=settings";
+        const resumeTapToPay =
+          url.searchParams.get("resumeTapToPay") === "1" ||
+          url.searchParams.get("flow") === "tap_to_pay" ||
+          url.searchParams.get("resume") === "tap_to_pay";
+
+        if (routeKey === "stripe-return" && resumeTapToPay) {
+          const params = new URLSearchParams({
+            stripe_onboarded: "true",
+            resumeStripe: "1",
+          });
+          if (staffId) params.set("staffId", staffId);
+          if (returnTo) params.set("returnTo", returnTo);
+          navigate(`/tap-to-pay-onboarding?${params.toString()}`, { replace: true });
+          return;
+        }
+
+        if (routeKey === "stripe-refresh" && resumeTapToPay) {
+          const params = new URLSearchParams({
+            stripe_refresh: "true",
+          });
+          if (staffId) params.set("staffId", staffId);
+          if (returnTo) params.set("returnTo", returnTo);
+          navigate(`/tap-to-pay-onboarding?${params.toString()}`, { replace: true });
+          return;
+        }
+
+        const dashboardParams = new URLSearchParams();
+        if (routeKey === "stripe-return") {
+          dashboardParams.set("stripe_onboarded", "true");
+        } else if (routeKey === "stripe-refresh") {
+          dashboardParams.set("stripe_refresh", "true");
+        }
+
+        if (staffId) dashboardParams.set("staffId", staffId);
+        if (returnTo) dashboardParams.set("returnTo", returnTo);
+
+        navigate(`/dashboard${dashboardParams.toString() ? `?${dashboardParams.toString()}` : ""}`, {
+          replace: true,
+        });
+      } catch (error) {
+        console.error("[App] Failed to handle native Stripe return URL", incomingUrl, error);
+      }
+    };
+
+    void CapacitorApp.getLaunchUrl().then(({ url }) => handleIncomingUrl(url));
+    const listener = CapacitorApp.addListener("appUrlOpen", ({ url }) => handleIncomingUrl(url));
+
+    return () => {
+      listener.then((handle) => handle.remove());
+    };
+  }, [navigate]);
+
+  return null;
+};
+
 const PasswordRecoveryHandler = () => {
   const navigate = useNavigate();
   
@@ -60,7 +135,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <BackButtonHandler />
-        <StripeDeepLinkHandler />
+        <NativeStripeReturnHandler />
         <PasswordRecoveryHandler />
         <Routes>
           <Route path="/" element={<Index />} />

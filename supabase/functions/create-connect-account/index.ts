@@ -14,8 +14,23 @@ serve(async (req) => {
   }
 
   try {
+    const requestBody = await req.json().catch(() => ({}));
     const forceTestMode = req.headers.get('x-force-test-mode') === 'true';
     const forceLiveMode = req.headers.get('x-force-live-mode') === 'true';
+    const requestedFlow =
+      requestBody?.flow === 'tap_to_pay' || requestBody?.resumeFlow === 'tap_to_pay'
+        ? 'tap_to_pay'
+        : 'payouts';
+    const requestedReturnTo =
+      typeof requestBody?.returnTo === 'string' && requestBody.returnTo.length > 0
+        ? requestBody.returnTo
+        : '/my-profile?tab=settings';
+    const requestedPlatform =
+      requestBody?.platform === 'native' ||
+      requestBody?.platform === 'native_ios' ||
+      requestBody?.platform === 'native_android'
+        ? requestBody.platform
+        : 'web';
 
     if (forceTestMode && forceLiveMode) {
       throw new Error('Conflicting Stripe mode headers');
@@ -111,51 +126,69 @@ serve(async (req) => {
       console.log('Using existing Stripe Connect account:', accountId);
     }
 
-    // Parse optional body:
-    //   platform: 'native' | 'native_ios' | 'web'
-    //   flow | resumeFlow: 'tap_to_pay' | 'payouts'
-    //   staffId?: string (informational; auth-derived staff is source of truth)
-    //   returnTo?: string (optional web path override)
-    let platformRaw: string = 'web';
-    let resumeFlow: 'tap_to_pay' | 'payouts' = 'payouts';
-    let returnTo: string | undefined;
-    try {
-      if (req.headers.get('content-type')?.includes('application/json')) {
-        const body = await req.json();
-        if (typeof body?.platform === 'string') platformRaw = body.platform;
-        const flowVal = body?.flow ?? body?.resumeFlow;
-        if (flowVal === 'tap_to_pay' || flowVal === 'payouts') {
-          resumeFlow = flowVal;
-        }
-        if (typeof body?.returnTo === 'string') returnTo = body.returnTo;
-      }
-    } catch (_) { /* ignore */ }
+    // Get the origin for return URLs - use published URL for livemode compatibility
+    // Native apps send localhost as origin which Stripe rejects in livemode
+    const rawOrigin = req.headers.get('origin') || '';
+    const isLocalhost = rawOrigin.includes('localhost') || rawOrigin.includes('127.0.0.1') || !rawOrigin;
+    const origin = isLocalhost
+      ? (Deno.env.get('FRONTEND_URL') || 'https://bookd.ie')
+      : rawOrigin;
 
-    const isNative = platformRaw === 'native' || platformRaw === 'native_ios' || platformRaw === 'native_android';
+    const nativeParams = new URLSearchParams({
+      staffId: staffMember.id,
+      returnTo: requestedReturnTo,
+      flow: requestedFlow,
+      resume: requestedFlow,
+    });
 
-    let returnUrl: string;
-    let refreshUrl: string;
+    const webParams = new URLSearchParams({
+      staffId: staffMember.id,
+      returnTo: requestedReturnTo,
+    });
 
-    if (isNative) {
-      // Stripe requires https return_url and rejects custom schemes like
-      // `bookd://`. Route native flows through an https bridge page that
-      // deep-links back into the app.
-      const bridgeOrigin = Deno.env.get('FRONTEND_URL') || 'https://bookd.ie';
-      returnUrl = `${bridgeOrigin}/stripe-native-return?target=return&resume=${resumeFlow}`;
-      refreshUrl = `${bridgeOrigin}/stripe-native-return?target=refresh&resume=${resumeFlow}`;
-    } else {
-      // Web browsers - Stripe rejects localhost in livemode, so fall back to FRONTEND_URL
-      const rawOrigin = req.headers.get('origin') || '';
-      const isLocalhost = rawOrigin.includes('localhost') || rawOrigin.includes('127.0.0.1') || !rawOrigin;
-      const origin = isLocalhost
-        ? (Deno.env.get('FRONTEND_URL') || 'https://bookd.ie')
-        : rawOrigin;
-      const defaultPath = resumeFlow === 'tap_to_pay' ? '/tap-to-pay-onboarding' : '/dashboard';
-      const path = returnTo && returnTo.startsWith('/') ? returnTo : defaultPath;
-      returnUrl = `${origin}${path}?stripe_onboarded=true&resume=${resumeFlow}`;
-      refreshUrl = `${origin}${path}?stripe_refresh=true&resume=${resumeFlow}`;
+    if (requestedFlow === 'tap_to_pay') {
+      webParams.set('resumeStripe', '1');
     }
 
+    const isNativePlatform =
+      requestedPlatform === 'native' ||
+      requestedPlatform === 'native_ios' ||
+      requestedPlatform === 'native_android';
+
+    const bridgeBaseUrl = `${origin}/stripe-native-return`;
+    const webPath =
+      requestedFlow === 'tap_to_pay'
+        ? '/tap-to-pay-onboarding'
+        : requestedReturnTo.startsWith('/')
+          ? requestedReturnTo
+          : '/dashboard';
+    const buildWebUrl = (path: string, params: URLSearchParams) => {
+      const separator = path.includes('?') ? '&' : '?';
+      return `${origin}${path}${separator}${params.toString()}`;
+    };
+
+    const nativeRefreshParams = new URLSearchParams(nativeParams);
+    nativeRefreshParams.set('target', 'refresh');
+    const nativeReturnParams = new URLSearchParams(nativeParams);
+    nativeReturnParams.set('target', 'return');
+    nativeReturnParams.set('resumeTapToPay', requestedFlow === 'tap_to_pay' ? '1' : '0');
+
+    const webRefreshParams = new URLSearchParams(webParams);
+    webRefreshParams.set('stripe_refresh', 'true');
+    const webReturnParams = new URLSearchParams(webParams);
+    webReturnParams.set('stripe_onboarded', 'true');
+
+    const refreshUrl =
+      isNativePlatform
+        ? `${bridgeBaseUrl}?${nativeRefreshParams.toString()}`
+        : buildWebUrl(webPath, webRefreshParams);
+
+    const returnUrl =
+      isNativePlatform
+        ? `${bridgeBaseUrl}?${nativeReturnParams.toString()}`
+        : buildWebUrl(webPath, webReturnParams);
+
+    // Create an account link for onboarding
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
       refresh_url: refreshUrl,
@@ -163,7 +196,11 @@ serve(async (req) => {
       type: 'account_onboarding',
     });
 
-    console.log('Created account link for onboarding', { platform: platformRaw, isNative, resumeFlow });
+    console.log('Created account link for onboarding', {
+      platform: requestedPlatform,
+      isNative: isNativePlatform,
+      flow: requestedFlow,
+    });
 
     return new Response(
       JSON.stringify({

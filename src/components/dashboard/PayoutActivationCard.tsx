@@ -41,6 +41,18 @@ export const PayoutActivationCard = ({ staffId, resumeFlow: resumeFlowProp }: Pa
     if (params.get('stripe_onboarded') === 'true') {
       localStorage.setItem(`tap_to_pay_post_connect_prompt_${staffId}`, 'true');
       setShowTapToPayPrompt(true);
+
+      if (isNative && isIOS && canUseTapToPay) {
+        const tapToPayParams = new URLSearchParams({
+          staffId,
+          returnTo: `${window.location.pathname}${window.location.search}`,
+          stripe_onboarded: 'true',
+          resumeStripe: '1',
+        });
+        navigate(`/tap-to-pay-onboarding?${tapToPayParams.toString()}`, { replace: true });
+        return;
+      }
+
       toast({
         title: "Setup in progress",
         description: "Your payout account is being verified. This may take a few moments.",
@@ -56,7 +68,7 @@ export const PayoutActivationCard = ({ staffId, resumeFlow: resumeFlowProp }: Pa
       });
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, [staffId]);
+  }, [canUseTapToPay, isIOS, isNative, navigate, staffId, toast]);
 
   useEffect(() => {
     if (localStorage.getItem(`tap_to_pay_post_connect_prompt_${staffId}`) === 'true') {
@@ -134,7 +146,13 @@ export const PayoutActivationCard = ({ staffId, resumeFlow: resumeFlowProp }: Pa
 
       const { data, error } = await supabase.functions.invoke('create-connect-account', {
         headers: getConnectHeaders(),
-        body: { platform: isNative ? 'native' : 'web', resumeFlow },
+        body: {
+          flow: resumeFlow,
+          resumeFlow,
+          staffId,
+          returnTo: `${window.location.pathname}${window.location.search}`,
+          platform: isNative && isIOS ? 'native_ios' : isNative ? 'native' : 'web',
+        },
       });
 
       if (error) throw error;
@@ -154,7 +172,7 @@ export const PayoutActivationCard = ({ staffId, resumeFlow: resumeFlowProp }: Pa
       });
       setActivating(false);
     }
-  }, [getConnectHeaders, isNative, resumeFlowProp, toast]);
+  }, [getConnectHeaders, isIOS, isNative, resumeFlowProp, staffId, toast]);
 
   useEffect(() => {
     if (loading || activating || !isVisible || status === 'active') {

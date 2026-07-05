@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   CheckCircle,
   CreditCard,
+  ExternalLink,
   Info,
   Loader2,
   Lock,
@@ -19,13 +20,12 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { usePlatform } from "@/hooks/usePlatform";
+import { useTerminalPayment } from "@/hooks/useTerminalPayment";
+import { getTestModeHeaders } from "@/hooks/useTestModeOverride";
 import { StripeTapToPay } from "@/lib/stripeTapToPay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 
 type OnboardingStep = "intro" | "terms" | "education";
@@ -41,7 +41,6 @@ const TapToPayOnboarding = () => {
   const [loading, setLoading] = useState(true);
   const [staffId, setStaffId] = useState<string | null>(null);
   const [staffName, setStaffName] = useState("");
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>("intro");
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [isShowingNativeEducation, setIsShowingNativeEducation] = useState(false);
@@ -51,11 +50,21 @@ const TapToPayOnboarding = () => {
   const [resumeTick, setResumeTick] = useState(0);
   const [payoutStatus, setPayoutStatus] = useState<string | null>(null);
   const [activatingPayouts, setActivatingPayouts] = useState(false);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [stripeConnectAccountId, setStripeConnectAccountId] = useState<string | null>(null);
+  const [isOpeningAppleTerms, setIsOpeningAppleTerms] = useState(false);
+  const [isOpeningNativeTerms, setIsOpeningNativeTerms] = useState(false);
+  const [appleTermsLinkOpened, setAppleTermsLinkOpened] = useState(false);
+  const [nativeTermsActivated, setNativeTermsActivated] = useState(false);
+  const [stripeConnectStatus, setStripeConnectStatus] = useState<string>("not_started");
+  const [isStartingStripeConnect, setIsStartingStripeConnect] = useState(false);
 
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const requestedStaffId = searchParams.get("staffId");
   const requestedReturnTo = searchParams.get("returnTo");
   const tapToPayShortLabel = isIOS ? "Tap to Pay on iPhone" : "Tap to Pay";
+  const { initializeNativeSDK, discoverReaders, connectReader } = useTerminalPayment();
+  const stripeConnectReady = ["pending", "restricted", "active"].includes(stripeConnectStatus);
 
   const resetViewportPosition = () => {
     window.scrollTo(0, 0);
@@ -81,7 +90,9 @@ const TapToPayOnboarding = () => {
       );
     }
 
-    document.activeElement instanceof HTMLElement && document.activeElement.blur();
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     document.documentElement.style.overflowX = "hidden";
     document.body.style.overflowX = "hidden";
     const root = document.getElementById("root");
@@ -182,6 +193,7 @@ const TapToPayOnboarding = () => {
         navigate("/auth", { replace: true });
         return;
       }
+      setCurrentUserEmail(user.email ?? null);
 
       const determineReturnTo = async () => {
         if (requestedReturnTo) return requestedReturnTo;
@@ -215,27 +227,30 @@ const TapToPayOnboarding = () => {
 
       let resolvedStaffId = requestedStaffId;
       let displayName = "";
+      let connectStatus = "not_started";
+      let connectAccountId: string | null = null;
       const safeReturnTo = await determineReturnTo();
       setResolvedReturnTo(safeReturnTo);
 
-      let connectStatus: string | null = null;
       if (resolvedStaffId) {
         const { data: staff } = await supabase
           .from("staff_members")
-          .select("id, display_name, stripe_connect_status")
+          .select("id, display_name, stripe_connect_status, stripe_connect_account_id")
           .eq("id", resolvedStaffId)
           .maybeSingle();
         displayName = staff?.display_name || "";
-        connectStatus = (staff?.stripe_connect_status as string | null) ?? null;
+        connectStatus = staff?.stripe_connect_status || "not_started";
+        connectAccountId = staff?.stripe_connect_account_id || null;
       } else {
         const { data: staff } = await supabase
           .from("staff_members")
-          .select("id, display_name, stripe_connect_status")
+          .select("id, display_name, stripe_connect_status, stripe_connect_account_id")
           .eq("user_id", user.id)
           .maybeSingle();
         resolvedStaffId = staff?.id || null;
         displayName = staff?.display_name || "";
-        connectStatus = (staff?.stripe_connect_status as string | null) ?? null;
+        connectStatus = staff?.stripe_connect_status || "not_started";
+        connectAccountId = staff?.stripe_connect_account_id || null;
       }
 
       if (!resolvedStaffId) {
@@ -252,9 +267,18 @@ const TapToPayOnboarding = () => {
       localStorage.setItem(onboardingPromptSeenKey(resolvedStaffId), "true");
       setStaffId(resolvedStaffId);
       setStaffName(displayName);
+      setStripeConnectAccountId(connectAccountId);
+      setStripeConnectStatus(connectStatus);
       setHasCompletedOnboarding(completed);
       setPayoutStatus(connectStatus);
-      setOnboardingStep(completed ? "education" : "intro");
+      setNativeTermsActivated(completed);
+      setOnboardingStep(
+        completed
+          ? "education"
+          : searchParams.get("stripe_onboarded") === "true" || searchParams.get("resumeStripe") === "1"
+            ? "terms"
+            : "intro",
+      );
       setLoading(false);
     };
 
@@ -264,7 +288,32 @@ const TapToPayOnboarding = () => {
       cancelled = true;
       authSubscription?.unsubscribe();
     };
-  }, [navigate, requestedReturnTo, requestedStaffId, toast, resumeTick]);
+  }, [navigate, requestedReturnTo, requestedStaffId, searchParams, toast, resumeTick]);
+
+  useEffect(() => {
+    if (!staffId) return;
+
+    if (searchParams.get("stripe_onboarded") === "true") {
+      toast({
+        title: "Payout setup complete",
+        description: "Now open the official Tap to Pay Terms & Conditions for this merchant.",
+      });
+      setPayoutStatus((status) => status === "active" ? status : "pending");
+      setStripeConnectStatus((status) => status === "active" || status === "restricted" ? status : "pending");
+      window.history.replaceState({}, "", `${window.location.pathname}?staffId=${encodeURIComponent(staffId)}&returnTo=${encodeURIComponent(resolvedReturnTo)}&resumeStripe=1`);
+      setOnboardingStep("terms");
+    }
+
+    if (searchParams.get("stripe_refresh") === "true") {
+      toast({
+        title: "Payout setup not finished",
+        description: "Complete the Stripe payout flow before you continue to Tap to Pay on iPhone.",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, "", `${window.location.pathname}?staffId=${encodeURIComponent(staffId)}&returnTo=${encodeURIComponent(resolvedReturnTo)}`);
+      setOnboardingStep("terms");
+    }
+  }, [resolvedReturnTo, searchParams, staffId, toast]);
 
   const presentNativeEducation = async (options?: { auto?: boolean }) => {
     if (!isNative || !isIOS) return false;
@@ -295,6 +344,201 @@ const TapToPayOnboarding = () => {
     }
   };
 
+  const getOrCreateTerminalLocationId = async () => {
+    if (!staffId) {
+      throw new Error("Missing staff profile for Tap to Pay setup.");
+    }
+
+    const { data: existingSettings, error: settingsError } = await supabase
+      .from("terminal_settings")
+      .select("stripe_location_id")
+      .eq("staff_id", staffId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (settingsError) throw settingsError;
+
+    if (existingSettings?.stripe_location_id) {
+      return existingSettings.stripe_location_id;
+    }
+
+    const baseHeaders = getTestModeHeaders();
+    const headers =
+      baseHeaders["x-force-test-mode"] === "true" || baseHeaders["x-force-live-mode"] === "true"
+        ? baseHeaders
+        : currentUserEmail && /(^test|test@|@test\.|@example\.|demo|qa)/i.test(currentUserEmail)
+          ? { "x-force-test-mode": "true" }
+          : baseHeaders;
+
+    const { data, error } = await supabase.functions.invoke("create-terminal-location", {
+      body: {
+        staffId,
+        displayName: `${staffName || "Merchant"} - Tap to Pay (${headers["x-force-test-mode"] === "true" ? "TEST" : "LIVE"})`,
+      },
+      headers,
+    });
+
+    if (error) throw error;
+    if (!data?.locationId) {
+      throw new Error("Stripe did not return a Tap to Pay location.");
+    }
+
+    return data.locationId as string;
+  };
+
+  const getConnectHeaders = () => {
+    const baseHeaders = getTestModeHeaders();
+
+    if (baseHeaders["x-force-test-mode"] === "true" || baseHeaders["x-force-live-mode"] === "true") {
+      return baseHeaders;
+    }
+
+    if (currentUserEmail && /(^test|test@|@test\.|@example\.|demo|qa)/i.test(currentUserEmail)) {
+      return { "x-force-test-mode": "true" };
+    }
+
+    return baseHeaders;
+  };
+
+  const openAppleTermsAndConditions = async () => {
+    if (!staffId) return;
+
+    if (!stripeConnectReady) {
+      await startStripeConnectSetup();
+      return;
+    }
+
+    setIsOpeningAppleTerms(true);
+    setNativeEducationError(null);
+
+    const termsWindow = window.open("about:blank", "_blank");
+    if (termsWindow) {
+      termsWindow.opener = null;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke("create-terminal-onboarding-link", {
+        body: {
+          staffId,
+          merchantDisplayName: staffName || "Bookd merchant",
+          allowRelinking: true,
+        },
+        headers: getConnectHeaders(),
+      });
+
+      if (error) throw error;
+      if (!data?.success || !data?.redirectUrl) {
+        throw new Error(data?.error || "Stripe did not return a Tap to Pay Terms & Conditions link.");
+      }
+
+      setAppleTermsLinkOpened(true);
+      toast({
+        title: "Official terms opened",
+        description: "Complete the Apple Tap to Pay Terms & Conditions, then return here to enable this iPhone.",
+      });
+
+      if (termsWindow) {
+        termsWindow.location.href = data.redirectUrl;
+      } else {
+        window.location.href = data.redirectUrl;
+      }
+    } catch (error: any) {
+      termsWindow?.close();
+      const message = error?.message || "Could not open the official Tap to Pay Terms & Conditions.";
+      console.error("[TapToPayOnboarding] Failed to open Apple Tap to Pay terms:", error);
+      toast({
+        title: "Tap to Pay terms unavailable",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsOpeningAppleTerms(false);
+    }
+  };
+
+  const startStripeConnectSetup = async () => {
+    if (!staffId) return;
+
+    setIsStartingStripeConnect(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-connect-account", {
+        body: {
+          flow: "tap_to_pay",
+          resumeFlow: "tap_to_pay",
+          staffId,
+          returnTo: resolvedReturnTo,
+          platform: isNative && isIOS ? "native_ios" : isNative ? "native" : "web",
+        },
+        headers: getConnectHeaders(),
+      });
+
+      if (error) throw error;
+      if (!data?.success || !data?.accountLinkUrl) {
+        throw new Error(data?.error || "Could not start Stripe payout setup.");
+      }
+
+      window.location.href = data.accountLinkUrl;
+    } catch (error: any) {
+      const message = error?.message || "Could not start Stripe payout setup.";
+      console.error("[TapToPayOnboarding] Failed to start Stripe Connect:", error);
+      toast({
+        title: "Payout setup unavailable",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsStartingStripeConnect(false);
+    }
+  };
+
+  const enableTapToPayOnThisDevice = async () => {
+    if (!staffId) return;
+
+    if (!stripeConnectReady) {
+      await startStripeConnectSetup();
+      return;
+    }
+
+    setIsOpeningNativeTerms(true);
+    setNativeEducationError(null);
+
+    try {
+      const locationId = await getOrCreateTerminalLocationId();
+      await initializeNativeSDK();
+      const readers = await discoverReaders("tap_to_pay", locationId);
+
+      if (!readers.length) {
+        throw new Error("Tap to Pay is not available on this device right now.");
+      }
+
+      // Connecting the iPhone reader is where Apple/Stripe presents the real
+      // Tap to Pay enablement flow, including the official T&Cs when needed.
+      await connectReader(readers[0], {
+        locationId,
+        merchantDisplayName: staffName || "Bookd merchant",
+        onBehalfOf: stripeConnectAccountId,
+        tosAcceptancePermitted: true,
+      });
+
+      setNativeTermsActivated(true);
+      setOnboardingStep("education");
+
+      if (isIOS) {
+        await presentNativeEducation({ auto: true });
+      }
+    } catch (error: any) {
+      const message = error?.message || "Could not open the Tap to Pay setup flow.";
+      console.error("[TapToPayOnboarding] Failed to launch native Tap to Pay setup:", error);
+      toast({
+        title: "Tap to Pay setup unavailable",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsOpeningNativeTerms(false);
+    }
+  };
+
   const completeOnboarding = () => {
     if (!staffId) return;
     localStorage.setItem(onboardingCompletionKey(staffId), "true");
@@ -314,7 +558,14 @@ const TapToPayOnboarding = () => {
     setActivatingPayouts(true);
     try {
       const { data, error } = await supabase.functions.invoke("create-connect-account", {
-        body: { platform: isNative ? "native" : "web", resumeFlow: "tap_to_pay" },
+        body: {
+          flow: "tap_to_pay",
+          resumeFlow: "tap_to_pay",
+          staffId,
+          returnTo: resolvedReturnTo,
+          platform: isNative && isIOS ? "native_ios" : isNative ? "native" : "web",
+        },
+        headers: getConnectHeaders(),
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Failed to start payout setup");
@@ -338,7 +589,7 @@ const TapToPayOnboarding = () => {
     }
   };
 
-  const payoutsActive = payoutStatus === "active";
+  const payoutsActive = payoutStatus === "active" || stripeConnectStatus === "active";
 
   const stepTitle =
     onboardingStep === "intro"
@@ -351,7 +602,7 @@ const TapToPayOnboarding = () => {
     onboardingStep === "intro"
       ? "Set up Tap to Pay on iPhone so you can start accepting contactless payments directly on this device."
       : onboardingStep === "terms"
-        ? "Review and accept these terms before Tap to Pay can be enabled on this device."
+        ? "Open the official Apple Tap to Pay Terms & Conditions, then return here to enable Tap to Pay on this iPhone."
         : "Review this guidance before taking payments. You can always come back to it later from Terminal & Hardware.";
 
   const shellClassName = "mx-auto w-full max-w-3xl px-4 sm:px-6";
@@ -485,25 +736,95 @@ const TapToPayOnboarding = () => {
 
           {onboardingStep === "terms" && (
             <>
+              {!stripeConnectReady && (
+                <Card className="w-full overflow-hidden rounded-3xl border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20">
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                      <div className="space-y-2 text-sm">
+                        <p className="font-medium text-amber-900 dark:text-amber-100">
+                          Activate payouts before Tap to Pay terms can open
+                        </p>
+                        <p className="text-amber-800 dark:text-amber-200">
+                          Apple&apos;s official Tap to Pay Terms &amp; Conditions open from a Stripe-hosted Apple onboarding link.
+                          If payouts are not connected yet, we&apos;ll send this merchant through Stripe first and bring them
+                          straight back here to continue.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
               <Card className="w-full overflow-hidden rounded-3xl">
                 <CardContent className="p-5">
-                  <ScrollArea className="h-[40vh] pr-3">
-                    <div className="space-y-4 text-sm text-muted-foreground">
-                      <p>By enabling {tapToPayShortLabel}, the merchant agrees to use supported Apple and Stripe payment flows, keep the device secure, and present Tap to Pay only to approved staff.</p>
-                      <p>The merchant is responsible for following regional card-present rules, customer verification prompts, and any additional eligibility requirements communicated during Stripe Connect onboarding.</p>
-                      <p>If the merchant disables device permissions, removes the entitlement, or leaves required onboarding incomplete, Tap to Pay may become unavailable until the setup is restored.</p>
+                  <div className="space-y-4 text-sm text-muted-foreground">
+                    <p>
+                      The next step opens the official Apple Tap to Pay Terms &amp; Conditions page for this merchant.
+                      This is the real acceptance flow provided through Stripe Terminal.
+                    </p>
+                    <p>
+                      After accepting the terms, return here and enable Tap to Pay on this iPhone. Stripe may still
+                      show the native account-linking flow during device enablement if Apple requires it.
+                    </p>
+                    <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-100">
+                      <p className="font-medium">What happens next</p>
+                      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                        <li>Review and accept the official Tap to Pay Terms &amp; Conditions</li>
+                        <li>Return to Bookd and enable Tap to Pay on this iPhone</li>
+                        <li>Review merchant education before taking payments</li>
+                      </ul>
                     </div>
-                  </ScrollArea>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={openAppleTermsAndConditions}
+                        disabled={isOpeningAppleTerms || isStartingStripeConnect}
+                      >
+                        {isOpeningAppleTerms ? (
+                          <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Opening terms...</>
+                        ) : (
+                          <><ExternalLink className="mr-2 h-4 w-4" />Open official terms</>
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        className="w-full"
+                        onClick={enableTapToPayOnThisDevice}
+                        disabled={isOpeningNativeTerms || isStartingStripeConnect}
+                      >
+                        {isOpeningNativeTerms ? (
+                          <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Enabling iPhone...</>
+                        ) : (
+                          "I've accepted terms - enable iPhone"
+                        )}
+                      </Button>
+                    </div>
+                    {appleTermsLinkOpened && !nativeTermsActivated && (
+                      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-100">
+                        Terms page opened. Once the official Apple flow is complete, return here and enable Tap to Pay on this iPhone.
+                      </div>
+                    )}
+                    {nativeTermsActivated && (
+                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-100">
+                        Tap to Pay has been enabled on this iPhone. You can continue to merchant education.
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
-              <Card className="w-full overflow-hidden rounded-3xl">
+              <Card className="w-full overflow-hidden rounded-3xl border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20">
                 <CardContent className="p-5">
                   <div className="flex items-start gap-3">
-                    <Checkbox id="tap-to-pay-terms" checked={acceptedTerms} onCheckedChange={(checked) => setAcceptedTerms(checked === true)} />
-                    <Label htmlFor="tap-to-pay-terms" className="min-w-0 space-y-1">
-                      <span className="font-medium">I accept the Tap to Pay on iPhone Terms &amp; Conditions</span>
-                      <p className="text-sm text-muted-foreground">This explicit acceptance is required before the merchant can enable {tapToPayShortLabel}.</p>
-                    </Label>
+                    <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+                    <div className="space-y-2">
+                      <p className="font-medium text-blue-900 dark:text-blue-100">Use the official Apple terms flow</p>
+                      <p className="text-sm text-blue-800 dark:text-blue-200">
+                        This keeps setup aligned with Apple&apos;s Tap to Pay on iPhone requirements and Stripe&apos;s
+                        merchant account-linking flow.
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -512,6 +833,25 @@ const TapToPayOnboarding = () => {
 
           {onboardingStep === "education" && (
             <>
+              {!hasCompletedOnboarding && !nativeTermsActivated && (
+                <Card className="w-full overflow-hidden rounded-3xl border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20">
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                      <div className="space-y-2">
+                        <p className="font-medium text-amber-900 dark:text-amber-100">
+                          Tap to Pay setup is not complete yet
+                        </p>
+                        <p className="text-sm text-amber-800 dark:text-amber-200">
+                          The official Apple and Stripe Terms &amp; Conditions must open and be accepted
+                          before this merchant can finish Tap to Pay onboarding.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {isIOS && (
                 <Card className="w-full overflow-hidden rounded-3xl border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20">
                   <CardContent className="p-5">
@@ -576,18 +916,66 @@ const TapToPayOnboarding = () => {
             {onboardingStep === "terms" && (
               <Button
                 className="w-full"
-                onClick={async () => {
-                  setOnboardingStep("education");
-                  if (isIOS) await presentNativeEducation({ auto: true });
-                }}
-                disabled={!acceptedTerms}
+                onClick={
+                  nativeTermsActivated
+                    ? () => setOnboardingStep("education")
+                    : appleTermsLinkOpened
+                      ? enableTapToPayOnThisDevice
+                      : openAppleTermsAndConditions
+                }
+                disabled={isOpeningAppleTerms || isOpeningNativeTerms || isStartingStripeConnect}
               >
-                Continue to Education
+                {isStartingStripeConnect ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Opening payout setup...
+                  </>
+                ) : isOpeningAppleTerms ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Opening terms...
+                  </>
+                ) : isOpeningNativeTerms ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Enabling iPhone...
+                  </>
+                ) : !stripeConnectReady ? (
+                  "Activate payouts to continue"
+                ) : nativeTermsActivated ? (
+                  "Continue to merchant education"
+                ) : appleTermsLinkOpened ? (
+                  "Enable Tap to Pay on this iPhone"
+                ) : (
+                  "Open official Terms & Conditions"
+                )}
               </Button>
             )}
             {onboardingStep === "education" && (
-              <Button className="w-full" onClick={completeOnboarding}>
-                {hasCompletedOnboarding ? <><CheckCircle className="mr-2 h-4 w-4" />Finish review</> : "Finish onboarding"}
+              <Button
+                className="w-full"
+                onClick={() => {
+                  if (!hasCompletedOnboarding && !nativeTermsActivated) {
+                    setOnboardingStep("terms");
+                    toast({
+                      title: "Complete Tap to Pay setup first",
+                      description: "Open the native Tap to Pay setup flow and accept the official Terms & Conditions before finishing onboarding.",
+                    });
+                    return;
+                  }
+                  completeOnboarding();
+                }}
+              >
+                {hasCompletedOnboarding ? (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Finish review
+                  </>
+                ) : !nativeTermsActivated ? (
+                  "Return to Tap to Pay setup"
+                ) : (
+                  "Finish onboarding"
+                )}
               </Button>
             )}
           </div>

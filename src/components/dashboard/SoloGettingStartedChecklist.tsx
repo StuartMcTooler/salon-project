@@ -6,8 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { getTestModeHeaders } from "@/hooks/useTestModeOverride";
 import { usePlatform } from "@/hooks/usePlatform";
+import { getTestModeHeaders } from "@/hooks/useTestModeOverride";
 import { CheckCircle2, Circle, CreditCard, Loader2, Receipt, Scissors, Smartphone } from "lucide-react";
 
 interface SoloGettingStartedChecklistProps {
@@ -25,7 +25,7 @@ export const SoloGettingStartedChecklist = ({
 }: SoloGettingStartedChecklistProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isNative } = usePlatform();
+  const { isNative, isIOS } = usePlatform();
   const [tapToPayComplete, setTapToPayComplete] = useState(false);
   const [posStarted, setPosStarted] = useState(false);
   const [activatingPayouts, setActivatingPayouts] = useState(false);
@@ -92,8 +92,14 @@ export const SoloGettingStartedChecklist = ({
           : baseHeaders;
 
       const { data: response, error } = await supabase.functions.invoke('create-connect-account', {
+        body: {
+          flow: 'payouts',
+          resumeFlow: 'payouts',
+          staffId,
+          returnTo: '/dashboard?tab=settings',
+          platform: isNative && isIOS ? 'native_ios' : isNative ? 'native' : 'web',
+        },
         headers,
-        body: { platform: isNative ? 'native' : 'web', resumeFlow: 'payouts' },
       });
 
       if (error) throw error;
@@ -184,7 +190,7 @@ export const SoloGettingStartedChecklist = ({
         loading: false,
       },
     ];
-  }, [activatingPayouts, currentUserEmail, data?.appointmentCount, data?.serviceCount, data?.stripeConnectStatus, navigate, onOpenSettings, posStarted, staffId, tapToPayComplete]);
+  }, [activatingPayouts, currentUserEmail, data?.appointmentCount, data?.serviceCount, data?.stripeConnectStatus, isIOS, isNative, navigate, onOpenSettings, posStarted, staffId, tapToPayComplete]);
 
   const completedCount = checklist.filter((item) => item.state === "complete").length;
   const allComplete = completedCount === checklist.length;

@@ -4,7 +4,8 @@ import ProximityReader
 import StripeTerminal
 
 @available(iOS 15.0, *)
-@objc public class StripeTapToPayPlugin: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvider, DiscoveryDelegate, TapToPayReaderDelegate {
+@objc(StripeTapToPayPlugin)
+public class StripeTapToPayPlugin: CAPPlugin, CAPBridgedPlugin, ConnectionTokenProvider, DiscoveryDelegate, TapToPayReaderDelegate {
     public let identifier = "StripeTapToPayPlugin"
     public let jsName = "StripeTapToPay"
     public let pluginMethods: [CAPPluginMethod] = [
@@ -30,13 +31,13 @@ import StripeTerminal
         CAPLog.print("⚡️ [StripeTapToPay] initialize() called")
         DispatchQueue.main.async {
             CAPLog.print("⚡️ [StripeTapToPay] initialize() running on main thread: \(Thread.isMainThread)")
-            if !Terminal.isInitialized() {
+            if !Terminal.hasTokenProvider() {
                 Terminal.setLogListener { logLine in
                     CAPLog.print("⚡️ [StripeTapToPay] \(logLine)")
                 }
-                // Stripe Terminal iOS calls are expected on the main thread.
-                Terminal.initWithTokenProvider(self, delegate: nil, offlineDelegate: nil, logLevel: .verbose)
+                Terminal.setTokenProvider(self)
             }
+            Terminal.shared.logLevel = .verbose
             call.resolve()
         }
     }
@@ -75,7 +76,7 @@ import StripeTerminal
         CAPLog.print("⚡️ [StripeTapToPay] discoverReaders() called")
         DispatchQueue.main.async {
             CAPLog.print("⚡️ [StripeTapToPay] discoverReaders() running on main thread: \(Thread.isMainThread)")
-            guard Terminal.isInitialized() else {
+            guard Terminal.hasTokenProvider() else {
                 call.reject("Terminal not initialized")
                 return
             }
@@ -196,7 +197,19 @@ import StripeTerminal
                 return
             }
 
+            let merchantDisplayName = call.getString("merchantDisplayName")
+            let onBehalfOf = call.getString("onBehalfOf")
+            let tosAcceptancePermitted = call.getBool("tosAcceptancePermitted") ?? true
             let builder = TapToPayConnectionConfigurationBuilder(delegate: self, locationId: locationId)
+            _ = builder.setTosAcceptancePermitted(tosAcceptancePermitted)
+            if let merchantDisplayName = merchantDisplayName, !merchantDisplayName.isEmpty {
+                _ = builder.setMerchantDisplayName(merchantDisplayName)
+            }
+            if let onBehalfOf = onBehalfOf, !onBehalfOf.isEmpty {
+                _ = builder.setOnBehalfOf(onBehalfOf)
+            }
+
+            CAPLog.print("⚡️ [StripeTapToPay] connectReader() config locationId=\(locationId), merchantDisplayName=\(merchantDisplayName ?? "nil"), onBehalfOf=\(onBehalfOf ?? "nil"), tosAcceptancePermitted=\(tosAcceptancePermitted)")
             let connectionConfig: TapToPayConnectionConfiguration
             do {
                 connectionConfig = try builder.build()
@@ -207,7 +220,7 @@ import StripeTerminal
 
             Terminal.shared.connectReader(reader, connectionConfig: connectionConfig) { connectedReader, error in
                 if let error = error {
-                    call.reject(error.localizedDescription)
+                    self.rejectTerminalError(call, error: error)
                     return
                 }
                 CAPLog.print("⚡️ [StripeTapToPay] connectReader() success")
@@ -360,12 +373,41 @@ import StripeTerminal
 
     private func serializePaymentIntent(_ intent: PaymentIntent) -> [String: Any] {
         return [
-            "id": intent.stripeId,
-            "clientSecret": intent.clientSecret ?? "",
+            "id": intent.stripeId ?? "",
             "amount": intent.amount,
             "currency": intent.currency,
-            "livemode": intent.livemode,
+            "status": Terminal.stringFromPaymentIntentStatus(intent.status),
         ]
+    }
+
+    private func rejectTerminalError(_ call: CAPPluginCall, error: Error) {
+        let nsError = error as NSError
+        let message = tapToPayTermsMessage(for: nsError) ?? error.localizedDescription
+        CAPLog.print("⚡️ [StripeTapToPay] Terminal error domain=\(nsError.domain) code=\(nsError.code): \(message)")
+        call.reject(
+            message,
+            "\(nsError.code)",
+            error,
+            [
+                "stripeErrorDomain": nsError.domain,
+                "stripeErrorCode": nsError.code,
+            ]
+        )
+    }
+
+    private func tapToPayTermsMessage(for error: NSError) -> String? {
+        switch error.code {
+        case 2960:
+            return "Tap to Pay Terms & Conditions require an iCloud account signed in on this iPhone. Sign in with the Apple ID that represents the business, then try again."
+        case 2970:
+            return "Tap to Pay Terms & Conditions were cancelled. Review and accept the official terms before continuing."
+        case 3930:
+            return "Tap to Pay Terms & Conditions have not been accepted for this merchant yet. Open the official Apple terms link, accept them, then try enabling this iPhone again."
+        case 3940:
+            return "Apple could not complete Tap to Pay Terms & Conditions acceptance for the signed-in Apple ID. Check that the Apple ID is active and represents the business, then try again."
+        default:
+            return nil
+        }
     }
 
     private func deviceTypeString(_ type: DeviceType) -> String {

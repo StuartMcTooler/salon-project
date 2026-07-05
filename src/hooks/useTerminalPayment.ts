@@ -22,6 +22,13 @@ interface PaymentResult {
   error?: string;
 }
 
+interface ConnectReaderOptions {
+  locationId?: string;
+  merchantDisplayName?: string;
+  onBehalfOf?: string | null;
+  tosAcceptancePermitted?: boolean;
+}
+
 const isCanceledTerminalError = (err: any): boolean => {
   const message = err?.errorMessage || err?.message || String(err || '');
   return message.includes('The command was canceled') || message.includes('error_code=2020');
@@ -503,15 +510,22 @@ export const useTerminalPayment = () => {
   }, [isInitialized, initializeNativeSDK, requestLocationPermission, discoverReadersInternal]);
 
   // Connect to a reader
-  const connectReader = useCallback(async (reader: any) => {
+  const connectReader = useCallback(async (reader: any, options: ConnectReaderOptions = {}) => {
     if (!isNativeApp()) return;
     
     try {
       const StripeTerminal = terminalRef.current;
       if (!StripeTerminal) throw new Error('Terminal not initialized');
       
-      console.log('[TerminalPayment] Connecting to reader:', reader.serialNumber || reader.label);
-      const result = await StripeTerminal.connectReader({ reader });
+      const connectConfig = {
+        reader,
+        locationId: options.locationId,
+        merchantDisplayName: options.merchantDisplayName,
+        onBehalfOf: options.onBehalfOf || undefined,
+        tosAcceptancePermitted: options.tosAcceptancePermitted ?? true,
+      };
+      console.log('[TerminalPayment] Connecting to reader:', reader.serialNumber || reader.label, connectConfig);
+      const result = await StripeTerminal.connectReader(connectConfig);
       const resolvedReader = result?.reader || reader;
       setConnectedReader(resolvedReader);
       console.log('[TerminalPayment] ✅ Connected to reader', result?.alreadyConnected ? '(reused existing connection)' : '');
@@ -575,7 +589,7 @@ export const useTerminalPayment = () => {
       }
       
       console.log('[TerminalPayment] Auto-connecting to first reader...');
-      await connectReader(readers[0]);
+      await connectReader(readers[0], { locationId });
     }
 
     // Step 2: Create PaymentIntent on server

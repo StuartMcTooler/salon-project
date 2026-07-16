@@ -10,7 +10,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { ArrowLeft } from "lucide-react";
 import { ServiceGrid } from "./ServiceGrid";
-import { getAvailableSlots, AvailabilityOverride } from "@/lib/timeSlotUtils";
+import {
+  getAvailableSlots,
+  AvailabilityOverride,
+  createDublinDateTime,
+  getDublinDayBounds,
+  getLocalDateKey,
+  getLocalDayOfWeek,
+} from "@/lib/timeSlotUtils";
 import { format } from "date-fns";
 
 interface StaffBookingInterfaceProps {
@@ -29,11 +36,7 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
   const [notes, setNotes] = useState("");
 
   const fetchAppointments = async (targetDate: Date) => {
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    const { start: startOfDay, end: endOfDay } = getDublinDayBounds(targetDate);
 
     const { data, error } = await supabase
       .from('salon_appointments')
@@ -47,7 +50,7 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
     return data || [];
   };
 
-  const dateKey = date ? date.toISOString().split('T')[0] : null;
+  const dateKey = date ? getLocalDateKey(date) : null;
   
   const { data: existingAppointments } = useQuery({
     queryKey: ['appointments', staffId, dateKey],
@@ -81,10 +84,10 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
   });
 
   const { data: businessHours } = useQuery({
-    queryKey: ['business-hours', date?.getDay()],
+    queryKey: ['business-hours', dateKey],
     queryFn: async () => {
       if (!date) return null;
-      const dayOfWeek = date.getDay();
+      const dayOfWeek = getLocalDayOfWeek(date);
       
       const { data, error } = await supabase
         .from('business_hours')
@@ -100,10 +103,10 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
   });
 
   const { data: staffHours } = useQuery({
-    queryKey: ['staff-hours', staffId, date?.getDay()],
+    queryKey: ['staff-hours', staffId, dateKey],
     queryFn: async () => {
       if (!date) return null;
-      const dayOfWeek = date.getDay();
+      const dayOfWeek = getLocalDayOfWeek(date);
       
       const { data, error } = await supabase
         .from('business_hours')
@@ -119,7 +122,7 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
   });
 
   // Fetch availability override for the selected date
-  const dateStr = date ? format(date, "yyyy-MM-dd") : null;
+  const dateStr = date ? getLocalDateKey(date) : null;
   const { data: availabilityOverride } = useQuery({
     queryKey: ['staff-availability-override', staffId, dateStr],
     queryFn: async () => {
@@ -224,9 +227,7 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
         throw new Error("Please enter customer name");
       }
 
-      const appointmentDateTime = new Date(date);
-      const [hours, minutes] = time.split(':');
-      appointmentDateTime.setHours(parseInt(hours), parseInt(minutes));
+      const appointmentDateTime = createDublinDateTime(date, time);
 
       const { data, error } = await supabase
         .from('salon_appointments')

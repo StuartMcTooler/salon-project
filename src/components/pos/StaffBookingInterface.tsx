@@ -42,7 +42,7 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
       .select('appointment_date, duration_minutes')
       .eq('staff_id', staffId)
       .gte('appointment_date', startOfDay.toISOString())
-        .lte('appointment_date', endOfDay.toISOString())
+      .lte('appointment_date', endOfDay.toISOString())
       .in('status', ['pending', 'confirmed']);
 
     if (error) throw error;

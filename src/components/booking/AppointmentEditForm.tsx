@@ -117,7 +117,7 @@ export const AppointmentEditForm = ({
   });
   
   const { data: availableSlots } = useQuery({
-    queryKey: ["available-slots", appointment.staff_id, selectedDate, selectedServiceId],
+    queryKey: ["available-slots", appointment.staff_id, dateStr, selectedServiceId, businessHours, staffHours],
     queryFn: async () => {
       if (!selectedService) return [];
       

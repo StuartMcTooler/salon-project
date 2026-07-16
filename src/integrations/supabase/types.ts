@@ -2772,6 +2772,15 @@ export type Database = {
         Args: { p_staff_id: string }
         Returns: string
       }
+      find_or_create_booking_client: {
+        Args: {
+          _creative_id: string
+          _email: string
+          _name: string
+          _phone: string
+        }
+        Returns: string
+      }
       get_content_request_by_token: {
         Args: { _token: string }
         Returns: {

@@ -49,7 +49,7 @@ const PublicBooking = () => {
         "name": item.service?.name || item.name,
         "description": item.service?.description || item.description || undefined,
       },
-      "price": (item.custom_price || item.service?.price || item.price || 0).toFixed(2),
+      "price": (item.custom_price || item.service?.suggested_price || item.service?.price || item.price || 0).toFixed(2),
       "priceCurrency": "EUR",
       "availability": "https://schema.org/InStock"
     }));
@@ -164,7 +164,7 @@ const PublicBooking = () => {
             .from('staff_service_pricing')
             .select(`
               custom_price,
-              service:services(id, name, description, price, duration_minutes)
+              service:services(id, name, description, suggested_price, duration_minutes)
             `)
             .eq('staff_id', staffId)
             .eq('is_available', true);

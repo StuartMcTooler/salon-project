@@ -177,7 +177,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   });
 
   const { data: businessHours } = useQuery({
-    queryKey: ['business-hours', date?.getDay()],
+    queryKey: ['business-hours', dateKey],
     queryFn: async () => {
       if (!date) return null;
       const dayOfWeek = getLocalDayOfWeek(date);
@@ -196,7 +196,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   });
 
   const { data: staffHours } = useQuery({
-    queryKey: ['staff-hours', staff.id, date?.getDay()],
+    queryKey: ['staff-hours', staff.id, dateKey],
     queryFn: async () => {
       if (!date) return null;
       const dayOfWeek = getLocalDayOfWeek(date);

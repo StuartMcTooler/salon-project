@@ -18,7 +18,6 @@ import {
   getLocalDateKey,
   getLocalDayOfWeek,
 } from "@/lib/timeSlotUtils";
-import { format } from "date-fns";
 
 interface StaffBookingInterfaceProps {
   staffId: string;
@@ -43,7 +42,7 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
       .select('appointment_date, duration_minutes')
       .eq('staff_id', staffId)
       .gte('appointment_date', startOfDay.toISOString())
-      .lte('appointment_date', endOfDay.toISOString())
+        .lte('appointment_date', endOfDay.toISOString())
       .in('status', ['pending', 'confirmed']);
 
     if (error) throw error;
@@ -122,7 +121,7 @@ export const StaffBookingInterface = ({ staffId }: StaffBookingInterfaceProps) =
   });
 
   // Fetch availability override for the selected date
-  const dateStr = date ? getLocalDateKey(date) : null;
+  const dateStr = dateKey;
   const { data: availabilityOverride } = useQuery({
     queryKey: ['staff-availability-override', staffId, dateStr],
     queryFn: async () => {

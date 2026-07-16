@@ -13,7 +13,14 @@ import { format } from "date-fns";
 import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { checkTimeSlotAvailability } from "@/lib/appointmentUtils";
-import { getAvailableSlots, AvailabilityOverride } from "@/lib/timeSlotUtils";
+import {
+  getAvailableSlots,
+  AvailabilityOverride,
+  createDublinDateTime,
+  getDublinDayBounds,
+  getLocalDateKey,
+  getLocalDayOfWeek,
+} from "@/lib/timeSlotUtils";
 
 interface AppointmentEditFormProps {
   appointment: any;
@@ -55,7 +62,7 @@ export const AppointmentEditForm = ({
 
   const selectedService = services?.find((s) => s.id === selectedServiceId);
 
-  const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : null;
+  const dateStr = selectedDate ? getLocalDateKey(selectedDate) : null;
 
   // Fetch staff member's minimum booking lead hours
   const { data: staffData } = useQuery({
@@ -72,23 +79,58 @@ export const AppointmentEditForm = ({
     },
     enabled: !!appointment.staff_id,
   });
+
+  const { data: businessHours } = useQuery({
+    queryKey: ["business-hours", dateStr],
+    queryFn: async () => {
+      if (!selectedDate) return null;
+
+      const { data, error } = await supabase
+        .from("business_hours")
+        .select("*")
+        .is("staff_id", null)
+        .eq("day_of_week", getLocalDayOfWeek(selectedDate))
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedDate,
+  });
+
+  const { data: staffHours } = useQuery({
+    queryKey: ["staff-hours", appointment.staff_id, dateStr],
+    queryFn: async () => {
+      if (!selectedDate) return null;
+
+      const { data, error } = await supabase
+        .from("business_hours")
+        .select("*")
+        .eq("staff_id", appointment.staff_id)
+        .eq("day_of_week", getLocalDayOfWeek(selectedDate))
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedDate && !!appointment.staff_id,
+  });
   
   const { data: availableSlots } = useQuery({
-    queryKey: ["available-slots", appointment.staff_id, selectedDate, selectedServiceId],
+    queryKey: ["available-slots", appointment.staff_id, dateStr, selectedServiceId, businessHours, staffHours],
     queryFn: async () => {
       if (!selectedService) return [];
       
+      const { start: startOfDay, end: endOfDay } = getDublinDayBounds(selectedDate);
+
       const { data: existingAppointments } = await supabase
         .from("salon_appointments")
         .select("appointment_date, duration_minutes")
         .eq("staff_id", appointment.staff_id)
         .neq("status", "cancelled")
         .neq("id", appointment.id)
-        .gte("appointment_date", selectedDate.toISOString())
-        .lt(
-          "appointment_date",
-          new Date(selectedDate.getTime() + 24 * 60 * 60000).toISOString()
-        );
+        .gte("appointment_date", startOfDay.toISOString())
+        .lte("appointment_date", endOfDay.toISOString());
 
       // Fetch availability override
       const { data: override } = await supabase
@@ -104,8 +146,8 @@ export const AppointmentEditForm = ({
         selectedService.duration_minutes,
         existingAppointments || [],
         selectedDate,
-        null,
-        null,
+        businessHours,
+        staffHours,
         9,
         18,
         override as AvailabilityOverride | null,
@@ -117,9 +159,7 @@ export const AppointmentEditForm = ({
 
   const updateMutation = useMutation({
     mutationFn: async () => {
-      const [hours, minutes] = selectedTime.split(":").map(Number);
-      const appointmentDate = new Date(selectedDate);
-      appointmentDate.setHours(hours, minutes, 0, 0);
+      const appointmentDate = createDublinDateTime(selectedDate, selectedTime);
 
       // Check availability
       const availability = await checkTimeSlotAvailability(

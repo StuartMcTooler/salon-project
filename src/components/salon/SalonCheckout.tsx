@@ -12,13 +12,12 @@ import { TimeSlotGrid } from "./TimeSlotGrid";
 import { CompactCustomerForm } from "./CompactCustomerForm";
 import { ExpandableNotesField } from "./ExpandableNotesField";
 import { BookingStickyFooter } from "./BookingStickyFooter";
-import { getAvailableSlots, AvailabilityOverride } from "@/lib/timeSlotUtils";
+import { getAvailableSlots, AvailabilityOverride, createDublinDateTime, getDublinDayBounds, getLocalDateKey, getLocalDayOfWeek } from "@/lib/timeSlotUtils";
 import { normalizePhoneNumber } from "@/lib/utils";
 import { findOrCreateClient } from "@/lib/clientUtils";
 import { CoverRecommendationCard } from "@/components/booking/CoverRecommendationCard";
 import { usePublicSmartSlotRules } from "@/hooks/useSmartSlotRules";
 import { enrichSlotsWithPricing, applySmartPricing, type EnrichedTimeSlot } from "@/lib/smartPricing";
-import { format } from "date-fns";
 
 interface SalonCheckoutProps {
   service: any;
@@ -148,18 +147,14 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   }, [customerName, customerPhone]);
 
   // Query existing appointments for the selected date and staff
-  const dateKey = date ? date.toISOString().split('T')[0] : null;
+  const dateKey = date ? getLocalDateKey(date) : null;
   
   const { data: existingAppointments, refetch } = useQuery({
     queryKey: ['appointments', staff.id, dateKey],
     queryFn: async () => {
       if (!date) return [];
       
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+      const { start: startOfDay, end: endOfDay } = getDublinDayBounds(date);
 
       console.log('[SALON] Fetching appointments for', staff.id, dateKey);
       
@@ -182,10 +177,10 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   });
 
   const { data: businessHours } = useQuery({
-    queryKey: ['business-hours', date?.getDay()],
+    queryKey: ['business-hours', dateKey],
     queryFn: async () => {
       if (!date) return null;
-      const dayOfWeek = date.getDay();
+      const dayOfWeek = getLocalDayOfWeek(date);
       
       const { data, error } = await supabase
         .from('business_hours')
@@ -201,10 +196,10 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   });
 
   const { data: staffHours } = useQuery({
-    queryKey: ['staff-hours', staff.id, date?.getDay()],
+    queryKey: ['staff-hours', staff.id, dateKey],
     queryFn: async () => {
       if (!date) return null;
-      const dayOfWeek = date.getDay();
+      const dayOfWeek = getLocalDayOfWeek(date);
       
       const { data, error } = await supabase
         .from('business_hours')
@@ -236,7 +231,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
   });
 
   // Fetch availability override for the selected date
-  const dateStr = date ? format(date, "yyyy-MM-dd") : null;
+  const dateStr = date ? getLocalDateKey(date) : null;
   const { data: availabilityOverride } = useQuery({
     queryKey: ['staff-availability-override', staff.id, dateStr],
     queryFn: async () => {
@@ -486,42 +481,15 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
         throw new Error("Please provide your name and phone number");
       }
 
-      const appointmentDateTime = new Date(date);
-      const [hours, minutes] = time.split(':');
-      appointmentDateTime.setHours(parseInt(hours), parseInt(minutes));
+      const appointmentDateTime = createDublinDateTime(date, time);
 
-      // Find or create client record - normalize phone for consistent matching
-      let clientId: string | null = null;
-      const normalizedPhone = normalizePhoneNumber(customerPhone);
-      
-      // Try to find client by normalized phone (handles both 087... and +353... formats)
-      const { data: existingClient } = await supabase
-        .from('clients')
-        .select('id')
-        .or(`phone.eq.${normalizedPhone},phone.eq.${customerPhone}`)
-        .maybeSingle();
-
-      if (existingClient) {
-        clientId = existingClient.id;
-      } else {
-        // Create new client with normalized phone format
-        const { data: newClient, error: clientError } = await supabase
-          .from('clients')
-          .insert([{
-            name: customerName,
-            phone: normalizedPhone, // Store in E.164 format for consistency
-            email: null,
-            primary_creative_id: staff.id,
-          }])
-          .select('id')
-          .single();
-
-        if (clientError) {
-          console.error('Failed to create client:', clientError);
-        } else if (newClient) {
-          clientId = newClient.id;
-        }
-      }
+      const client = await findOrCreateClient({
+        phone: customerPhone,
+        email: null,
+        name: customerName,
+        creativeId: staff.id,
+      });
+      const clientId = client.id;
 
       // Prepare appointment payload
       const appointmentId = crypto.randomUUID();
@@ -567,12 +535,14 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       if (customerPhone) {
         const appointmentDate = new Date(appointmentDateTime);
         const formattedDate = appointmentDate.toLocaleDateString('en-IE', {
+          timeZone: 'Europe/Dublin',
           weekday: 'long',
           day: 'numeric',
           month: 'long',
           year: 'numeric'
         });
         const formattedTime = appointmentDate.toLocaleTimeString('en-IE', {
+          timeZone: 'Europe/Dublin',
           hour: '2-digit',
           minute: '2-digit'
         });
@@ -802,7 +772,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
                   ? Array.from({ length: 90 }, (_, i) => {
                       const checkDate = new Date();
                       checkDate.setDate(checkDate.getDate() + i);
-                      const dayOfWeek = checkDate.getDay();
+                      const dayOfWeek = getLocalDayOfWeek(checkDate);
                       const staffWorkingThisDay = allStaffHours.some(
                         h => h.day_of_week === dayOfWeek && h.is_active
                       );

@@ -28,6 +28,104 @@ export interface AvailabilityOverride {
   is_available: boolean;
 }
 
+const BOOKING_TIME_ZONE = 'Europe/Dublin';
+
+const pad2 = (value: number): string => value.toString().padStart(2, '0');
+
+export const getLocalDateKey = (date: Date): string => {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+};
+
+export const getLocalDayOfWeek = (date: Date): number => {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getDay();
+};
+
+const getPartsInTimeZone = (date: Date, timeZone: string) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, Number(part.value)])
+  ) as Record<string, number>;
+
+  return {
+    year: values.year,
+    month: values.month,
+    day: values.day,
+    hour: values.hour,
+    minute: values.minute,
+    second: values.second,
+  };
+};
+
+const getTimeZoneOffsetMs = (date: Date, timeZone: string): number => {
+  const parts = getPartsInTimeZone(date, timeZone);
+  const zonedAsUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second
+  );
+
+  return zonedAsUtc - date.getTime();
+};
+
+export const createDublinDateTime = (selectedDate: Date, time: string): Date => {
+  const [hour, minute] = time.split(':').map(Number);
+  const utcGuess = new Date(Date.UTC(
+    selectedDate.getFullYear(),
+    selectedDate.getMonth(),
+    selectedDate.getDate(),
+    hour,
+    minute,
+    0,
+    0
+  ));
+
+  const offset = getTimeZoneOffsetMs(utcGuess, BOOKING_TIME_ZONE);
+  let utcDate = new Date(utcGuess.getTime() - offset);
+
+  const correctedOffset = getTimeZoneOffsetMs(utcDate, BOOKING_TIME_ZONE);
+  if (correctedOffset !== offset) {
+    utcDate = new Date(utcGuess.getTime() - correctedOffset);
+  }
+
+  return utcDate;
+};
+
+export const getDublinDayBounds = (selectedDate: Date): { start: Date; end: Date } => {
+  return {
+    start: createDublinDateTime(selectedDate, '00:00'),
+    end: createDublinDateTime(selectedDate, '23:59'),
+  };
+};
+
+const getDateKeyInTimeZone = (date: Date, timeZone: string): string => {
+  const parts = getPartsInTimeZone(date, timeZone);
+  return `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}`;
+};
+
+const getMinutesInTimeZone = (date: Date, selectedDateKey: string, timeZone: string): number => {
+  const dateKey = getDateKeyInTimeZone(date, timeZone);
+  if (dateKey < selectedDateKey) return 0;
+  if (dateKey > selectedDateKey) return 24 * 60;
+
+  const parts = getPartsInTimeZone(date, timeZone);
+  return parts.hour * 60 + parts.minute;
+};
+
 /**
  * Generate time slots starting from a specific time, every 30 minutes
  * @param startHour - Starting hour (can be decimal, e.g., 9.5 = 9:30, 9.75 = 9:45)
@@ -150,7 +248,15 @@ export const getAvailableSlots = (
   minimumLeadHours: number = 0,
   breakHours?: BreakHours | null
 ): Array<{ time: string; endTime: string }> => {
-  const dayOfWeek = selectedDate.getDay();
+  const dayOfWeek = getLocalDayOfWeek(selectedDate);
+  let effectiveBreakHours: BreakHours | null = breakHours || null;
+
+  if (!effectiveBreakHours && staffHours && staffHours.day_of_week === dayOfWeek && staffHours.is_active && staffHours.break_start_time && staffHours.break_end_time) {
+    effectiveBreakHours = {
+      start: staffHours.break_start_time,
+      end: staffHours.break_end_time
+    };
+  }
   
   // STEP 1: Check for date-specific override first (highest priority)
   if (availabilityOverride) {
@@ -183,7 +289,7 @@ export const getAvailableSlots = (
         appointments,
         selectedDate,
         minimumLeadHours,
-        breakHours
+        effectiveBreakHours
       );
     }
   }
@@ -212,9 +318,6 @@ export const getAvailableSlots = (
   }
   
   // Check staff hours - these override/restrict business hours
-  // Also extract break hours if defined
-  let effectiveBreakHours: BreakHours | null = breakHours || null;
-  
   if (staffHours && staffHours.day_of_week === dayOfWeek) {
     if (!staffHours.is_active) {
       return []; // Staff not working this day
@@ -234,13 +337,6 @@ export const getAvailableSlots = (
     actualEndHour = Math.min(actualEndHour, staffEnd);
     hoursFound = true;
     
-    // Extract break hours from staffHours if not already provided
-    if (!effectiveBreakHours && staffHours.break_start_time && staffHours.break_end_time) {
-      effectiveBreakHours = {
-        start: staffHours.break_start_time,
-        end: staffHours.break_end_time
-      };
-    }
   }
   
   // If no specific hours found for this day, return empty
@@ -273,6 +369,7 @@ const generateSlotsForTimeRange = (
 ): Array<{ time: string; endTime: string }> => {
   
   const availableSlots: Array<{ time: string; endTime: string }> = [];
+  const selectedDateKey = getLocalDateKey(selectedDate);
   
   // Cap the end hour at 24
   const cappedEndHour = Math.min(actualEndHour, 24);
@@ -350,10 +447,9 @@ const generateSlotsForTimeRange = (
       }
     }
     
-    // Build full datetime for this slot to compare against earliest bookable time
-    // This handles midnight crossing correctly (e.g., booking at 11 PM for 1 AM next day)
-    const slotDateTime = new Date(selectedDate);
-    slotDateTime.setHours(slotHour, slotMin, 0, 0);
+    // Build the slot as a Europe/Dublin appointment instant so browser timezone
+    // cannot make an unavailable break slot appear bookable.
+    const slotDateTime = createDublinDateTime(selectedDate, slotStr);
     
     // Skip if slot is before the earliest bookable time (considers both past and lead time)
     if (slotDateTime < earliestBookableTime) {
@@ -367,8 +463,7 @@ const generateSlotsForTimeRange = (
     }
     
     // Check if this slot conflicts with any appointment
-    const slotStart = new Date(selectedDate);
-    slotStart.setHours(slotHour, slotMin, 0, 0);
+    const slotStart = slotDateTime;
     const slotEnd = new Date(slotStart.getTime() + serviceDuration * 60000);
     
     let hasConflict = false;
@@ -382,7 +477,7 @@ const generateSlotsForTimeRange = (
       if (slotStart < apptEnd && slotEnd > apptStart) {
         hasConflict = true;
         // Remember when this appointment ends so we can jump there
-        conflictingAppointmentEnd = apptEnd.getHours() * 60 + apptEnd.getMinutes();
+        conflictingAppointmentEnd = getMinutesInTimeZone(apptEnd, selectedDateKey, BOOKING_TIME_ZONE);
         break;
       }
     }

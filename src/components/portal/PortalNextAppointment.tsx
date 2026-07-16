@@ -10,7 +10,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { getAvailableSlots, AvailabilityOverride } from "@/lib/timeSlotUtils";
+import {
+  getAvailableSlots,
+  AvailabilityOverride,
+  createDublinDateTime,
+  getDublinDayBounds,
+  getLocalDateKey,
+  getLocalDayOfWeek,
+} from "@/lib/timeSlotUtils";
 
 interface PortalNextAppointmentProps {
   clientId: string;
@@ -51,10 +58,7 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
     queryFn: async () => {
       if (!appointment?.staff_id || !selectedDate) return [];
       
-      const startOfDay = new Date(selectedDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(selectedDate);
-      endOfDay.setHours(23, 59, 59, 999);
+      const { start: startOfDay, end: endOfDay } = getDublinDayBounds(selectedDate);
 
       const { data } = await supabase
         .from("salon_appointments")
@@ -71,7 +75,44 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
   });
 
   // Fetch availability override for selected date
-  const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : null;
+  const dateStr = selectedDate ? getLocalDateKey(selectedDate) : null;
+
+  const { data: businessHours } = useQuery({
+    queryKey: ["business-hours", dateStr],
+    queryFn: async () => {
+      if (!selectedDate) return null;
+
+      const { data, error } = await supabase
+        .from("business_hours")
+        .select("*")
+        .is("staff_id", null)
+        .eq("day_of_week", getLocalDayOfWeek(selectedDate))
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedDate,
+  });
+
+  const { data: staffHours } = useQuery({
+    queryKey: ["staff-hours", appointment?.staff_id, dateStr],
+    queryFn: async () => {
+      if (!appointment?.staff_id || !selectedDate) return null;
+
+      const { data, error } = await supabase
+        .from("business_hours")
+        .select("*")
+        .eq("staff_id", appointment.staff_id)
+        .eq("day_of_week", getLocalDayOfWeek(selectedDate))
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!appointment?.staff_id && !!selectedDate,
+  });
+
   const { data: availabilityOverride } = useQuery({
     queryKey: ["staff-availability-override", appointment?.staff_id, dateStr],
     queryFn: async () => {
@@ -113,8 +154,8 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
         appointment.duration_minutes,
         existingAppointments,
         selectedDate,
-        undefined,
-        undefined,
+        businessHours,
+        staffHours,
         9,
         18,
         availabilityOverride,
@@ -126,9 +167,7 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
     mutationFn: async () => {
       if (!selectedDate || !selectedTime || !appointment) return;
 
-      const [hours, minutes] = selectedTime.split(':');
-      const newDateTime = new Date(selectedDate);
-      newDateTime.setHours(parseInt(hours), parseInt(minutes));
+      const newDateTime = createDublinDateTime(selectedDate, selectedTime);
 
       const { error } = await supabase
         .from("salon_appointments")

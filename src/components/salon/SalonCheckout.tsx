@@ -18,7 +18,6 @@ import { findOrCreateClient } from "@/lib/clientUtils";
 import { CoverRecommendationCard } from "@/components/booking/CoverRecommendationCard";
 import { usePublicSmartSlotRules } from "@/hooks/useSmartSlotRules";
 import { enrichSlotsWithPricing, applySmartPricing, type EnrichedTimeSlot } from "@/lib/smartPricing";
-import { format } from "date-fns";
 
 interface SalonCheckoutProps {
   service: any;

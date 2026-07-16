@@ -164,7 +164,7 @@ const PublicBooking = () => {
             .from('staff_service_pricing')
             .select(`
               custom_price,
-              service:services(id, name, description, price, duration_minutes)
+              service:services(id, name, description, suggested_price, duration_minutes)
             `)
             .eq('staff_id', staffId)
             .eq('is_available', true);

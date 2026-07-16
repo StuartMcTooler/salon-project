@@ -32,47 +32,38 @@ export async function findOrCreateClient({
   name,
   creativeId,
 }: FindOrCreateClientParams): Promise<Client> {
-  // Normalize the phone number to prevent duplicates
   const normalizedPhone = normalizePhoneNumber(phone);
-  
-  // Try to find existing client
-  const { data: existingClients, error: findError } = await supabase
+
+  // Use SECURITY DEFINER RPC so unauthenticated public-booking flows
+  // (and authenticated staff flows) both work through a single path.
+  const { data: clientId, error: rpcError } = await supabase.rpc(
+    "find_or_create_booking_client",
+    {
+      _phone: normalizedPhone,
+      _email: email || null,
+      _name: name,
+      _creative_id: creativeId,
+    }
+  );
+
+  if (rpcError || !clientId) {
+    throw rpcError ?? new Error("Failed to create client");
+  }
+
+  const { data: client, error: fetchError } = await supabase
     .from("clients")
     .select("*")
-    .eq("phone", normalizedPhone)
-    .order("last_visit_date", { ascending: false })
-    .limit(1);
+    .eq("id", clientId as string)
+    .maybeSingle();
 
-  if (findError) {
-    throw findError;
-  }
+  if (fetchError) throw fetchError;
 
-  const existingClient = existingClients?.[0] ?? null;
+  if (client) return client;
 
-  // If client exists, update last visit and return
-  if (existingClient) {
-    const { data: updatedClient, error: updateError } = await supabase
-      .from("clients")
-      .update({
-        last_visit_date: new Date().toISOString(),
-        total_visits: existingClient.total_visits + 1,
-        // Update email and name if provided and different
-        ...(email && email !== existingClient.email ? { email } : {}),
-        ...(name && name !== existingClient.name ? { name } : {}),
-      })
-      .eq("id", existingClient.id)
-      .select()
-      .single();
-
-    if (updateError) {
-      throw updateError;
-    }
-
-    return updatedClient;
-  }
-
-  // Create new client
-  const newClient: TablesInsert<"clients"> = {
+  // Anonymous booker cannot read the row back via RLS. Return a minimal
+  // client object; downstream callers only need the id for FK linkage.
+  return {
+    id: clientId as string,
     phone: normalizedPhone,
     email: email || null,
     name,
@@ -80,33 +71,7 @@ export async function findOrCreateClient({
     first_visit_date: new Date().toISOString(),
     last_visit_date: new Date().toISOString(),
     total_visits: 1,
-  };
-
-  const { data: createdClient, error: createError } = await supabase
-    .from("clients")
-    .insert(newClient)
-    .select()
-    .single();
-
-  if (createError) {
-    // If another flow created the client first, reuse the existing client by phone.
-    if ((createError as any).code === "23505") {
-      const { data: recoveredClients, error: recoverError } = await supabase
-        .from("clients")
-        .select("*")
-        .eq("phone", normalizedPhone)
-        .order("last_visit_date", { ascending: false })
-        .limit(1);
-
-      const recoveredClient = recoveredClients?.[0] ?? null;
-      if (!recoverError && recoveredClient) {
-        return recoveredClient;
-      }
-    }
-    throw createError;
-  }
-
-  return createdClient;
+  } as Client;
 }
 
 /**

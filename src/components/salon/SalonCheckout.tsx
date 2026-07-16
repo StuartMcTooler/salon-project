@@ -535,12 +535,14 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
       if (customerPhone) {
         const appointmentDate = new Date(appointmentDateTime);
         const formattedDate = appointmentDate.toLocaleDateString('en-IE', {
+          timeZone: 'Europe/Dublin',
           weekday: 'long',
           day: 'numeric',
           month: 'long',
           year: 'numeric'
         });
         const formattedTime = appointmentDate.toLocaleTimeString('en-IE', {
+          timeZone: 'Europe/Dublin',
           hour: '2-digit',
           minute: '2-digit'
         });

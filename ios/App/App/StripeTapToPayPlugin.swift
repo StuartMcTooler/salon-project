@@ -1,3 +1,4 @@
+#if ENABLE_IOS_TAP_TO_PAY
 import Foundation
 import Capacitor
 import ProximityReader
@@ -426,3 +427,4 @@ public class StripeTapToPayPlugin: CAPPlugin, CAPBridgedPlugin, ConnectionTokenP
     public func tapToPayReader(_ reader: Reader, didRequestReaderInput inputOptions: ReaderInputOptions) {}
     public func tapToPayReader(_ reader: Reader, didRequestReaderDisplayMessage displayMessage: ReaderDisplayMessage) {}
 }
+#endif

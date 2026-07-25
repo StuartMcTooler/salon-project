@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { App as CapacitorApp, type URLOpenListenerEvent } from "@capacitor/app";
 import { isNativeApp } from "@/lib/platform";
+import { isTapToPayEnabled } from "@/lib/paymentFeatures";
 
 /**
  * Listens for bookd:// deep-link callbacks from Stripe Connect onboarding
@@ -26,7 +27,9 @@ export const StripeDeepLinkHandler = () => {
           if (url.protocol !== "bookd:") return;
 
           const host = url.host || url.pathname.replace(/^\/+/, "");
-          const resume = url.searchParams.get("resume") || "payouts";
+          const requestedResume = url.searchParams.get("resume") || "payouts";
+          const resume =
+            requestedResume === "tap_to_pay" && !isTapToPayEnabled() ? "payouts" : requestedResume;
           const isReturn = host === "stripe-return";
           const isRefresh = host === "stripe-refresh";
           if (!isReturn && !isRefresh) return;

@@ -23,6 +23,7 @@ import { usePlatform } from '@/hooks/usePlatform';
 import { useTerminalPayment } from '@/hooks/useTerminalPayment';
 import { getTestModeHeaders } from '@/hooks/useTestModeOverride';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
+import { availableStaffTerminalTypes, isBluetoothReadersEnabled, isTapToPayEnabled } from '@/lib/paymentFeatures';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,20 +53,17 @@ export const StaffTerminalSettings = ({ staffId, returnToPath = '/my-profile?tab
   const { discoverReaders, connectReader, discoveredReaders, connectedReader, isProcessing } = useTerminalPayment();
   const { isSuperAdmin } = useSuperAdmin();
 
-  const [connectionType, setConnectionType] = useState<TerminalConnectionType>('tap_to_pay');
+  const [connectionType, setConnectionType] = useState<TerminalConnectionType>('internet');
   const [readerId, setReaderId] = useState('');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [existingSettings, setExistingSettings] = useState<any>(null);
   const [isDiscovering, setIsDiscovering] = useState(false);
-  const [allowedTerminalTypes, setAllowedTerminalTypes] = useState<string[]>([
-    'tap_to_pay',
-    'bluetooth',
-    'business_reader',
-  ]);
+  const [allowedTerminalTypes, setAllowedTerminalTypes] = useState<string[]>(availableStaffTerminalTypes());
   const [isCreatingLocation, setIsCreatingLocation] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [isSoloBusiness, setIsSoloBusiness] = useState(false);
   const settingsCardRef = useRef<HTMLDivElement | null>(null);
 
   const isTestModeActive = localStorage.getItem('FORCE_STRIPE_MODE') === 'test';
@@ -118,12 +116,16 @@ export const StaffTerminalSettings = ({ staffId, returnToPath = '/my-profile?tab
 
       if (terminalResult.data) {
         setExistingSettings(terminalResult.data);
-        setConnectionType((terminalResult.data.connection_type as TerminalConnectionType) || 'tap_to_pay');
+        const savedConnectionType = terminalResult.data.connection_type as TerminalConnectionType | null;
+        const savedTypeEnabled =
+          !(savedConnectionType === 'tap_to_pay' && !isTapToPayEnabled()) &&
+          !(savedConnectionType === 'bluetooth' && !isBluetoothReadersEnabled());
+        setConnectionType(savedTypeEnabled ? savedConnectionType || 'internet' : 'internet');
         setReaderId(terminalResult.data.reader_id || '');
       }
 
       let isSolo = false;
-      const allMethods = ['tap_to_pay', 'bluetooth', 'business_reader'];
+      const allMethods = availableStaffTerminalTypes();
 
       if (businessResult.data) {
         isSolo = (businessResult.data as any)?.business_accounts?.business_type === 'solo_professional';
@@ -137,12 +139,14 @@ export const StaffTerminalSettings = ({ staffId, returnToPath = '/my-profile?tab
           .single();
         isSolo = bizData?.business_type === 'solo_professional';
       }
+      setIsSoloBusiness(isSolo);
 
       if (isSolo) {
         setAllowedTerminalTypes(allMethods);
+        const savedTypes = staffResult.data?.allowed_terminal_types || [];
         if (
-          !staffResult.data?.allowed_terminal_types ||
-          !staffResult.data.allowed_terminal_types.includes('tap_to_pay')
+          savedTypes.length !== allMethods.length ||
+          savedTypes.some((type) => !allMethods.includes(type))
         ) {
           await supabase
             .from('staff_members')
@@ -150,7 +154,8 @@ export const StaffTerminalSettings = ({ staffId, returnToPath = '/my-profile?tab
             .eq('id', staffId);
         }
       } else if (staffResult.data?.allowed_terminal_types) {
-        setAllowedTerminalTypes(staffResult.data.allowed_terminal_types);
+        const filteredTypes = staffResult.data.allowed_terminal_types.filter((type) => allMethods.includes(type));
+        setAllowedTerminalTypes(filteredTypes.length ? filteredTypes : ['business_reader']);
       }
     } catch (error) {
       console.error('Error loading terminal settings:', error);
@@ -349,14 +354,18 @@ export const StaffTerminalSettings = ({ staffId, returnToPath = '/my-profile?tab
   const canUseTapToPayPermission = allowedTerminalTypes.includes('tap_to_pay');
   const canUseBluetoothPermission = allowedTerminalTypes.includes('bluetooth');
   const canUseBusinessReader = allowedTerminalTypes.includes('business_reader');
-  const isRestrictedToBusinessReader = allowedTerminalTypes.length === 1 && canUseBusinessReader;
+  const isRestrictedToBusinessReader = !isSoloBusiness && allowedTerminalTypes.length === 1 && canUseBusinessReader;
 
   const showTapToPayOnboardingCard = canUseTapToPay && canUseTapToPayPermission;
   const statusLabel = useMemo(() => {
     if (!existingSettings) return null;
-    if (existingSettings.connection_type === 'tap_to_pay') return tapToPayShortLabel;
+    if (existingSettings.connection_type === 'tap_to_pay') {
+      return isTapToPayEnabled() ? tapToPayShortLabel : 'Phone payment disabled in this build';
+    }
     if (existingSettings.connection_type === 'bluetooth') {
-      return `Bluetooth (${existingSettings.reader_name || 'Reader'})`;
+      return isBluetoothReadersEnabled()
+        ? `Bluetooth (${existingSettings.reader_name || 'Reader'})`
+        : 'Bluetooth disabled in this build';
     }
     return 'WiFi Reader';
   }, [existingSettings, tapToPayShortLabel]);
@@ -379,7 +388,7 @@ export const StaffTerminalSettings = ({ staffId, returnToPath = '/my-profile?tab
     );
   }
 
-  if (!isNative) {
+  if (!isNative && (canUseTapToPayPermission || canUseBluetoothPermission)) {
     return (
       <Card>
         <CardHeader>
@@ -396,7 +405,7 @@ export const StaffTerminalSettings = ({ staffId, returnToPath = '/my-profile?tab
               Terminal settings are configured in the native app.
             </p>
             <p className="text-xs text-muted-foreground">
-              Download the app to use {tapToPayShortLabel} or connect a Bluetooth reader.
+              Use a shared WiFi reader configured in Stripe Terminal.
             </p>
           </div>
         </CardContent>
@@ -421,7 +430,7 @@ export const StaffTerminalSettings = ({ staffId, returnToPath = '/my-profile?tab
               <div className="space-y-2">
                 <p className="font-medium text-amber-800 dark:text-amber-200">App Update Required</p>
                 <p className="text-sm text-amber-700 dark:text-amber-300">
-                  {tapToPayShortLabel} and Bluetooth readers require the latest app version with payment hardware support.
+                  Bluetooth readers require the latest app version with payment hardware support.
                 </p>
                 <p className="text-sm text-amber-700 dark:text-amber-300">
                   Please reinstall from the app store or rebuild with:
@@ -461,7 +470,7 @@ export const StaffTerminalSettings = ({ staffId, returnToPath = '/my-profile?tab
               You&apos;re configured to use the shared business card reader.
             </p>
             <p className="text-xs text-muted-foreground">
-              Contact your salon owner if you need access to {tapToPayShortLabel} or Bluetooth readers.
+              Contact your salon owner if you need a different reader setup.
             </p>
           </div>
         </CardContent>

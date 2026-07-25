@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { usePlatform } from "@/hooks/usePlatform";
 import { getTestModeHeaders } from "@/hooks/useTestModeOverride";
-import { CheckCircle2, Circle, CreditCard, Loader2, Receipt, Scissors, Smartphone } from "lucide-react";
+import { CheckCircle2, Circle, CreditCard, Loader2, Receipt, Scissors } from "lucide-react";
 
 interface SoloGettingStartedChecklistProps {
   staffId: string;
@@ -26,13 +26,11 @@ export const SoloGettingStartedChecklist = ({
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isNative, isIOS } = usePlatform();
-  const [tapToPayComplete, setTapToPayComplete] = useState(false);
   const [posStarted, setPosStarted] = useState(false);
   const [activatingPayouts, setActivatingPayouts] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    setTapToPayComplete(localStorage.getItem(`tap_to_pay_onboarding_complete_${staffId}`) === "true");
     setPosStarted(localStorage.getItem(`solo_first_checkout_started_${staffId}`) === "true");
     supabase.auth.getUser().then(({ data }) => {
       setCurrentUserEmail(data.user?.email ?? null);
@@ -74,9 +72,9 @@ export const SoloGettingStartedChecklist = ({
         serviceCount: serviceCount ?? 0,
         stripeConnectStatus: (staffRow?.stripe_connect_status as string | null) ?? "not_started",
         appointmentCount: appointmentCount ?? 0,
-        tapToPayConfigured:
-          terminalSettings?.connection_type === "tap_to_pay" &&
-          Boolean(terminalSettings?.stripe_location_id),
+        readerConfigured:
+          Boolean(terminalSettings?.is_active) &&
+          terminalSettings?.connection_type !== "tap_to_pay",
       };
     },
   });
@@ -130,12 +128,7 @@ export const SoloGettingStartedChecklist = ({
       : payoutStatus === "pending" || payoutStatus === "restricted"
         ? "in_progress"
         : "pending";
-    const tapToPayReady = Boolean(data?.tapToPayConfigured);
-    const tapState: ChecklistStatus = tapToPayReady
-      ? "complete"
-      : tapToPayComplete && (payoutState === "complete" || payoutState === "in_progress")
-        ? "in_progress"
-        : "pending";
+    const readerState: ChecklistStatus = data?.readerConfigured ? "complete" : "pending";
     const checkoutState: ChecklistStatus = posStarted || (data?.appointmentCount ?? 0) > 0 ? "complete" : "pending";
 
     return [
@@ -166,13 +159,13 @@ export const SoloGettingStartedChecklist = ({
         loading: activatingPayouts,
       },
       {
-        id: "tap_to_pay",
-        title: "Set up Tap to Pay on iPhone",
-        description: "Review the merchant guidance and enable Tap to Pay on a supported iPhone.",
-        state: tapState,
-        actionLabel: tapState === "complete" ? "Review setup" : "Open Tap to Pay setup",
-        onAction: () => navigate(`/tap-to-pay-onboarding?staffId=${encodeURIComponent(staffId)}`),
-        icon: Smartphone,
+        id: "reader",
+        title: "Set up your card reader",
+        description: "Configure a WiFi-connected reader so you can test card-present payments.",
+        state: readerState,
+        actionLabel: readerState === "complete" ? "Review reader setup" : "Open reader settings",
+        onAction: onOpenSettings,
+        icon: CreditCard,
         loading: false,
       },
       {
@@ -190,7 +183,7 @@ export const SoloGettingStartedChecklist = ({
         loading: false,
       },
     ];
-  }, [activatingPayouts, currentUserEmail, data?.appointmentCount, data?.serviceCount, data?.stripeConnectStatus, isIOS, isNative, navigate, onOpenSettings, posStarted, staffId, tapToPayComplete]);
+  }, [activatingPayouts, currentUserEmail, data?.appointmentCount, data?.readerConfigured, data?.serviceCount, data?.stripeConnectStatus, isIOS, isNative, navigate, onOpenSettings, posStarted, staffId]);
 
   const completedCount = checklist.filter((item) => item.state === "complete").length;
   const allComplete = completedCount === checklist.length;

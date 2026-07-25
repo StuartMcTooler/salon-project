@@ -7,14 +7,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        CAPLog.print("⚡️ [StripeTapToPay] AppDelegate didFinishLaunching")
-        // Force our custom bridge controller so the plugin is registered.
-        if #available(iOS 15.0, *) {
-            window = UIWindow(frame: UIScreen.main.bounds)
-            window?.rootViewController = MainBridgeViewController()
-            window?.makeKeyAndVisible()
-            CAPLog.print("⚡️ [StripeTapToPay] AppDelegate set MainBridgeViewController")
-        }
         return true
     }
 

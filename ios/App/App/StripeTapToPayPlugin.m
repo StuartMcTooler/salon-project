@@ -1,3 +1,4 @@
+#if ENABLE_IOS_TAP_TO_PAY
 #import <Capacitor/Capacitor.h>
 
 CAP_PLUGIN(StripeTapToPayPlugin, "StripeTapToPay",
@@ -12,3 +13,4 @@ CAP_PLUGIN(StripeTapToPayPlugin, "StripeTapToPay",
            CAP_PLUGIN_METHOD(isDeviceCapable, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(presentTapToPayEducation, CAPPluginReturnPromise);
 )
+#endif

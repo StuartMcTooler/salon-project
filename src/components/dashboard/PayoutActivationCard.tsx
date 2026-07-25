@@ -39,10 +39,10 @@ export const PayoutActivationCard = ({ staffId, resumeFlow: resumeFlowProp }: Pa
 
     const params = new URLSearchParams(window.location.search);
     if (params.get('stripe_onboarded') === 'true') {
-      localStorage.setItem(`tap_to_pay_post_connect_prompt_${staffId}`, 'true');
-      setShowTapToPayPrompt(true);
-
       if (isNative && isIOS && canUseTapToPay) {
+        localStorage.setItem(`tap_to_pay_post_connect_prompt_${staffId}`, 'true');
+        setShowTapToPayPrompt(true);
+
         const tapToPayParams = new URLSearchParams({
           staffId,
           returnTo: `${window.location.pathname}${window.location.search}`,
@@ -53,6 +53,7 @@ export const PayoutActivationCard = ({ staffId, resumeFlow: resumeFlowProp }: Pa
         return;
       }
 
+      setShowTapToPayPrompt(false);
       toast({
         title: "Setup in progress",
         description: "Your payout account is being verified. This may take a few moments.",
@@ -142,7 +143,8 @@ export const PayoutActivationCard = ({ staffId, resumeFlow: resumeFlowProp }: Pa
       // which flow the merchant should resume after Stripe returns.
       const params = new URLSearchParams(window.location.search);
       const urlResumeFlow = params.get('resumeFlow') as 'payouts' | 'tap_to_pay' | null;
-      const resumeFlow = resumeFlowProp ?? urlResumeFlow ?? 'payouts';
+      const requestedResumeFlow = resumeFlowProp ?? urlResumeFlow ?? 'payouts';
+      const resumeFlow = canUseTapToPay ? requestedResumeFlow : 'payouts';
 
       const { data, error } = await supabase.functions.invoke('create-connect-account', {
         headers: getConnectHeaders(),
@@ -172,7 +174,7 @@ export const PayoutActivationCard = ({ staffId, resumeFlow: resumeFlowProp }: Pa
       });
       setActivating(false);
     }
-  }, [getConnectHeaders, isIOS, isNative, resumeFlowProp, staffId, toast]);
+  }, [canUseTapToPay, getConnectHeaders, isIOS, isNative, resumeFlowProp, staffId, toast]);
 
   useEffect(() => {
     if (loading || activating || !isVisible || status === 'active') {

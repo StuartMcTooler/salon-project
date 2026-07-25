@@ -16,7 +16,7 @@ import { normalizePhoneNumber } from "@/lib/utils";
 import { findOrCreateClient } from "@/lib/clientUtils";
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useRef, ChangeEvent } from "react";
-import { isNativeApp, getPlatform } from "@/lib/platform";
+import { canUseTapToPay as canUseTapToPayOnPlatform, isNativeApp, getPlatform } from "@/lib/platform";
 import { useTerminalPayment } from "@/hooks/useTerminalPayment";
 import { useNavigate } from "react-router-dom";
 import { TapToPayIosGlyph } from "@/components/pos/TapToPayIosGlyph";
@@ -70,7 +70,8 @@ export const QuickCustomerForm = ({
   const [forceStripeMode, setForceStripeMode] = useState<string>("default");
   const [chosenPath, setChosenPath] = useState<string>("unknown");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const isIosTapToPayFlow = isNativeApp() && getPlatform() === 'ios';
+  const tapToPayEnabled = canUseTapToPayOnPlatform();
+  const isIosTapToPayFlow = tapToPayEnabled && isNativeApp() && getPlatform() === 'ios';
   const cardPaymentLabel = isIosTapToPayFlow ? 'Tap to Pay on iPhone' : 'Card Reader';
   const cardPaymentDescription = isIosTapToPayFlow
     ? 'Accept contactless cards and wallets on this iPhone'
@@ -87,10 +88,10 @@ export const QuickCustomerForm = ({
     setPaymentFlowStage('idle');
     setCurrentReaderId(null);
     toast({
-      title: "Set up Tap to Pay on iPhone",
-      description: "Review the Terms & Conditions and finish setup before taking a Tap to Pay payment.",
+      title: "Set up a card reader",
+      description: "Configure a WiFi reader before taking a card payment.",
     });
-    navigate(`/tap-to-pay-onboarding?staffId=${encodeURIComponent(staffMember.id)}`);
+    navigate('/my-profile?tab=settings#terminal-hardware');
   };
 
   useEffect(() => {
@@ -460,7 +461,7 @@ export const QuickCustomerForm = ({
       const currentPlatform = getPlatform();
       console.log('[QuickCustomerForm] Payment flow - isNative:', isNative, 'platform:', currentPlatform);
 
-      // Check for staff-level Tap to Pay settings first (for native app)
+      // Check for staff-level Tap to Pay settings only when that feature is enabled.
       if (isNative && staffData.id) {
         const { data: staffTerminal } = await supabase
           .from('terminal_settings')
@@ -469,15 +470,15 @@ export const QuickCustomerForm = ({
           .eq('is_active', true)
           .maybeSingle();
 
-        const allowedTypes = staffData.allowed_terminal_types || ['business_reader'];
-        const canUseTapToPay = allowedTypes.includes('tap_to_pay');
-        const isConfiguredTapToPay = staffTerminal?.connection_type === 'tap_to_pay';
-        const prefersTapToPay = isNative && canUseTapToPay;
+        const allowedTypes = (staffData.allowed_terminal_types || ['business_reader'])
+          .filter((type: string) => tapToPayEnabled || type !== 'tap_to_pay');
+        const hasTapToPayPermission = tapToPayEnabled && allowedTypes.includes('tap_to_pay');
+        const prefersTapToPay = tapToPayEnabled && isNative && hasTapToPayPermission;
 
-        console.log('[QuickCustomerForm] Staff terminal:', staffTerminal, 'canUseTapToPay:', canUseTapToPay);
+        console.log('[QuickCustomerForm] Staff terminal:', staffTerminal, 'hasTapToPayPermission:', hasTapToPayPermission);
 
         // Hard-prefer Tap to Pay on iOS to avoid falling back to S700
-        if (isNative && currentPlatform === 'ios' && canUseTapToPay) {
+        if (tapToPayEnabled && isNative && currentPlatform === 'ios' && hasTapToPayPermission) {
           if (!staffTerminal?.stripe_location_id) {
             openTapToPaySetup();
             return;
@@ -604,7 +605,7 @@ export const QuickCustomerForm = ({
           openTapToPaySetup();
           return;
         }
-        throw new Error('No terminal reader configured. Please set up Tap to Pay in Settings → Terminal & Hardware, or contact your business owner.');
+        throw new Error('No terminal reader configured. Please set up a WiFi reader in Settings → Terminal & Hardware, or contact your business owner.');
       }
 
       setChosenPath('internet_reader');
@@ -1003,7 +1004,7 @@ export const QuickCustomerForm = ({
           <div className="text-center space-y-3 max-w-sm">
             <h3 className="text-2xl font-semibold text-emerald-900">Payment processed</h3>
             <p className="text-sm text-emerald-800">
-              Tap to Pay on iPhone payment completed successfully.
+              Card payment completed successfully.
             </p>
             <p className="text-3xl font-bold text-emerald-900">€{paymentSuccessState.amount.toFixed(2)}</p>
             <p className="text-sm text-emerald-800">

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft } from "lucide-react";
+import { availableStaffTerminalTypes } from "@/lib/paymentFeatures";
 
 export const SoloSetup = () => {
   const navigate = useNavigate();
@@ -54,7 +55,7 @@ export const SoloSetup = () => {
           hourly_rate: formData.hourlyRate ? parseFloat(formData.hourlyRate) : null,
           is_active: true,
           tier: 'standard',
-          allowed_terminal_types: ['tap_to_pay', 'bluetooth', 'business_reader'],
+          allowed_terminal_types: availableStaffTerminalTypes(),
         });
 
       if (staffError) throw staffError;

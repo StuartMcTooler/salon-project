@@ -251,7 +251,7 @@ const MyProfile = () => {
                     Terminal &amp; Hardware
                   </CardTitle>
                   <CardDescription>
-                    Choose how you want to accept payments, including Tap to Pay on iPhone and Bluetooth readers.
+                    Configure a WiFi-connected Stripe reader for in-person payments.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

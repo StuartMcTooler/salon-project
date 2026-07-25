@@ -6,7 +6,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { BackButtonHandler } from "./components/BackButtonHandler";
 import Index from "./pages/Index";
 import Discover from "./pages/Discover";
@@ -36,6 +36,7 @@ import ResetPassword from "./pages/ResetPassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import BrandPreviewLab from "./pages/BrandPreviewLab";
 import StripeNativeReturn from "./pages/StripeNativeReturn";
+import { isTapToPayEnabled } from "@/lib/paymentFeatures";
 
 const queryClient = new QueryClient();
 
@@ -63,7 +64,7 @@ const NativeStripeReturnHandler = () => {
           url.searchParams.get("flow") === "tap_to_pay" ||
           url.searchParams.get("resume") === "tap_to_pay";
 
-        if (routeKey === "stripe-return" && resumeTapToPay) {
+        if (routeKey === "stripe-return" && resumeTapToPay && isTapToPayEnabled()) {
           const params = new URLSearchParams({
             stripe_onboarded: "true",
             resumeStripe: "1",
@@ -74,7 +75,7 @@ const NativeStripeReturnHandler = () => {
           return;
         }
 
-        if (routeKey === "stripe-refresh" && resumeTapToPay) {
+        if (routeKey === "stripe-refresh" && resumeTapToPay && isTapToPayEnabled()) {
           const params = new URLSearchParams({
             stripe_refresh: "true",
           });
@@ -161,7 +162,10 @@ const App = () => (
           <Route path="/accept-invite" element={<AcceptInvite />} />
           <Route path="/my-profile" element={<MyProfile />} />
           <Route path="/my-profile/terminal-hardware" element={<TerminalHardware />} />
-          <Route path="/tap-to-pay-onboarding" element={<TapToPayOnboarding />} />
+          <Route
+            path="/tap-to-pay-onboarding"
+            element={isTapToPayEnabled() ? <TapToPayOnboarding /> : <Navigate to="/my-profile/terminal-hardware" replace />}
+          />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/brand-preview-lab" element={<BrandPreviewLab />} />
           <Route path="/stripe-native-return" element={<StripeNativeReturn />} />

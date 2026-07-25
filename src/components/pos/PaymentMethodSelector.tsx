@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Smartphone, Loader2, Banknote, CheckCircle2 } from "lucide-react";
+import { CreditCard, Loader2, Banknote, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTerminalPayment, isStripeTerminalAvailable } from "@/hooks/useTerminalPayment";
-import { isNativeApp, getPlatform } from "@/lib/platform";
+import { canUseTapToPay, isNativeApp, getPlatform } from "@/lib/platform";
 import { useNavigate } from "react-router-dom";
 import { TapToPayIosGlyph } from "@/components/pos/TapToPayIosGlyph";
 
@@ -54,7 +54,8 @@ export const PaymentMethodSelector = ({
   const amountToCharge = (depositPaid && remainingBalance) 
     ? remainingBalance 
     : amount;
-  const isIosTapToPayFlow = isNativeApp() && getPlatform() === 'ios';
+  const tapToPayEnabled = canUseTapToPay();
+  const isIosTapToPayFlow = tapToPayEnabled && isNativeApp() && getPlatform() === 'ios';
   const cardPaymentLabel = isIosTapToPayFlow ? 'Tap to Pay on iPhone' : 'Card Reader';
   const cardPaymentDescription = isIosTapToPayFlow
     ? 'Accept contactless cards and wallets on this iPhone'
@@ -78,8 +79,8 @@ export const PaymentMethodSelector = ({
   };
 
   const openTapToPaySetup = () => {
-    toast.info('Finish Tap to Pay setup before taking a payment.');
-    navigate(`/tap-to-pay-onboarding?staffId=${encodeURIComponent(staffId)}`);
+    toast.info('Set up a card reader before taking a payment.');
+    navigate('/my-profile?tab=settings#terminal-hardware');
   };
 
   const pollPaymentStatus = async () => {
@@ -147,7 +148,7 @@ export const PaymentMethodSelector = ({
         return;
       }
 
-      // Check for staff-level terminal settings first (for Tap to Pay / Bluetooth)
+      // Check for staff-level terminal settings first, then fall back to the shared WiFi reader.
       if (staffId) {
         addDebugLog(`Querying terminal settings for staffId: ${staffId}`);
         
@@ -169,8 +170,10 @@ export const PaymentMethodSelector = ({
         const staffTerminal = terminalResult.data;
         const staffTerminalError = terminalResult.error;
         const permissionsError = permissionsResult.error;
-        const allowedTypes = permissionsResult.data?.allowed_terminal_types
-          ?? (staffTerminal?.connection_type === 'tap_to_pay' ? ['tap_to_pay'] : ['business_reader']);
+        const allowedTypes = (
+          permissionsResult.data?.allowed_terminal_types ??
+          (staffTerminal?.connection_type === 'tap_to_pay' ? ['tap_to_pay'] : ['business_reader'])
+        ).filter((type) => tapToPayEnabled || type !== 'tap_to_pay');
 
         addDebugLog(`Staff terminal: ${JSON.stringify(staffTerminal)}`);
         addDebugLog(`Allowed types: ${JSON.stringify(allowedTypes)}`);
@@ -178,33 +181,38 @@ export const PaymentMethodSelector = ({
         if (staffTerminalError) addDebugLog(`⚠️ Terminal error: ${staffTerminalError.message}`);
         if (permissionsError) addDebugLog(`⚠️ Permissions error: ${permissionsError.message}`);
 
-        // If staff has Tap to Pay or Bluetooth configured and we're on native app
-        const isTapOrBluetooth = staffTerminal?.connection_type === 'tap_to_pay' || staffTerminal?.connection_type === 'bluetooth';
+        const isTapToPayTerminal =
+          tapToPayEnabled && staffTerminal?.connection_type === 'tap_to_pay';
         
         // Check if staff has permission to use this payment method for their configured type
         const hasPermissionForConfigured = staffTerminal?.connection_type && allowedTypes.includes(staffTerminal.connection_type);
 
         // Also detect Tap to Pay permission even if no personal terminal_settings row exists
-        const canUseTapToPayPermission = allowedTypes.includes('tap_to_pay');
+        const canUseTapToPayPermission = tapToPayEnabled && allowedTypes.includes('tap_to_pay');
 
         const shouldUseNativeTapToPay =
+          tapToPayEnabled &&
           isNative &&
           canUseTapToPayPermission &&
           (!staffTerminal || staffTerminal.connection_type === 'tap_to_pay');
 
         // Safety: if a personal tap_to_pay terminal is configured on native, prefer native path
-        const isConfiguredTapToPayOnNative = isNative && staffTerminal?.connection_type === 'tap_to_pay';
+        const isConfiguredTapToPayOnNative =
+          tapToPayEnabled && isNative && staffTerminal?.connection_type === 'tap_to_pay';
         
-        addDebugLog(`isTapOrBluetooth: ${isTapOrBluetooth}`);
+        addDebugLog(`isTapToPayTerminal: ${isTapToPayTerminal}`);
         addDebugLog(`hasPermission: ${!!hasPermissionForConfigured}`);
         addDebugLog(`canUseTapToPay: ${canUseTapToPayPermission}`);
         addDebugLog(`shouldUseNativeTapToPay: ${shouldUseNativeTapToPay}`);
         addDebugLog(`isConfiguredTapToPayOnNative: ${isConfiguredTapToPayOnNative}`);
 
         if (
-          shouldUseNativeTapToPay ||
-          isConfiguredTapToPayOnNative ||
-          (staffTerminal?.connection_type && isTapOrBluetooth && isNative && !!hasPermissionForConfigured)
+          tapToPayEnabled &&
+          (
+            shouldUseNativeTapToPay ||
+            isConfiguredTapToPayOnNative ||
+            (staffTerminal?.connection_type && isTapToPayTerminal && isNative && !!hasPermissionForConfigured)
+          )
         ) {
           const connectionType = 'tap_to_pay';
 
@@ -265,15 +273,15 @@ export const PaymentMethodSelector = ({
           }
           
           // If staff has Tap to Pay configured but we're not detecting native platform
-          if (staffTerminal?.connection_type === 'tap_to_pay' && !isNative) {
+          if (tapToPayEnabled && staffTerminal?.connection_type === 'tap_to_pay' && !isNative) {
             addDebugLog(`❌ Tap to Pay configured but Capacitor not detected!`);
             addDebugLog(`  - Platform reports: ${getPlatform()}`);
             addDebugLog(`  - This means the native bridge isn't initialized`);
             throw new Error(`Tap to Pay is enabled but platform detection failed (reports: ${getPlatform()}). Try restarting the app completely. If issue persists, the APK may need to be rebuilt.`);
           }
           
-          // If we're native but Tap to Pay isn't configured
-          if (isNative && !staffTerminal?.connection_type) {
+          // If Tap to Pay is enabled and we're native but it isn't configured, send the user to setup.
+          if (tapToPayEnabled && isNative && !staffTerminal?.connection_type) {
             addDebugLog(`❌ Native app but no terminal settings found for this staff`);
             openTapToPaySetup();
             return;
@@ -299,7 +307,7 @@ export const PaymentMethodSelector = ({
           openTapToPaySetup();
           return;
         }
-        throw new Error('No terminal reader configured. Please set up Tap to Pay in your profile settings.');
+        throw new Error('No terminal reader configured. Please set up a WiFi reader in Terminal & Hardware.');
       }
 
       const { data: readerStatus, error: readerError } = await supabase.functions.invoke(

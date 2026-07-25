@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { isTapToPayEnabled } from "@/lib/paymentFeatures";
 
 const StripeNativeReturn = () => {
   const search = useMemo(() => new URLSearchParams(window.location.search), []);
@@ -11,7 +12,8 @@ const StripeNativeReturn = () => {
 
     const staffId = search.get("staffId");
     const returnTo = search.get("returnTo");
-    const flow = search.get("flow") || search.get("resume") || "payouts";
+    const requestedFlow = search.get("flow") || search.get("resume") || "payouts";
+    const flow = requestedFlow === "tap_to_pay" && !isTapToPayEnabled() ? "payouts" : requestedFlow;
 
     if (staffId) params.set("staffId", staffId);
     if (returnTo) params.set("returnTo", returnTo);
@@ -39,7 +41,7 @@ const StripeNativeReturn = () => {
           <CardHeader>
             <CardTitle>Returning to Bookd</CardTitle>
             <CardDescription>
-              We&apos;re sending you back into the app now to continue Stripe setup and Tap to Pay onboarding.
+              We&apos;re sending you back into the app now to continue Stripe setup.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">

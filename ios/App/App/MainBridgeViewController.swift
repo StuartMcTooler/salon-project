@@ -1,3 +1,4 @@
+#if ENABLE_IOS_TAP_TO_PAY
 import Capacitor
 
 @available(iOS 15.0, *)
@@ -25,3 +26,4 @@ class MainBridgeViewController: CAPBridgeViewController {
         }
     }
 }
+#endif

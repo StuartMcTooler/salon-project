@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { isBluetoothReadersEnabled, isTapToPayEnabled } from '@/lib/paymentFeatures';
 
 // Platform detection utilities
 export const isNativeApp = (): boolean => Capacitor.isNativePlatform();
@@ -24,11 +25,13 @@ export const isStripeTerminalPluginAvailable = (): boolean => {
 
 // Feature availability checks - require plugin availability
 export const canUseTapToPay = (): boolean => {
+  if (!isTapToPayEnabled()) return false;
   if (!isNativeApp()) return false;
   return isStripeTerminalPluginAvailable();
 };
 
 export const canUseBluetoothReader = (): boolean => {
+  if (!isBluetoothReadersEnabled()) return false;
   if (!isNativeApp()) return false;
   return isStripeTerminalPluginAvailable();
 };

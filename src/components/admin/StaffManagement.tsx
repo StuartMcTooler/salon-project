@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ImageUpload } from "@/components/ui/ImageUpload";
+import { isBluetoothReadersEnabled, isTapToPayEnabled } from "@/lib/paymentFeatures";
 
 interface StaffMember {
   id: string;
@@ -331,9 +332,18 @@ export function StaffManagement() {
 
   const handleUpdatePaymentPermissions = async (staffId: string, permissions: string[]) => {
     try {
+      const sanitizedPermissions = permissions.filter((type) => {
+        if (type === 'tap_to_pay') return isTapToPayEnabled();
+        if (type === 'bluetooth') return isBluetoothReadersEnabled();
+        return true;
+      });
+      if (sanitizedPermissions.length === 0) {
+        sanitizedPermissions.push('business_reader');
+      }
+
       await supabase
         .from('staff_members')
-        .update({ allowed_terminal_types: permissions })
+        .update({ allowed_terminal_types: sanitizedPermissions })
         .eq('id', staffId);
       
       toast.success('Payment permissions updated');
@@ -746,6 +756,13 @@ function PaymentPermissionsSelector({
   allowedTypes: string[]; 
   onChange: (permissions: string[]) => void;
 }) {
+  const visibleAllowedTypes = isTapToPayEnabled()
+    ? allowedTypes
+    : allowedTypes.filter((type) => type !== 'tap_to_pay');
+  const visibleEnabledTypes = isBluetoothReadersEnabled()
+    ? visibleAllowedTypes
+    : visibleAllowedTypes.filter((type) => type !== 'bluetooth');
+
   const togglePermission = (type: string) => {
     const newPermissions = allowedTypes.includes(type)
       ? allowedTypes.filter(t => t !== type)
@@ -770,29 +787,33 @@ function PaymentPermissionsSelector({
         >
           📡 Business Reader
         </Button>
-        <Button
-          variant={allowedTypes.includes('tap_to_pay') ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => togglePermission('tap_to_pay')}
-          className="text-xs"
-        >
-          📱 Tap to Pay
-        </Button>
-        <Button
-          variant={allowedTypes.includes('bluetooth') ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => togglePermission('bluetooth')}
-          className="text-xs"
-        >
-          🔵 Bluetooth
-        </Button>
+        {isTapToPayEnabled() && (
+          <Button
+            variant={allowedTypes.includes('tap_to_pay') ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => togglePermission('tap_to_pay')}
+            className="text-xs"
+          >
+            📱 Tap to Pay
+          </Button>
+        )}
+        {isBluetoothReadersEnabled() && (
+          <Button
+            variant={allowedTypes.includes('bluetooth') ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => togglePermission('bluetooth')}
+            className="text-xs"
+          >
+            🔵 Bluetooth
+          </Button>
+        )}
       </div>
       <p className="text-xs text-muted-foreground">
-        {allowedTypes.length === 1 && allowedTypes[0] === 'business_reader' 
+        {visibleEnabledTypes.length === 1 && visibleEnabledTypes[0] === 'business_reader'
           ? 'Restricted to shared business reader only'
-          : allowedTypes.length === 3 
+          : isTapToPayEnabled() && isBluetoothReadersEnabled() && visibleEnabledTypes.length === 3
             ? 'Full access to all payment methods'
-            : `Can use: ${allowedTypes.join(', ')}`
+            : `Can use: ${visibleEnabledTypes.join(', ')}`
         }
       </p>
     </div>

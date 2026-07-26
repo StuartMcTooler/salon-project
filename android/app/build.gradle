@@ -9,7 +9,7 @@ if (keyPropertiesFile.exists()) {
 }
 
 android {
-    namespace "com.stuartmcmullen.salonproject"
+    namespace "ie.bookd.salon"
     compileSdk rootProject.ext.compileSdkVersion
 
     signingConfigs {
@@ -30,7 +30,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.stuartmcmullen.salonproject"
+        applicationId "ie.bookd.salon"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

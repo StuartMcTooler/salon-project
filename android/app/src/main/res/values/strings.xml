@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">Bookd</string>
     <string name="title_activity_main">Bookd</string>
-    <string name="package_name">com.stuartmcmullen.salonproject</string>
-    <string name="custom_url_scheme">com.stuartmcmullen.salonproject</string>
+    <string name="package_name">ie.bookd.salon</string>
+    <string name="custom_url_scheme">ie.bookd.salon</string>
 </resources>

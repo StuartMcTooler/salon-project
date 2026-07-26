@@ -1,4 +1,4 @@
-package com.stuartmcmullen.salonproject;
+package ie.bookd.salon;
 
 import android.os.Bundle;
 

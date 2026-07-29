@@ -62,26 +62,17 @@
 	<array>
 		<string>bluetooth-central</string>
 	</array>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLName</key>
-			<string>ie.bookd.salon</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>bookd</string>
-			</array>
-		</dict>
-	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera access is used to capture photos for client content.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Photo library access is used to choose photos for client content.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Photo library access is used to save captured photos.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Bluetooth is used to connect to nearby card readers.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Location is used to enable card reader connections.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Location is used to help discover and connect to nearby card readers for in-person payments.</string>
 </dict>
 </plist>

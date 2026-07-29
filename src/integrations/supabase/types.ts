@@ -2805,6 +2805,13 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_staff_busy_slots: {
+        Args: { _end: string; _staff_id: string; _start: string }
+        Returns: {
+          appointment_date: string
+          duration_minutes: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

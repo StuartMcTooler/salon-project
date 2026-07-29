@@ -158,17 +158,17 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
 
       console.log('[SALON] Fetching appointments for', staff.id, dateKey);
       
-      const { data, error } = await supabase
-        .from('salon_appointments')
-        .select('appointment_date, duration_minutes')
-        .eq('staff_id', staff.id)
-        .gte('appointment_date', startOfDay.toISOString())
-        .lte('appointment_date', endOfDay.toISOString())
-        .in('status', ['pending', 'confirmed']);
+      // Use SECURITY DEFINER RPC so anonymous customers can see which slots
+      // are already taken (RLS blocks direct SELECT on salon_appointments).
+      const { data, error } = await supabase.rpc('get_staff_busy_slots', {
+        _staff_id: staff.id,
+        _start: startOfDay.toISOString(),
+        _end: endOfDay.toISOString(),
+      });
 
       if (error) throw error;
       console.log('[SALON] Got appointments:', data?.length);
-      return data || [];
+      return (data as { appointment_date: string; duration_minutes: number }[]) || [];
     },
     enabled: !!date,
     staleTime: 0,

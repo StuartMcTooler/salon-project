@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, Gift, Loader2, CheckCircle2 } from "lucide-react";
 import { useReferralDiscount } from "@/hooks/useReferralDiscount";
+import { getPublicAppPath } from "@/lib/appUrl";
 
 interface PostCheckoutActionsProps {
   isOpen: boolean;
@@ -36,7 +37,6 @@ export const PostCheckoutActions = ({
 }: PostCheckoutActionsProps) => {
   const { toast } = useToast();
   const [sentActions, setSentActions] = useState<string[]>([]);
-  const APP_URL = window.location.origin;
   const discount = useReferralDiscount(appointment.staff_id, businessId);
 
   const sendWhatsApp = useMutation({
@@ -88,19 +88,19 @@ export const PostCheckoutActions = ({
   });
 
   const handleSendBookingLink = () => {
-    const bookingUrl = `${APP_URL}/book/${appointment.staff_id}`;
+    const bookingUrl = getPublicAppPath(`/book/${appointment.staff_id}`);
     const message = `Hi ${appointment.customer_name}! ✨\n\nThanks for visiting us today. We'd love to see you again!\n\nBook your next appointment here:\n${bookingUrl}`;
     sendWhatsApp.mutate({ message, actionType: 'booking' });
   };
 
   const handleSendReferral = () => {
-    const referralUrl = `${APP_URL}/salon?ref=SHARE`;
+    const referralUrl = getPublicAppPath("/salon?ref=SHARE");
     const message = `Hi ${appointment.customer_name}! Loved having you today! Want ${discount.displayText} your next visit? Refer a friend and you BOTH get ${discount.displayText}! Share this link: ${referralUrl}`;
     sendWhatsApp.mutate({ message, actionType: 'referral' });
   };
 
   const handleSendFeedback = () => {
-    const feedbackUrl = `${APP_URL}/feedback?staff=${appointment.staff_id}&order=${appointment.id}`;
+    const feedbackUrl = getPublicAppPath(`/feedback?staff=${appointment.staff_id}&order=${appointment.id}`);
     const message = `Hi ${appointment.customer_name}! ✨\n\nThank you for visiting us today! We'd love to hear about your experience.\n\nShare your feedback here:\n${feedbackUrl}\n\nYour input helps us serve you better!`;
     sendWhatsApp.mutate({ message, actionType: 'feedback' });
   };

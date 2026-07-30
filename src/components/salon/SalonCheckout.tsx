@@ -15,6 +15,7 @@ import { BookingStickyFooter } from "./BookingStickyFooter";
 import { getAvailableSlots, AvailabilityOverride } from "@/lib/timeSlotUtils";
 import { normalizePhoneNumber } from "@/lib/utils";
 import { findOrCreateClient } from "@/lib/clientUtils";
+import { getPublicAppPath } from "@/lib/appUrl";
 import { CoverRecommendationCard } from "@/components/booking/CoverRecommendationCard";
 import { usePublicSmartSlotRules } from "@/hooks/useSmartSlotRules";
 import { enrichSlotsWithPricing, applySmartPricing, type EnrichedTimeSlot } from "@/lib/smartPricing";
@@ -577,7 +578,7 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
           minute: '2-digit'
         });
 
-        const portalLink = `${window.location.origin}/portal`;
+        const portalLink = getPublicAppPath("/portal");
         const message = `Booking Confirmed! ${formattedDate} at ${formattedTime} - ${service.name} with ${staff.display_name}. Total: €${finalPrice.toFixed(2)}. Access your portal to view appointments, loyalty points & more: ${portalLink}`;
 
         try {

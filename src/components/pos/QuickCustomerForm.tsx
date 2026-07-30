@@ -14,6 +14,7 @@ import { LoyaltyPointsDisplay } from "./LoyaltyPointsDisplay";
 import { LoyaltyBalanceCard } from "./LoyaltyBalanceCard";
 import { normalizePhoneNumber } from "@/lib/utils";
 import { findOrCreateClient } from "@/lib/clientUtils";
+import { getPublicAppPath } from "@/lib/appUrl";
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useRef, ChangeEvent } from "react";
 import { canUseTapToPay as canUseTapToPayOnPlatform, isNativeApp, getPlatform } from "@/lib/platform";
@@ -827,23 +828,23 @@ export const QuickCustomerForm = ({
           minute: '2-digit'
         });
 
-        const portalLink = `${window.location.origin}/portal`;
+        const portalLink = getPublicAppPath("/portal");
         const amountPaid = Number(updatedAppointment.price ?? adjustedPrice).toFixed(2);
         const normalizedPhone = normalizePhoneNumber(customerPhone);
-        const message = `Booking Confirmed! ${formattedDate} at ${formattedTime} - ${service.service.name} with ${staffMember.display_name}. Total: €${amountPaid}. Access your portal to view appointments, loyalty points & more: ${portalLink}`;
+        const message = `Payment received! €${amountPaid} paid for ${service.service.name} with ${staffMember.display_name} on ${formattedDate} at ${formattedTime}. Access your portal to view receipts, appointments, loyalty points & more: ${portalLink}`;
 
         await supabase.functions.invoke('send-whatsapp', {
           body: {
             to: normalizedPhone,
             message,
             businessId: staffMember.business_id,
-            messageType: 'booking_confirmation'
+            messageType: 'payment_receipt'
           }
         });
         receiptSent = true;
         receiptDestination = normalizedPhone;
       } catch (whatsappError) {
-        console.error('Failed to send confirmation:', whatsappError);
+        console.error('Failed to send payment receipt:', whatsappError);
       }
     }
 

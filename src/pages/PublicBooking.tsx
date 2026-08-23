@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
+import { PUBLIC_STAFF_COLUMNS } from "@/lib/publicStaffColumns";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -127,7 +128,7 @@ const PublicBooking = () => {
         if (staffId) {
           const { data: staff, error: staffError } = await supabase
             .from("staff_members")
-            .select("*, business_id")
+            .select(PUBLIC_STAFF_COLUMNS)
             .eq("id", staffId)
             .eq("is_active", true)
             .single();

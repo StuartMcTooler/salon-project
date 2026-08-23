@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { PUBLIC_STAFF_COLUMNS } from "@/lib/publicStaffColumns";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,7 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
           .from('staff_service_pricing')
           .select(`
             *,
-            staff:staff_members(*)
+            staff:staff_members(${PUBLIC_STAFF_COLUMNS})
           `)
           .eq('service_id', selectedService.id)
           .eq('is_available', true);
@@ -61,7 +62,7 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
         // The businessId was causing race condition issues
         const { data, error } = await supabase
           .from('staff_members')
-          .select('*')
+          .select(PUBLIC_STAFF_COLUMNS)
           .eq('is_active', true);
         
         if (error) {
@@ -119,7 +120,7 @@ export const SalonStaffSelection = ({ selectedService, onSelect, onBack, busines
         .from('trusted_network')
         .select(`
           colleague_creative_id,
-          colleague:staff_members!trusted_network_colleague_creative_id_fkey(*)
+          colleague:staff_members!trusted_network_colleague_creative_id_fkey(${PUBLIC_STAFF_COLUMNS})
         `)
         .eq('alpha_creative_id', showingOverflowFor);
 

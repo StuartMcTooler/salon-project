@@ -36,6 +36,8 @@ import ResetPassword from "./pages/ResetPassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import BrandPreviewLab from "./pages/BrandPreviewLab";
 import StripeNativeReturn from "./pages/StripeNativeReturn";
+import StaticInfo from "./pages/StaticInfo";
+
 
 const queryClient = new QueryClient();
 

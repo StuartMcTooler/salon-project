@@ -6,6 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Message types that may be triggered by unauthenticated public booking flows
+const PUBLIC_MESSAGE_TYPES = new Set(['booking_confirmation']);
+
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const MAX_MESSAGES_PER_PHONE = 5;
+const MAX_MESSAGES_PER_CALLER = 10;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -38,6 +45,79 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // SECURITY: Authenticate the caller.
+    // - Internal server-to-server callers present the service role key.
+    // - App users present their own JWT.
+    // - Unauthenticated callers may only trigger public booking confirmations.
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
+    const bearer = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : '';
+
+    let callerId: string | null = null;
+
+    if (bearer && bearer === supabaseKey) {
+      callerId = 'service_role';
+    } else if (bearer) {
+      const { data: userData } = await supabase.auth.getUser(bearer);
+      if (userData?.user) {
+        callerId = `user:${userData.user.id}`;
+      }
+    }
+
+    if (!callerId && !PUBLIC_MESSAGE_TYPES.has(messageType)) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    // SECURITY: Rate limit per recipient AND per caller, in a dedicated table so it
+    // cannot be bypassed by omitting businessId.
+    if (callerId !== 'service_role') {
+      const forwardedFor = req.headers.get('x-forwarded-for') || '';
+      const callerKey = callerId ?? `ip:${forwardedFor.split(',')[0].trim() || 'unknown'}`;
+
+      const buckets: Array<{ key: string; max: number }> = [
+        { key: `phone:${to}`, max: MAX_MESSAGES_PER_PHONE },
+        { key: `caller:${callerKey}`, max: MAX_MESSAGES_PER_CALLER },
+      ];
+
+      for (const bucket of buckets) {
+        const { data: existing } = await supabase
+          .from('notification_rate_limits')
+          .select('id, message_count, window_start')
+          .eq('bucket_key', bucket.key)
+          .maybeSingle();
+
+        const now = Date.now();
+        const windowExpired =
+          !existing || now - new Date(existing.window_start).getTime() > RATE_LIMIT_WINDOW_MS;
+
+        if (windowExpired) {
+          await supabase
+            .from('notification_rate_limits')
+            .upsert(
+              { bucket_key: bucket.key, message_count: 1, window_start: new Date().toISOString() },
+              { onConflict: 'bucket_key' }
+            );
+          continue;
+        }
+
+        if (existing.message_count >= bucket.max) {
+          console.warn('Rate limit exceeded for bucket', bucket.key);
+          return new Response(
+            JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
+          );
+        }
+
+        await supabase
+          .from('notification_rate_limits')
+          .update({ message_count: existing.message_count + 1 })
+          .eq('id', existing.id);
+      }
+    }
+
 
     // Check if recipient is a test user (client or staff)
     const { data: testClient } = await supabase
@@ -98,19 +178,9 @@ Deno.serve(async (req) => {
       throw new Error('Twilio credentials not configured');
     }
 
-    // SECURITY: Rate limiting check - max messages per hour to same number
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { data: recentMessages } = await supabase
-      .from('notification_logs')
-      .select('id')
-      .eq('recipient_phone', to)
-      .neq('status', 'simulated') // Don't count simulated messages
-      .gte('created_at', oneHourAgo);
-    
-    const MAX_MESSAGES_PER_HOUR = 5;
-    if (recentMessages && recentMessages.length >= MAX_MESSAGES_PER_HOUR) {
-      throw new Error(`Rate limit exceeded. Maximum ${MAX_MESSAGES_PER_HOUR} messages per hour to this number`);
-    }
+    // Rate limiting is enforced above via public.notification_rate_limits.
+
+
 
     // TEMPORARY: Force SMS-only while awaiting WhatsApp template approval
     // Once templates are approved, restore business notification_method logic

@@ -1394,6 +1394,30 @@ export type Database = {
           },
         ]
       }
+      notification_rate_limits: {
+        Row: {
+          bucket_key: string
+          created_at: string
+          id: string
+          message_count: number
+          window_start: string
+        }
+        Insert: {
+          bucket_key: string
+          created_at?: string
+          id?: string
+          message_count?: number
+          window_start?: string
+        }
+        Update: {
+          bucket_key?: string
+          created_at?: string
+          id?: string
+          message_count?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       otp_rate_limits: {
         Row: {
           attempt_count: number

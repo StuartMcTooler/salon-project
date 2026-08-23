@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     // Get staff details including minimum_booking_lead_hours
     const { data: staff, error: staffError } = await supabaseClient
       .from('staff_members')
-      .select('*, business_id, minimum_booking_lead_hours')
+      .select('id, business_id, is_active, minimum_booking_lead_hours, simulate_fully_booked, availability_test_days_from_now, next_available_slot, next_available_slot_updated_at')
       .eq('id', staff_id)
       .single();
 

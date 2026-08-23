@@ -36,6 +36,8 @@ import ResetPassword from "./pages/ResetPassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import BrandPreviewLab from "./pages/BrandPreviewLab";
 import StripeNativeReturn from "./pages/StripeNativeReturn";
+import StaticInfo from "./pages/StaticInfo";
+
 
 const queryClient = new QueryClient();
 
@@ -163,6 +165,11 @@ const App = () => (
           <Route path="/my-profile/terminal-hardware" element={<TerminalHardware />} />
           <Route path="/tap-to-pay-onboarding" element={<TapToPayOnboarding />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/privacy" element={<StaticInfo page="privacy" />} />
+          <Route path="/terms" element={<StaticInfo page="terms" />} />
+          <Route path="/whatsapp" element={<StaticInfo page="whatsapp" />} />
+          <Route path="/for-barbers" element={<StaticInfo page="for-barbers" />} />
+
           <Route path="/brand-preview-lab" element={<BrandPreviewLab />} />
           <Route path="/stripe-native-return" element={<StripeNativeReturn />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

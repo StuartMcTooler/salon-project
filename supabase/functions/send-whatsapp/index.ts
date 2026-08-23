@@ -178,19 +178,9 @@ Deno.serve(async (req) => {
       throw new Error('Twilio credentials not configured');
     }
 
-    // SECURITY: Rate limiting check - max messages per hour to same number
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { data: recentMessages } = await supabase
-      .from('notification_logs')
-      .select('id')
-      .eq('recipient_phone', to)
-      .neq('status', 'simulated') // Don't count simulated messages
-      .gte('created_at', oneHourAgo);
-    
-    const MAX_MESSAGES_PER_HOUR = 5;
-    if (recentMessages && recentMessages.length >= MAX_MESSAGES_PER_HOUR) {
-      throw new Error(`Rate limit exceeded. Maximum ${MAX_MESSAGES_PER_HOUR} messages per hour to this number`);
-    }
+    // Rate limiting is enforced above via public.notification_rate_limits.
+
+
 
     // TEMPORARY: Force SMS-only while awaiting WhatsApp template approval
     // Once templates are approved, restore business notification_method logic

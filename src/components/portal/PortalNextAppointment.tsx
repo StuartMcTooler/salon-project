@@ -52,27 +52,37 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
     },
   });
 
-  // Fetch existing appointments for the selected date
+  // Fetch existing appointments for the selected date (via security-definer RPC so
+  // unauthenticated portal visitors can still see which slots are taken)
   const { data: existingAppointments = [] } = useQuery({
-    queryKey: ["appointments", appointment?.staff_id, selectedDate],
+    queryKey: ["portal-busy-slots", appointment?.staff_id, selectedDate],
     queryFn: async () => {
       if (!appointment?.staff_id || !selectedDate) return [];
-      
+
       const { start: startOfDay, end: endOfDay } = getDublinDayBounds(selectedDate);
 
-      const { data } = await supabase
-        .from("salon_appointments")
-        .select("appointment_date, duration_minutes")
-        .eq("staff_id", appointment.staff_id)
-        .neq("status", "cancelled")
-        .neq("id", appointment.id)
-        .gte("appointment_date", startOfDay.toISOString())
-        .lte("appointment_date", endOfDay.toISOString());
+      const { data, error } = await supabase.rpc("get_staff_busy_slots", {
+        _staff_id: appointment.staff_id,
+        _start: startOfDay.toISOString(),
+        _end: endOfDay.toISOString(),
+      });
 
-      return data || [];
+      if (error) throw error;
+
+      // Exclude the appointment being moved so its own slot stays selectable
+      const currentStart = appointment.appointment_date
+        ? new Date(appointment.appointment_date).getTime()
+        : null;
+
+      return (data || []).filter(
+        (slot) =>
+          currentStart === null ||
+          new Date(slot.appointment_date).getTime() !== currentStart
+      );
     },
     enabled: !!appointment?.staff_id && !!selectedDate,
   });
+
 
   // Fetch availability override for selected date
   const dateStr = selectedDate ? getLocalDateKey(selectedDate) : null;

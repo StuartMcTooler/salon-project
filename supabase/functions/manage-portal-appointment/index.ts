@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
         body: {
           staffId: appointment.staff_id,
           appointmentId: appointment.id,
-          notificationType: 'booking_rescheduled',
+          notificationType: 'booking_changed',
         },
       }).catch((e) => console.error('Staff notification failed:', e));
     }

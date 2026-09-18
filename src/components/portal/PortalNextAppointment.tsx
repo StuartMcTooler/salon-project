@@ -52,27 +52,37 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
     },
   });
 
-  // Fetch existing appointments for the selected date
+  // Fetch existing appointments for the selected date (via security-definer RPC so
+  // unauthenticated portal visitors can still see which slots are taken)
   const { data: existingAppointments = [] } = useQuery({
-    queryKey: ["appointments", appointment?.staff_id, selectedDate],
+    queryKey: ["portal-busy-slots", appointment?.staff_id, selectedDate],
     queryFn: async () => {
       if (!appointment?.staff_id || !selectedDate) return [];
-      
+
       const { start: startOfDay, end: endOfDay } = getDublinDayBounds(selectedDate);
 
-      const { data } = await supabase
-        .from("salon_appointments")
-        .select("appointment_date, duration_minutes")
-        .eq("staff_id", appointment.staff_id)
-        .neq("status", "cancelled")
-        .neq("id", appointment.id)
-        .gte("appointment_date", startOfDay.toISOString())
-        .lte("appointment_date", endOfDay.toISOString());
+      const { data, error } = await supabase.rpc("get_staff_busy_slots", {
+        _staff_id: appointment.staff_id,
+        _start: startOfDay.toISOString(),
+        _end: endOfDay.toISOString(),
+      });
 
-      return data || [];
+      if (error) throw error;
+
+      // Exclude the appointment being moved so its own slot stays selectable
+      const currentStart = appointment.appointment_date
+        ? new Date(appointment.appointment_date).getTime()
+        : null;
+
+      return (data || []).filter(
+        (slot) =>
+          currentStart === null ||
+          new Date(slot.appointment_date).getTime() !== currentStart
+      );
     },
     enabled: !!appointment?.staff_id && !!selectedDate,
   });
+
 
   // Fetch availability override for selected date
   const dateStr = selectedDate ? getLocalDateKey(selectedDate) : null;
@@ -163,67 +173,78 @@ export const PortalNextAppointment = ({ clientId }: PortalNextAppointmentProps) 
       )
     : [];
 
+  const callPortalAction = async (
+    action: "reschedule" | "cancel",
+    newDateTime?: string
+  ) => {
+    const sessionToken = localStorage.getItem("portal_session_token");
+    if (!sessionToken || !appointment) throw new Error("No session token");
+
+    const { data, error } = await supabase.functions.invoke("manage-portal-appointment", {
+      body: {
+        sessionToken,
+        appointmentId: appointment.id,
+        action,
+        newDateTime,
+      },
+    });
+
+    if (error) {
+      // Surface the server's message when there is one (e.g. slot taken)
+      let message = "";
+      const ctx = (error as { context?: Response }).context;
+      if (ctx && typeof ctx.json === "function") {
+        try {
+          const body = await ctx.json();
+          message = body?.error ?? "";
+        } catch {
+          // ignore
+        }
+      }
+      throw new Error(message || error.message);
+    }
+
+    if (data?.error) throw new Error(data.error);
+    if (!data?.success) throw new Error("The change could not be saved");
+
+    return data;
+  };
+
   const rescheduleMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedDate || !selectedTime || !appointment) return;
+      if (!selectedDate || !selectedTime || !appointment) {
+        throw new Error("Please choose a date and time");
+      }
 
       const newDateTime = createDublinDateTime(selectedDate, selectedTime);
-
-      const { error } = await supabase
-        .from("salon_appointments")
-        .update({ appointment_date: newDateTime.toISOString() })
-        .eq("id", appointment.id);
-
-      if (error) throw error;
+      return callPortalAction("reschedule", newDateTime.toISOString());
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["next-appointment", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["portal-busy-slots"] });
       toast.success("Appointment rescheduled successfully");
       setShowReschedule(false);
       setSelectedDate(undefined);
       setSelectedTime("");
     },
-    onError: () => {
-      toast.error("Failed to reschedule appointment");
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to reschedule appointment");
     },
   });
 
   const cancelMutation = useMutation({
-    mutationFn: async () => {
-      if (!appointment) return;
-
-      const { error } = await supabase
-        .from("salon_appointments")
-        .update({ status: "cancelled" })
-        .eq("id", appointment.id);
-
-      if (error) throw error;
-      
-      return {
-        staffId: appointment.staff_id,
-        appointmentId: appointment.id
-      };
-    },
-    onSuccess: (data) => {
-      // Notify the staff member that customer cancelled
-      if (data?.staffId && data?.appointmentId) {
-        supabase.functions.invoke('send-creator-email', {
-          body: {
-            staffId: data.staffId,
-            appointmentId: data.appointmentId,
-            notificationType: 'booking_cancelled'
-          }
-        }).catch(err => console.error('[Portal] Failed to notify staff of cancellation:', err));
-      }
-      
+    mutationFn: async () => callPortalAction("cancel"),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["next-appointment", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["portal-busy-slots"] });
       toast.success("Appointment cancelled");
       setShowCancel(false);
     },
-    onError: () => {
-      toast.error("Failed to cancel appointment");
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to cancel appointment");
     },
   });
+
 
   if (isLoading) {
     return (

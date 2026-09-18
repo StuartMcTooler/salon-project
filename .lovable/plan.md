@@ -1,126 +1,25 @@
+# Plan: Test-mode acceptance checks for Terminal edge functions
 
-# Fix Tap to Pay Initialization Race Condition and Live Mode Debug Build
+## Goal
+Validate that the three Terminal edge functions honor a `forceStripeMode: "test"` body field after deploy, using simple POST requests.
 
-## Problem Summary
+## Gaps found in the proposed checks (from reading the functions)
 
-You've confirmed two distinct issues:
+1. `check-terminal-reader` only reads `x-force-test-mode` / `x-force-live-mode` **headers** — it ignores a `forceStripeMode` body field, so Test 3 would return `live` as written.
+2. `create-terminal-connection-token` and `create-terminal-payment-intent` call `requireAuth`, so a request using only the anon key as Bearer fails with 401. Tests 1 and 2 need a logged-in user's access token, not the anon key.
 
-1. **Race Condition (First Tap)**: Location permission error on first tap despite permissions being granted. This happens because the SDK initialization isn't fully awaited before reader discovery begins.
+## Changes
 
-2. **Security Block (Second Tap)**: "Tap to Pay not available" in Live Mode because Stripe's SDK blocks transactions on debug builds for security reasons.
+1. **`supabase/functions/check-terminal-reader/index.ts`**
+   - Read `forceStripeMode` from the request body and OR it with the existing header checks (same pattern as `create-terminal-payment-intent`), so Test 3 works as proposed.
 
----
+2. **Deploy** all three functions (`check-terminal-reader`, `create-terminal-connection-token`, `create-terminal-payment-intent`).
 
-## Solution
+3. **Run the acceptance checks** via the edge-function test tool:
+   - Test 3 (reader, TEST body) — should return `mode: "test"`.
+   - Test 2 (PaymentIntent, TEST body) — should return `stripeMode: "TEST (forced)"` and a test-mode intent (`pi_...` in test account).
+   - Test 1 (connection token) — same body; note it requires an authenticated session, so it will be run with the logged-in preview token (auto-injected) rather than the anon key.
 
-### Part 1: Fix the Initialization Race Condition
-
-**File**: `src/hooks/useTerminalPayment.ts`
-
-The current flow checks `isInitialized` React state, but React state updates are asynchronous. Even after `await initializeNativeSDK()` completes, the state may not reflect the change immediately.
-
-**Changes**:
-- Use a synchronous flag (`initializationPromise`) to track ongoing initialization
-- Ensure only one initialization can run at a time (prevent duplicate parallel inits)
-- Add explicit verification that `terminalRef.current` is populated before proceeding
-- Increase stabilization delay after initialization to 800ms for more reliable native bridge settling
-
-### Part 2: Enable Live Mode on Debug Builds
-
-**File**: `ANDROID_BUILD_GUIDE.md`
-
-Add a new section with the `debuggable false` configuration that you should apply locally to your `android/app/build.gradle`:
-
-```gradle
-android {
-    buildTypes {
-        debug {
-            debuggable false  // Required for Stripe Tap to Pay in Live Mode
-        }
-    }
-}
-```
-
-This tells Stripe's SDK that the build should be treated as a release build for security purposes, allowing Live Mode transactions.
-
----
-
-## Technical Details
-
-### Race Condition Fix
-
-```text
-BEFORE:
-┌─────────────────────┐     ┌──────────────────┐
-│ processNativePayment│────▶│ Check isInitialized │
-│ called              │     │ (React state)       │
-└─────────────────────┘     └──────────────────┘
-                                     │
-                            ┌────────▼────────┐
-                            │ initializeNativeSDK │
-                            │ (async)            │
-                            └────────────────────┘
-                                     │
-                            ┌────────▼────────┐
-                            │ 500ms delay      │
-                            └────────────────────┘
-                                     │
-                            ┌────────▼────────┐
-                            │ discoverReaders  │◀── May run before
-                            │ (fails!)         │    init fully complete
-                            └────────────────────┘
-
-AFTER:
-┌─────────────────────┐     ┌──────────────────────┐
-│ processNativePayment│────▶│ Check terminalRef    │
-│ called              │     │ (synchronous ref)     │
-└─────────────────────┘     └──────────────────────┘
-                                     │
-                            ┌────────▼────────────┐
-                            │ initializeNativeSDK  │
-                            │ with mutex lock      │
-                            └──────────────────────┘
-                                     │
-                            ┌────────▼────────┐
-                            │ 800ms delay      │
-                            └────────────────────┘
-                                     │
-                            ┌────────▼────────────┐
-                            │ VERIFY terminalRef   │
-                            │ is populated         │
-                            └──────────────────────┘
-                                     │
-                            ┌────────▼────────┐
-                            │ discoverReaders  │◀── Guaranteed init complete
-                            │ (succeeds!)      │
-                            └────────────────────┘
-```
-
-### Key Changes to `useTerminalPayment.ts`:
-
-1. Add initialization mutex using a ref to track ongoing init
-2. Update `initializeNativeSDK` to prevent concurrent initialization attempts
-3. Increase post-init stabilization delay from 500ms to 800ms
-4. Add explicit terminalRef verification after initialization
-
-### Build Guide Update:
-
-Add new section "Step 5d: Enable Live Mode on Debug Builds (Optional)" with the `debuggable false` configuration.
-
----
-
-## Files to Modify
-
-1. `src/hooks/useTerminalPayment.ts` - Fix race condition with initialization mutex
-2. `ANDROID_BUILD_GUIDE.md` - Add debuggable false configuration instructions
-
----
-
-## After Implementation
-
-After applying these changes:
-
-1. Run: `npm run build && npx cap sync android`
-2. Apply the `debuggable false` change to your local `android/app/build.gradle`
-3. Rebuild the APK in Android Studio
-4. Test Tap to Pay - first tap should now work reliably
+## Technical notes
+- No database changes. One small edge-function edit, then deploy + verify.
+- The anon key cannot satisfy `requireAuth`; that auth requirement is intentional and stays.

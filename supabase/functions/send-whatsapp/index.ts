@@ -19,12 +19,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { to, message, businessId, messageType = 'general', mediaUrl } = await req.json();
+    const { to: rawTo, message, businessId, messageType = 'general', mediaUrl } = await req.json();
 
     // SECURITY: Validate required fields
-    if (!to || !message) {
+    if (!rawTo || !message) {
       throw new Error('to and message are required');
     }
+
+    // Normalize to E.164 (default Ireland +353 for local numbers like 087...)
+    let to = String(rawTo).replace(/[\s\-().]/g, '');
+    if (to.startsWith('00')) to = '+' + to.slice(2);
+    else if (to.startsWith('0')) to = '+353' + to.slice(1);
+    else if (!to.startsWith('+') && to.startsWith('353')) to = '+' + to;
 
     // SECURITY: Validate phone number format (E.164 format)
     const phoneRegex = /^\+[1-9]\d{1,14}$/;

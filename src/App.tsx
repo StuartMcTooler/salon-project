@@ -37,6 +37,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import BrandPreviewLab from "./pages/BrandPreviewLab";
 import StripeNativeReturn from "./pages/StripeNativeReturn";
 import StaticInfo from "./pages/StaticInfo";
+import { SiteFooter } from "./components/SiteFooter";
 
 
 const queryClient = new QueryClient();
@@ -175,6 +176,7 @@ const App = () => (
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <SiteFooter />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

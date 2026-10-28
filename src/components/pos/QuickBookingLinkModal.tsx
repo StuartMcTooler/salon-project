@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { waDate, waTime, firstName } from '@/lib/whatsappTemplateVars';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { findOrCreateClient } from "@/lib/clientUtils";
@@ -76,6 +77,7 @@ export function QuickBookingLinkModal({
           message,
           businessId,
           messageType: "booking_link",
+          templateVariables: [firstName(name), staffMember.display_name, staffMember.id],
         },
       });
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { waDate, waTime, firstName } from '@/lib/whatsappTemplateVars';
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -78,6 +79,7 @@ export const AppointmentChangeNotification = ({
           message: message,
           businessId: businessId,
           messageType: 'appointment_change',
+          templateVariables: [firstName(updatedAppointment.customer_name), staffName || 'your barber', waDate(new Date(updatedAppointment.appointment_date)), waTime(new Date(updatedAppointment.appointment_date)), updatedAppointment.service_name || 'appointment'],
         },
       });
 

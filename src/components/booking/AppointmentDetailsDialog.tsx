@@ -478,6 +478,7 @@ export const AppointmentDetailsDialog = ({
           onClose={handleNotificationClose}
           originalAppointment={originalAppointment}
           updatedAppointment={updatedAppointment}
+          staffName={appointment?.staff?.display_name}
         />
       )}
     </>

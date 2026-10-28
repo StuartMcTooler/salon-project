@@ -32,6 +32,7 @@ interface AppointmentChangeNotificationProps {
     price: number;
   };
   businessId?: string;
+  staffName?: string;
 }
 
 export const AppointmentChangeNotification = ({
@@ -40,6 +41,7 @@ export const AppointmentChangeNotification = ({
   originalAppointment,
   updatedAppointment,
   businessId,
+  staffName,
 }: AppointmentChangeNotificationProps) => {
   const { toast } = useToast();
   const [sent, setSent] = useState(false);

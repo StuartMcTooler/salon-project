@@ -142,7 +142,8 @@ Deno.serve(async (req) => {
           body: {
             to: apt.customer_phone,
             message,
-            messageType: 'appointment_reminder_72h'
+            messageType: 'appointment_reminder_72h',
+            templateVariables: [apt.customer_name?.split(' ')[0] || 'there', staffName, formattedDate, formattedTime, apt.service_name || 'appointment'],
           }
         });
 
@@ -182,7 +183,8 @@ Deno.serve(async (req) => {
           body: {
             to: apt.customer_phone,
             message,
-            messageType: 'appointment_reminder_24h'
+            messageType: 'appointment_reminder_24h',
+            templateVariables: [apt.customer_name?.split(' ')[0] || 'there', staffName, formattedDate, formattedTime, apt.service_name || 'appointment'],
           }
         });
 

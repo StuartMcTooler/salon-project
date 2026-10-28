@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { waDate, waTime, firstName } from '@/lib/whatsappTemplateVars';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -63,7 +64,8 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
         .single();
 
       if (error) throw error;
-      return { ...data, newStatus: status };
+      const { data: staffRow } = await supabase.from('staff_members').select('display_name').eq('id', staffId).maybeSingle();
+      return { ...data, newStatus: status, staffName: staffRow?.display_name as string | undefined };
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['todays-appointments', staffId] });
@@ -88,7 +90,8 @@ export const TodaysAppointments = ({ staffId, onAppointmentSelect }: TodaysAppoi
           body: {
             to: data.customer_phone,
             message,
-            messageType: 'booking_cancelled'
+            messageType: 'booking_cancelled',
+            templateVariables: [firstName(data.customer_name), data.staffName || 'your barber', waDate(appointmentDate), waTime(appointmentDate)],
           }
         }).catch(err => console.error('[TodaysAppts] Failed to send cancellation SMS:', err));
         

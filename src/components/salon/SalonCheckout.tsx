@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { waDate, waTime, firstName } from '@/lib/whatsappTemplateVars';
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -556,7 +557,8 @@ export const SalonCheckout = ({ service, staff, pricing, user, portalClient, onB
               to: normalizePhoneNumber(customerPhone),
               message,
               businessId: staff.business_id,
-              messageType: 'booking_confirmation'
+              messageType: 'booking_confirmation',
+              templateVariables: [firstName(customerName), staff.display_name, waDate(appointmentDate), waTime(appointmentDate), service.name, 'https://bookd.ie/portal'],
             }
           });
         } catch (whatsappError) {

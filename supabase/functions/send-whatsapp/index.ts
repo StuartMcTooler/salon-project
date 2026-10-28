@@ -9,6 +9,17 @@ const corsHeaders = {
 // Message types that may be triggered by unauthenticated public booking flows
 const PUBLIC_MESSAGE_TYPES = new Set(['booking_confirmation']);
 
+// Meta-approved WhatsApp templates (Twilio Content SIDs) and their variable counts.
+// Staff invites intentionally stay on SMS (template rejected by Meta).
+const TEMPLATES: Record<string, { sid: string; count: number }> = {
+  booking_confirmation: { sid: 'HX682f93fc55d2f7624bd4a61fb137a72c', count: 6 }, // name, barber, date, time, service, portal URL
+  appointment_reminder_72h: { sid: 'HX1aad92683ef2cbdd87e8bf7e1115fc96', count: 5 }, // name, barber, date, time, service
+  appointment_reminder_24h: { sid: 'HX1aad92683ef2cbdd87e8bf7e1115fc96', count: 5 },
+  appointment_change: { sid: 'HXf562abd0bbdf2a1ab2f5da243b972181', count: 5 }, // name, barber, date, time, service
+  booking_cancelled: { sid: 'HXf932b931cbb9d7e6baf7ce38692bd6c8', count: 4 }, // name, barber, date, time
+  booking_link: { sid: 'HX17cf4ab5ebc022f093ee2ee0d165f005', count: 3 }, // name, barber, staff id
+};
+
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const MAX_MESSAGES_PER_PHONE = 5;
 const MAX_MESSAGES_PER_CALLER = 10;
@@ -19,7 +30,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { to: rawTo, message, businessId, messageType = 'general', mediaUrl } = await req.json();
+    const { to: rawTo, message, businessId, messageType = 'general', mediaUrl, templateVariables } = await req.json();
 
     // SECURITY: Validate required fields
     if (!rawTo || !message) {
@@ -188,30 +199,31 @@ Deno.serve(async (req) => {
 
 
 
-    // TEMPORARY: Force SMS-only while awaiting WhatsApp template approval
-    // Once templates are approved, restore business notification_method logic
-    const notificationMethod = 'sms_only';
-    console.log('Using SMS-only mode (WhatsApp templates pending approval)');
+    // WhatsApp via Meta-approved templates, SMS fallback.
+    // Only message types with an approved template AND a full set of variables go via WhatsApp.
+    const template = TEMPLATES[messageType];
+    const vars: string[] = Array.isArray(templateVariables)
+      ? templateVariables.map((v: unknown) => String(v ?? '').replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim().slice(0, 200))
+      : [];
+    const useWhatsApp = !!template && !!whatsappNumber && !mediaUrl
+      && vars.length === template.count && vars.every((v) => v.length > 0);
+    const notificationMethod = useWhatsApp ? 'hybrid' : 'sms_only';
 
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
     let deliveryMethod = 'whatsapp';
     let messageId = null;
     let errorMessage = null;
 
-    // Try WhatsApp first (unless SMS-only mode)
-    if (notificationMethod !== 'sms_only') {
+    if (useWhatsApp) {
       try {
-        const formattedTo = `whatsapp:${to}`;
-        const formattedFrom = `whatsapp:${whatsappNumber}`;
-        
+        const contentVariables: Record<string, string> = {};
+        vars.forEach((v, i) => { contentVariables[String(i + 1)] = v; });
+
         const formData = new URLSearchParams();
-        formData.append('To', formattedTo);
-        formData.append('From', formattedFrom);
-        formData.append('Body', sanitizedMessage);
-        
-        if (mediaUrl) {
-          formData.append('MediaUrl', mediaUrl);
-        }
+        formData.append('To', `whatsapp:${to}`);
+        formData.append('From', `whatsapp:${whatsappNumber}`);
+        formData.append('ContentSid', template!.sid);
+        formData.append('ContentVariables', JSON.stringify(contentVariables));
 
         const response = await fetch(twilioUrl, {
           method: 'POST',
@@ -225,25 +237,14 @@ Deno.serve(async (req) => {
         if (response.ok) {
           const data = await response.json();
           messageId = data.sid;
-          console.log('WhatsApp message sent successfully:', messageId);
+          console.log('WhatsApp template sent:', messageType, messageId);
         } else {
-          const errorText = await response.text();
-          console.log('WhatsApp failed, will try SMS:', errorText);
-          errorMessage = errorText;
-          
-          // Only fallback to SMS if hybrid mode
-          if (notificationMethod !== 'hybrid') {
-            throw new Error(`WhatsApp delivery failed: ${errorText}`);
-          }
+          errorMessage = await response.text();
+          console.log('WhatsApp failed, falling back to SMS:', errorMessage);
         }
       } catch (error) {
         console.error('WhatsApp error:', error);
         errorMessage = error instanceof Error ? error.message : 'WhatsApp failed';
-        
-        // Only fallback to SMS if hybrid mode
-        if (notificationMethod !== 'hybrid') {
-          throw error;
-        }
       }
     }
 

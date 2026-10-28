@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { waDate, waTime, firstName } from '@/lib/whatsappTemplateVars';
 import {
   Dialog,
   DialogContent,
@@ -134,7 +135,8 @@ export const AppointmentDetailsDialog = ({
             to: data.customerPhone,
             message,
             businessId: data.businessId,
-            messageType: 'booking_cancelled'
+            messageType: 'booking_cancelled',
+            templateVariables: [firstName(data.customerName), data.staffName, waDate(appointmentDate), waTime(appointmentDate)],
           }
         }).catch(err => console.error('[CANCEL] Failed to send customer SMS:', err));
       }
@@ -476,6 +478,7 @@ export const AppointmentDetailsDialog = ({
           onClose={handleNotificationClose}
           originalAppointment={originalAppointment}
           updatedAppointment={updatedAppointment}
+          staffName={appointment?.staff?.display_name}
         />
       )}
     </>

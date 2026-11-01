@@ -208,6 +208,7 @@ Deno.serve(async (req) => {
     const useWhatsApp = !!template && !!whatsappNumber && !mediaUrl
       && vars.length === template.count && vars.every((v) => v.length > 0);
     const notificationMethod = useWhatsApp ? 'hybrid' : 'sms_only';
+    console.log('Channel decision:', { messageType, hasTemplate: !!template, hasWaNumber: !!whatsappNumber, varCount: vars.length, emptyVars: vars.map((v, i) => v ? null : i + 1).filter(Boolean), useWhatsApp });
 
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
     let deliveryMethod = 'whatsapp';

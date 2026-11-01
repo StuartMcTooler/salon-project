@@ -33,16 +33,6 @@ Deno.serve(async (req) => {
     const reqBody = await req.json();
     const { to: rawTo, message, businessId, messageType = 'general', mediaUrl, templateVariables } = reqBody;
 
-    // TEMP diagnostic: look up delivery status of a sent message
-    if (typeof reqBody.checkSid === 'string' && /^(SM|MM)[0-9a-f]{32}$/.test(reqBody.checkSid)) {
-      const sid = Deno.env.get('TWILIO_ACCOUNT_SID')!;
-      const tok = Deno.env.get('TWILIO_AUTH_TOKEN')!;
-      const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages/${reqBody.checkSid}.json`, {
-        headers: { Authorization: 'Basic ' + btoa(`${sid}:${tok}`) },
-      });
-      const d = await r.json();
-      return new Response(JSON.stringify({ status: d.status, error_code: d.error_code, error_message: d.error_message }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
 
     // SECURITY: Validate required fields
     if (!rawTo || !message) {

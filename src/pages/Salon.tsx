@@ -31,6 +31,34 @@ const Salon = () => {
   const [portalClient, setPortalClient] = useState<any>(null);
   const [businessInfo, setBusinessInfo] = useState<{ name: string; logo_url: string | null } | null>(null);
 
+  type BusinessRow = {
+    id: string;
+    business_type: string;
+    business_name: string;
+    logo_url: string | null;
+  };
+
+  const applyBusiness = (business: BusinessRow) => {
+    setBusinessId(business.id);
+    setBusinessType(business.business_type);
+    setBusinessInfo({ name: business.business_name, logo_url: business.logo_url });
+  };
+
+  // The salon a booking belongs to is the one that employs the chosen stylist.
+  const syncBusinessFromStaff = async (staff: { business_id?: string | null } | null) => {
+    const staffBusinessId = staff?.business_id;
+    if (!staffBusinessId || staffBusinessId === businessId) return;
+    const { data } = await supabase
+      .from("business_accounts")
+      .select("id, business_type, business_name, logo_url")
+      .eq("id", staffBusinessId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (data) applyBusiness(data as BusinessRow);
+  };
+
+
+
   useEffect(() => {
     const checkAuthAndRole = async () => {
       try {
@@ -79,21 +107,21 @@ const Salon = () => {
           setIsAdmin(!!data);
         }
 
-        // Check if there's a business to book with
+        // Only brand this page with a salon when exactly one salon is on the
+        // platform. The stylist list below shows every active team member, so
+        // with several salons none of them owns this page until a stylist is
+        // picked (see syncBusinessFromStaff).
         const { data: businesses } = await supabase
           .from("business_accounts")
           .select("id, business_type, business_name, logo_url")
           .eq("is_active", true)
-          .limit(1);
+          .order("created_at", { ascending: true })
+          .limit(2);
 
-        if (businesses && businesses.length > 0) {
-          setBusinessId(businesses[0].id);
-          setBusinessType(businesses[0].business_type);
-          setBusinessInfo({ 
-            name: businesses[0].business_name, 
-            logo_url: businesses[0].logo_url 
-          });
+        if (businesses && businesses.length === 1) {
+          applyBusiness(businesses[0] as BusinessRow);
         }
+
       } catch (error) {
         console.error("Setup failed:", error);
         setLoading(false);
@@ -167,6 +195,8 @@ const Salon = () => {
 
   const handleStaffSelect = (staff: any, pricing?: any) => {
     setSelectedStaff(staff);
+    void syncBusinessFromStaff(staff);
+
     
     if (browsingMode === 'staff-first') {
       // Staff selected first, now show their services
@@ -233,7 +263,7 @@ const Salon = () => {
               <Scissors className="h-6 w-6 text-primary" />
             )}
             <div>
-              <h1 className="text-2xl font-bold">{businessInfo?.name || 'Salon Booking'}</h1>
+              <h1 className="text-2xl font-bold">{businessInfo?.name || 'Bookd'}</h1>
               {referralInfo && (
                 <p className="text-sm text-muted-foreground">
                   Referred by {referralInfo.referrer_name} 🎁
